@@ -96,7 +96,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         return loadFeature(featureName, null);
     }
 
-    Set<String> dependentFeatures(String featureName) {
+    List<String> dependentFeatures(String featureName) {
         return dependencyManager.getDependentFeatures(featureName);
     }
 
