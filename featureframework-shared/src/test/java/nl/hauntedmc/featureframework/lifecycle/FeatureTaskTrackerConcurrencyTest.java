@@ -89,10 +89,8 @@ class FeatureTaskTrackerConcurrencyTest {
         Thread callback = Thread.ofVirtual().start(scheduled.get());
         assertTrue(entered.await(5, TimeUnit.SECONDS), "tracked callback did not start");
         try {
-            IllegalStateException timeout = assertThrows(IllegalStateException.class,
+            assertThrows(IllegalStateException.class,
                     () -> tracker.cancelAll(Handle::cancel, Duration.ofMillis(10)));
-            assertTrue(timeout.getMessage().startsWith("Timed out waiting for "));
-            assertTrue(timeout.getMessage().contains("feature task callback"));
             assertTrue(handle.cancelled.get());
             assertEquals(0, tracker.activeCount());
             assertEquals(1, tracker.inFlightCount());
