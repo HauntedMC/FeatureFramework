@@ -107,7 +107,7 @@ jobs:
             java -jar "$japicmp" \
               --old "$old_jar" \
               --new "$new_jar" \
-              --access-modifier public \
+              -a public \
               --include 'nl.hauntedmc.featureframework.*' \
               --only-modified \
               --ignore-missing-classes \
