@@ -7,6 +7,7 @@ import nl.hauntedmc.featureframework.host.FeatureCollection;
 import nl.hauntedmc.featureframework.host.FeatureHost;
 import nl.hauntedmc.featureframework.host.FeatureScopeFactory;
 import nl.hauntedmc.featureframework.paper.command.sync.CommandSync;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureOperationExecutor;
 import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResources;
 import nl.hauntedmc.featureframework.paper.localization.PaperLocalization;
 import nl.hauntedmc.featureframework.paper.log.FeatureLogger;
@@ -35,6 +36,7 @@ public final class PaperFeatureHostComposition<
     private final FeatureHost<V, F, PaperFeatureContext<P, D>> host;
 
     private PaperFeatureHostComposition(Builder<P, V, F, D> builder) {
+        builder.runtime.lifecycle().bindExecutor(new PaperFeatureOperationExecutor(builder.plugin));
         scopes = new FeatureScopeFactory<>(
                 builder.configuration::openFeatureConfig,
                 builder.localization::openFeature,
@@ -173,7 +175,7 @@ public final class PaperFeatureHostComposition<
         }
 
         public Builder<P, V, F, D> dataRegistry(Supplier<?> supplier) {
-            dataRegistry = Objects.requireNonNull(supplier, "supplier");
+            dataRegistry = Objects.requireNonNull(supplier, "dataRegistry");
             return this;
         }
 
