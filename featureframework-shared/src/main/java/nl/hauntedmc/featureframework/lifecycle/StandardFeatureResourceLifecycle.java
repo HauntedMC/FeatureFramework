@@ -9,6 +9,12 @@ public final class StandardFeatureResourceLifecycle {
     private StandardFeatureResourceLifecycle() {
     }
 
+    /**
+     * Creates the standard lifecycle from positional callbacks.
+     *
+     * <p>This method is retained for source and binary compatibility. New framework code should use
+     * {@link #builder()} so lifecycle roles are named at the call site.</p>
+     */
     public static FeatureLifecycle create(
             Runnable listenerQuiesce,
             Runnable listenerCleanup,
@@ -39,6 +45,96 @@ public final class StandardFeatureResourceLifecycle {
         quiesce.add(require(cacheQuiesce));
         cleanup.add(require(cacheCleanup));
         return new FeatureLifecycle(quiesce, cleanup);
+    }
+
+    /** Returns a named builder for the standard resource lifecycle. */
+    public static Builder builder() {
+        return new Builder();
+    }
+
+    /**
+     * Named construction API for platform resource scopes.
+     *
+     * <p>Listeners, tasks, commands, services, and caches are required. Data callbacks are optional
+     * but must be configured as a pair. Pre-listener cleanup steps run after quiescing and before
+     * listener teardown, preserving the established Paper GUI shutdown ordering.</p>
+     */
+    public static final class Builder {
+        private Runnable listenerQuiesce;
+        private Runnable listenerCleanup;
+        private Runnable taskQuiesce;
+        private Runnable taskCleanup;
+        private Runnable commandQuiesce;
+        private Runnable commandCleanup;
+        private Runnable serviceQuiesce;
+        private Runnable serviceCleanup;
+        private Runnable dataQuiesce;
+        private Runnable dataCleanup;
+        private Runnable cacheQuiesce;
+        private Runnable cacheCleanup;
+        private final List<Runnable> cleanupBeforeListeners = new ArrayList<>();
+
+        private Builder() {
+        }
+
+        public Builder listeners(Runnable quiesce, Runnable cleanup) {
+            listenerQuiesce = Objects.requireNonNull(quiesce, "listener quiesce");
+            listenerCleanup = Objects.requireNonNull(cleanup, "listener cleanup");
+            return this;
+        }
+
+        public Builder tasks(Runnable quiesce, Runnable cleanup) {
+            taskQuiesce = Objects.requireNonNull(quiesce, "task quiesce");
+            taskCleanup = Objects.requireNonNull(cleanup, "task cleanup");
+            return this;
+        }
+
+        public Builder commands(Runnable quiesce, Runnable cleanup) {
+            commandQuiesce = Objects.requireNonNull(quiesce, "command quiesce");
+            commandCleanup = Objects.requireNonNull(cleanup, "command cleanup");
+            return this;
+        }
+
+        public Builder services(Runnable quiesce, Runnable cleanup) {
+            serviceQuiesce = Objects.requireNonNull(quiesce, "service quiesce");
+            serviceCleanup = Objects.requireNonNull(cleanup, "service cleanup");
+            return this;
+        }
+
+        public Builder data(Runnable quiesce, Runnable cleanup) {
+            dataQuiesce = Objects.requireNonNull(quiesce, "data quiesce");
+            dataCleanup = Objects.requireNonNull(cleanup, "data cleanup");
+            return this;
+        }
+
+        public Builder caches(Runnable quiesce, Runnable cleanup) {
+            cacheQuiesce = Objects.requireNonNull(quiesce, "cache quiesce");
+            cacheCleanup = Objects.requireNonNull(cleanup, "cache cleanup");
+            return this;
+        }
+
+        public Builder beforeListenerCleanup(Runnable cleanup) {
+            cleanupBeforeListeners.add(Objects.requireNonNull(cleanup, "pre-listener cleanup"));
+            return this;
+        }
+
+        public FeatureLifecycle build() {
+            return create(
+                    listenerQuiesce,
+                    listenerCleanup,
+                    taskQuiesce,
+                    taskCleanup,
+                    commandQuiesce,
+                    commandCleanup,
+                    serviceQuiesce,
+                    serviceCleanup,
+                    dataQuiesce,
+                    dataCleanup,
+                    cacheQuiesce,
+                    cacheCleanup,
+                    cleanupBeforeListeners
+            );
+        }
     }
 
     private static Runnable require(Runnable step) {
