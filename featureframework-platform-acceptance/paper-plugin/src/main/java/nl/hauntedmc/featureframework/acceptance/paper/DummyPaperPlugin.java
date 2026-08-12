@@ -55,11 +55,13 @@ public final class DummyPaperPlugin extends JavaPlugin {
         CapabilityRef<GreetingApi> reference = host.capabilities().reference(GreetingApi.class);
         long generation = reference.generation().orElseThrow();
         getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_READY platform=paper features=2");
-        Bukkit.getScheduler().runTaskLater(this, () -> verifyReload(reference, generation), 2L);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(
+                this, () -> verifyReload(reference, generation), 2L);
     }
 
     private void verifyReload(CapabilityRef<GreetingApi> reference, long initialGeneration) {
         try {
+            require(!Bukkit.isPrimaryThread(), "Reload caller was expected to be asynchronous");
             require(host.reloadFeature("Provider").success(), "Provider graph reload failed");
             require(Provider.starts.get() == 2 && Consumer.starts.get() == 2,
                     "Reload did not recreate provider and dependent");
@@ -88,11 +90,8 @@ public final class DummyPaperPlugin extends JavaPlugin {
         } finally {
             closeSubscription();
         }
-        if (failure == null) {
-            getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_STOPPED platform=paper");
-        } else {
-            fail(failure);
-        }
+        if (failure == null) getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_STOPPED platform=paper");
+        else fail(failure);
     }
 
     private void closeSubscription() {
@@ -110,6 +109,10 @@ public final class DummyPaperPlugin extends JavaPlugin {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new IllegalStateException(message);
+    }
+
+    private static void requirePrimaryThread(String phase) {
+        require(Bukkit.isPrimaryThread(), phase + " did not run on Paper's primary thread");
     }
 
     private static FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features() {
@@ -131,41 +134,36 @@ public final class DummyPaperPlugin extends JavaPlugin {
                 .build();
     }
 
-    /** Public contract published by the provider feature. */
-    public interface GreetingApi {
-        String greeting();
-    }
+    public interface GreetingApi { String greeting(); }
 
     public static final class Provider extends PaperFeature<Plugin, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
 
-        public Provider(PaperFeatureContext<Plugin, Void> context) {
-            super(context);
-        }
+        public Provider(PaperFeatureContext<Plugin, Void> context) { super(context); }
 
         @Override
         public void initialize() {
+            requirePrimaryThread("Provider initialize");
             int generation = starts.incrementAndGet();
             getContext().services().registerService(GreetingApi.class, () -> "paper-" + generation);
         }
 
-        @Override public void disable() { }
+        @Override public void disable() { requirePrimaryThread("Provider disable"); }
     }
 
     public static final class Consumer extends PaperFeature<Plugin, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile String lastGreeting;
 
-        public Consumer(PaperFeatureContext<Plugin, Void> context) {
-            super(context);
-        }
+        public Consumer(PaperFeatureContext<Plugin, Void> context) { super(context); }
 
         @Override
         public void initialize() {
+            requirePrimaryThread("Consumer initialize");
             lastGreeting = requireCapability(GreetingApi.class).greeting();
             starts.incrementAndGet();
         }
 
-        @Override public void disable() { }
+        @Override public void disable() { requirePrimaryThread("Consumer disable"); }
     }
 }
