@@ -4,7 +4,6 @@ import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.config.FeatureConfigurationRoot;
 import nl.hauntedmc.featureframework.feature.LifecycleFeature;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
-import nl.hauntedmc.featureframework.loader.FeatureDescriptor;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
