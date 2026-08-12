@@ -2,7 +2,7 @@
 
 The toolkit is the platform-neutral utility layer. It may depend on ordinary Java libraries and Adventure where the
 shared module already exposes Adventure-based text utilities, but it must not depend on Paper, Bukkit, Velocity, host
-bootstrap internals, platform lifecycle adapters, or optional plugin integrations.
+bootstrap internals, lifecycle orchestration, or optional plugin integrations.
 
 ## Scope
 
@@ -20,15 +20,17 @@ Primary toolkit areas are:
 
 ## Formatting
 
-`TextFormatter` is the string-oriented frontend and `ComponentFormatter` is the Adventure-component frontend. Public
-entry points stay separate because their output contracts differ. Shared parsing/normalization mechanics should live
-in internal formatting stages rather than being copied between the two facades.
+`TextFormatter` owns string normalization and conversion between legacy, MiniMessage, and plain text.
+`ComponentFormatter` owns Adventure parsing, feature allowlisting/sanitization, URL linking, and component
+serialization. `ComponentFormatter` delegates mixed-input normalization to `TextFormatter`; it should not acquire a
+second legacy-normalization implementation.
 
-Behavioral parity must be protected by golden tests before moving formatting stages. The objective is one source of
-truth for normalization, not one giant public formatter API.
+Keep the public entry points separate because their output contracts differ. Extract an internal formatting stage only
+when two implementations actually contain the same behavior. Behavioral parity must be protected by golden tests
+before moving such a stage.
 
 ## Internal decomposition
 
 Large implementation classes may be split under `internal.toolkit` without expanding the consumer API. Prefer small
 responsibilities such as representation, conversion/validation, serialization, persistence/atomic replacement, and
-cache metadata/TTL handling.
+cache metadata/TTL handling. Do not split a class merely to reduce line count if the new type would only forward calls.
