@@ -21,12 +21,15 @@ Each feature instance owns a resource scope. The scope transitions `OPEN -> QUIE
 in a deterministic order. Platform resource facades keep native manager types while the shared lifecycle core owns the
 common state machine and cleanup policy.
 
-The common policy is:
+The standard policy is:
 
 1. quiesce listeners, tasks, commands, services, optional data resources, and caches;
-2. unregister or cancel owned resources;
-3. run platform-specific final cleanup (for example Paper GUI shutdown);
-4. aggregate cleanup failures rather than silently abandoning later cleanup steps.
+2. run any established platform cleanup that must precede listener teardown (Paper GUI shutdown is the current case);
+3. unregister listeners, cancel tasks, unregister commands/services, then clean optional data resources and caches;
+4. attempt every cleanup step and rethrow the first failure with later failures suppressed.
+
+The pre-listener hook exists to preserve platform teardown semantics; it is not a generic extension point for arbitrary
+feature cleanup.
 
 ## Tasks
 
