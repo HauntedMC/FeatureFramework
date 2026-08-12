@@ -5,6 +5,7 @@ import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycle;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
+import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 
 import java.util.List;
@@ -36,19 +37,21 @@ public class VelocityFeatureResources<D> implements FeatureLifecycleResources {
         this.dataManager = dataManager;
         this.cacheManager = Objects.requireNonNull(cacheManager, "cacheManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
-        java.util.ArrayList<Runnable> quiesce = new java.util.ArrayList<>(List.of(
-                listenerManager::quiesce, taskManager::quiesce, commandManager::quiesce,
-                apiManager::quiesce));
-        java.util.ArrayList<Runnable> cleanup = new java.util.ArrayList<>(List.of(
-                listenerManager::unregisterAllListeners, taskManager::cancelAllTasks,
-                commandManager::unregisterAllBrigadierCommands, apiManager::unregisterAllServices));
-        if (dataManager != null) {
-            quiesce.add(Objects.requireNonNull(quiesceData, "quiesceData"));
-            cleanup.add(Objects.requireNonNull(cleanupData, "cleanupData"));
-        }
-        quiesce.add(cacheManager::quiesce);
-        cleanup.add(cacheManager::cleanupAll);
-        lifecycle = new FeatureLifecycle(quiesce, cleanup);
+        lifecycle = StandardFeatureResourceLifecycle.create(
+                listenerManager::quiesce,
+                listenerManager::unregisterAllListeners,
+                taskManager::quiesce,
+                taskManager::cancelAllTasks,
+                commandManager::quiesce,
+                commandManager::unregisterAllBrigadierCommands,
+                apiManager::quiesce,
+                apiManager::unregisterAllServices,
+                dataManager == null ? null : Objects.requireNonNull(quiesceData, "quiesceData"),
+                dataManager == null ? null : Objects.requireNonNull(cleanupData, "cleanupData"),
+                cacheManager::quiesce,
+                cacheManager::cleanupAll,
+                List.of()
+        );
     }
 
     public FeatureTaskManager getTaskManager() { return taskManager; }
