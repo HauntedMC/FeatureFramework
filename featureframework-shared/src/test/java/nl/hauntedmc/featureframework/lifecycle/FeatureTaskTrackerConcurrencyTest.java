@@ -10,9 +10,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,6 +70,86 @@ class FeatureTaskTrackerConcurrencyTest {
         assertEquals(Set.of(first, second), observed);
         assertEquals(2, tracker.activeCount(), "failed native cancellations must remain tracked");
         assertEquals(FeatureResourceState.QUIESCING, tracker.state());
+    }
+
+    @Test
+    void cancelAllTimesOutWhileCallbackIsInFlightAndCanCloseAfterDrain() throws Exception {
+        FeatureTaskTracker<Handle> tracker = new FeatureTaskTracker<>();
+        AtomicReference<Runnable> scheduled = new AtomicReference<>();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        Handle handle = tracker.scheduleRepeating(runnable -> {
+            scheduled.set(runnable);
+            return new Handle();
+        }, () -> {
+            entered.countDown();
+            await(release);
+        }, Handle::cancel);
+
+        Thread callback = Thread.ofVirtual().start(scheduled.get());
+        assertTrue(entered.await(5, TimeUnit.SECONDS), "tracked callback did not start");
+        try {
+            IllegalStateException timeout = assertThrows(IllegalStateException.class,
+                    () -> tracker.cancelAll(Handle::cancel, Duration.ofMillis(10)));
+            assertTrue(timeout.getMessage().contains("Timed out waiting for feature tasks to drain"));
+            assertTrue(handle.cancelled.get());
+            assertEquals(0, tracker.activeCount());
+            assertEquals(1, tracker.inFlightCount());
+            assertEquals(FeatureResourceState.QUIESCING, tracker.state());
+        } finally {
+            release.countDown();
+        }
+
+        callback.join(5_000L);
+        assertFalse(callback.isAlive(), "tracked callback did not finish");
+        assertEquals(0, tracker.inFlightCount());
+
+        tracker.cancelAll(Handle::cancel, Duration.ZERO);
+        assertEquals(FeatureResourceState.CLOSED, tracker.state());
+    }
+
+    @Test
+    void cancelAllDoesNotLoseInterruptedStatusWhileDraining() throws Exception {
+        FeatureTaskTracker<Handle> tracker = new FeatureTaskTracker<>();
+        AtomicReference<Runnable> scheduled = new AtomicReference<>();
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        tracker.scheduleRepeating(runnable -> {
+            scheduled.set(runnable);
+            return new Handle();
+        }, () -> {
+            entered.countDown();
+            await(release);
+        }, Handle::cancel);
+
+        Thread callback = Thread.ofVirtual().start(scheduled.get());
+        assertTrue(entered.await(5, TimeUnit.SECONDS), "tracked callback did not start");
+
+        AtomicBoolean interruptedAfterDrain = new AtomicBoolean();
+        AtomicReference<Throwable> workerFailure = new AtomicReference<>();
+        CountDownLatch workerStarted = new CountDownLatch(1);
+        Thread worker = Thread.ofVirtual().start(() -> {
+            workerStarted.countDown();
+            try {
+                tracker.cancelAll(Handle::cancel, Duration.ofSeconds(5));
+                interruptedAfterDrain.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable failure) {
+                workerFailure.set(failure);
+            }
+        });
+
+        assertTrue(workerStarted.await(5, TimeUnit.SECONDS), "drain worker did not start");
+        worker.interrupt();
+        release.countDown();
+
+        worker.join(5_000L);
+        callback.join(5_000L);
+        assertFalse(worker.isAlive(), "drain worker did not finish");
+        assertFalse(callback.isAlive(), "tracked callback did not finish");
+        assertNull(workerFailure.get());
+        assertTrue(interruptedAfterDrain.get(), "drain must restore the worker interrupted status");
+        assertEquals(FeatureResourceState.CLOSED, tracker.state());
+        assertEquals(0, tracker.inFlightCount());
     }
 
     private static void await(CountDownLatch latch) {
