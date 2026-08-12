@@ -3,7 +3,7 @@ package nl.hauntedmc.featureframework.velocity.lifecycle;
 import com.velocitypowered.api.scheduler.ScheduledTask;
 import com.velocitypowered.api.scheduler.Scheduler;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
-import nl.hauntedmc.featureframework.spi.lifecycle.TaskLifecycleCore;
+import nl.hauntedmc.featureframework.lifecycle.FeatureTaskTracker;
 
 import java.time.Duration;
 import java.util.Objects;
@@ -12,7 +12,7 @@ import java.util.Objects;
 public class FeatureTaskManager {
     private final Scheduler scheduler;
     private final Object plugin;
-    private final TaskLifecycleCore<ScheduledTask> lifecycle = new TaskLifecycleCore<>();
+    private final FeatureTaskTracker<ScheduledTask> tracker = new FeatureTaskTracker<>();
 
     public FeatureTaskManager(Scheduler scheduler, Object plugin) {
         this.scheduler = Objects.requireNonNull(scheduler, "scheduler");
@@ -21,14 +21,14 @@ public class FeatureTaskManager {
 
     public ScheduledTask scheduleTask(Runnable task) {
         Objects.requireNonNull(task, "task");
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> scheduler.buildTask(plugin, runnable).schedule(), task, ScheduledTask::cancel);
     }
 
     public ScheduledTask scheduleDelayedTask(Runnable task, Duration delay) {
         Objects.requireNonNull(task, "task");
         Duration clamped = clampDelay(delay);
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> scheduler.buildTask(plugin, runnable).delay(clamped).schedule(),
                 task, ScheduledTask::cancel);
     }
@@ -41,7 +41,7 @@ public class FeatureTaskManager {
         Objects.requireNonNull(task, "task");
         Duration clampedDelay = clampDelay(delay);
         Duration clampedPeriod = clampPeriod(period);
-        return lifecycle.scheduleRepeating(
+        return tracker.scheduleRepeating(
                 runnable -> scheduler.buildTask(plugin, runnable)
                         .delay(clampedDelay)
                         .repeat(clampedPeriod)
@@ -49,12 +49,12 @@ public class FeatureTaskManager {
                 task, ScheduledTask::cancel);
     }
 
-    public void cancelTask(ScheduledTask task) { lifecycle.cancel(task, ScheduledTask::cancel); }
-    public void quiesce() { lifecycle.quiesce(); }
-    public void cancelAllTasks() { lifecycle.cancelAll(ScheduledTask::cancel); }
-    public int getActiveTaskCount() { return lifecycle.activeCount(); }
-    public int getInFlightTaskCount() { return lifecycle.inFlightCount(); }
-    public FeatureResourceState state() { return lifecycle.state(); }
+    public void cancelTask(ScheduledTask task) { tracker.cancel(task, ScheduledTask::cancel); }
+    public void quiesce() { tracker.quiesce(); }
+    public void cancelAllTasks() { tracker.cancelAll(ScheduledTask::cancel); }
+    public int getActiveTaskCount() { return tracker.activeCount(); }
+    public int getInFlightTaskCount() { return tracker.inFlightCount(); }
+    public FeatureResourceState state() { return tracker.state(); }
 
     private static Duration clampDelay(Duration duration) {
         if (duration == null || duration.isNegative()) return Duration.ZERO;
