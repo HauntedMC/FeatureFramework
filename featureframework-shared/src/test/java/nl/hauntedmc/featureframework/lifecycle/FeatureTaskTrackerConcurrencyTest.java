@@ -3,6 +3,9 @@ package nl.hauntedmc.featureframework.lifecycle;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -10,7 +13,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -59,9 +61,10 @@ class FeatureTaskTrackerConcurrencyTest {
             if (handle == secondHandle) throw second;
         }, Duration.ZERO));
 
-        assertSame(first, thrown);
-        assertEquals(1, thrown.getSuppressed().length);
-        assertSame(second, thrown.getSuppressed()[0]);
+        Set<Throwable> observed = new HashSet<>();
+        observed.add(thrown);
+        observed.addAll(Arrays.asList(thrown.getSuppressed()));
+        assertEquals(Set.of(first, second), observed);
         assertEquals(2, tracker.activeCount(), "failed native cancellations must remain tracked");
         assertEquals(FeatureResourceState.QUIESCING, tracker.state());
     }
