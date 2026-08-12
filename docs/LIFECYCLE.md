@@ -18,8 +18,8 @@ This ordering is intentional: a worker must never hold the graph lock while wait
 ## Resource scopes
 
 Each feature instance owns a resource scope. The scope transitions `OPEN -> QUIESCING -> CLOSED` and releases resources
-in a deterministic order. Platform resource facades keep native manager types while the shared lifecycle core owns the
-common state machine and cleanup policy.
+in a deterministic order. `StandardFeatureResourceLifecycle` builds the shared policy while Paper and Velocity resource
+facades retain their native manager types.
 
 The standard policy is:
 
@@ -33,13 +33,15 @@ feature cleanup.
 
 ## Tasks
 
-`TaskLifecycleCore` owns registration races, one-shot completion, in-flight accounting, quiescing, cancellation, and
-bounded draining. Native scheduling remains native:
+`FeatureTaskTracker<H>` owns registration races, one-shot completion, in-flight accounting, quiescing, cancellation,
+and bounded draining for a native task-handle type `H`. Platform task managers supply only native scheduling and
+cancellation operations:
 
 - Paper uses Bukkit scheduler primitives and Bukkit tick semantics;
 - Velocity uses Velocity's scheduler and `Duration` semantics.
 
-Do not add a universal scheduler API merely to make the method names match.
+Do not add a wrapper or universal scheduler API merely to make the method names match. New shared lifecycle abstractions
+should centralize behavior that is not already owned by `FeatureTaskTracker` or `StandardFeatureResourceLifecycle`.
 
 ## Reload contract
 
