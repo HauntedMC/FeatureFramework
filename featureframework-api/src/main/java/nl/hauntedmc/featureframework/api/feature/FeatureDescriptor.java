@@ -3,7 +3,13 @@ package nl.hauntedmc.featureframework.api.feature;
 import java.util.Objects;
 import java.util.Set;
 
-/** Immutable public metadata for a built-in feature. */
+/**
+ * Immutable, implementation-free metadata published through the public feature catalog.
+ *
+ * <p>This type describes a feature to API consumers and intentionally contains no implementation
+ * class or construction callback. It is distinct from the host construction descriptor named
+ * {@code nl.hauntedmc.featureframework.loader.FeatureDescriptor}.</p>
+ */
 public record FeatureDescriptor(
         FeatureId id,
         String displayName,

@@ -7,6 +7,10 @@ catalogs, domain APIs, persistence entities, commands, and concrete behavior. Th
 dependency inversion: shared code defines small contracts and platform modules adapt them to Paper or
 Velocity.
 
+The 1.1 architecture deliberately maximizes shared implementation without pretending Paper and
+Velocity have the same execution model. Common ownership, graph, scope, and composition mechanics live
+once in `shared`; native platform objects and thread requirements remain in their adapters.
+
 ## Dependency direction
 
 ```text
@@ -23,38 +27,69 @@ Paper application        Velocity application
 ```
 
 Dependency-free integration contracts belong in `api`; cross-platform implementation belongs in
-`shared`. A class belongs in a platform module only when its public
-contract mentions that platform. Concrete feature registration and the plugin bootstrap always remain
-in the consumer.
+`shared`. A class belongs in a platform module when its contract or implementation requires that
+platform. Paper and Velocity modules must not import each other. Source-boundary tests enforce these
+rules and also prevent the shared host façade from reabsorbing low-level graph mechanics.
 
 FeatureFramework owns mechanics, not business vocabulary. Economy, admission, queue, sanctions,
 presence, and similar capability contracts remain in their product/domain API even when more than one
 plugin consumes them. Product API roots extend `FeatureFrameworkApi<V>` and add only their version
 type and domain capabilities.
 
-## Lifecycle model
+## Host responsibilities
 
-Features implement the neutral `Feature` contract. Generic `FeatureDescriptor<F, C>` and
-`FeatureRegistry<F, D>` types provide reflection-free construction and defensive, synchronized
-runtime registration. `ManagedFeatureContext`, `PaperFeatureContext`, and `VelocityFeatureContext`
-carry descriptor, configuration, localization, resource, capability, and internal-service state, so
-consumers do not define parallel context records.
-Resources move through `OPEN`, `QUIESCING`, and `CLOSED`. `FeatureLifecycle` aggregates failure-safe
-quiesce/cleanup, while platform command, listener, and task managers own platform handles.
+`FeatureHost` is the public platform-neutral orchestration façade. It owns operation serialization,
+runtime state transitions, host-level reload hooks, and the public framework API. Its implementation is
+split into two package-private collaborators:
+
+- `FeatureInventory` owns discovery, the available/loaded registry view, key resolution, load ordering,
+  dependency diagnostics, plugin-dependency checks, and public catalog registration.
+- `FeatureInstanceController` owns live feature preparation, dependency-aware construction and
+  activation, snapshot-backed reload transactions, and instance shutdown/removal.
+
+Keeping those collaborators package-private avoids adding public API surface merely to improve internal
+maintainability. `FeatureHostComposition` owns the platform-neutral composition algorithm used by both
+platform façades: scope factories, context assembly, host callbacks, reload wiring, and scope clearing.
+`PaperFeatureHostComposition` and `VelocityFeatureHostComposition` only provide native platform
+factories and hooks.
+
+## Lifecycle and execution model
+
+Features implement the neutral `Feature` contract. The construction descriptor
+`nl.hauntedmc.featureframework.loader.FeatureDescriptor<F, C>` contains the implementation class,
+constructor, and dependency declarations needed by the host. It is distinct from
+`nl.hauntedmc.featureframework.api.feature.FeatureDescriptor`, which is implementation-free metadata
+published through the public catalog.
+
+`ManagedFeatureContext`, `PaperFeatureContext`, and `VelocityFeatureContext` carry descriptor,
+configuration, localization, resource, capability, and internal-service state, so consumers do not
+define parallel context records.
+
+Resources move through `OPEN`, `QUIESCING`, and `CLOSED`. Shared ownership infrastructure now contains
+the state machines that do not depend on native platform types:
+
+- `FeatureTaskTracker<H>` owns task registration races, in-flight accounting, quiescing, cancellation,
+  and bounded draining while adapters supply native scheduling/cancellation callbacks.
+- `FeatureRegistrationTracker<T>` owns listener-registration state and cleanup bookkeeping.
+- `StandardFeatureResourceLifecycle` owns the standard quiesce/cleanup ordering.
+- `FeatureResourceFactoryCore` creates common service, cache, and data-resource pieces.
+
+Platform task/listener/command managers retain only native scheduling, registration, command dispatch,
+and handle types. Paper GUI cleanup is an additional Paper-only resource action.
+
+`LifecycleCoordinator` serializes host graph mutations, but serialization is intentionally separate
+from execution affinity. `FeatureOperationExecutor` is entered before the graph lock is acquired.
+Paper binds `PaperFeatureOperationExecutor`: a lifecycle call made off the Bukkit primary thread is
+scheduled onto that thread and the caller synchronously waits for completion. A call already on the
+primary thread executes directly. Velocity retains the shared direct executor, so it does not pay for
+an invented main-thread hop. Native task scheduling remains asynchronous/synchronous according to the
+platform-specific task API. See `THREADING.md` for the detailed contract and deadlock rule.
+
 `LifecycleFeature` gives Paper and Velocity feature bases one shutdown policy: quiesce ingress,
-withdraw services, run feature cleanup, then release framework resources. `PaperFeature` and
-`VelocityFeature` add typed plugin, logger, localization, and resource access. Their
-`PaperDataRegistryFeature` and `VelocityDataRegistryFeature` specializations also own scheduler,
-logging, host-readiness, and player-lookup plumbing for DataRegistry identity gates. Their
-`PaperDataProviderFeature` and `VelocityDataProviderFeature` specializations provide the standard
-framework data-manager type used by both products. Typed contexts receive product API lookups at host
-composition, so consumers do not repeat lifecycle or platform-integration mechanics. Loading
-uses shared key resolution, dependency diagnostics/traversal, topological ordering, dependent closure,
-and ordered graph start/stop helpers. Reload operations return typed result records.
-`FeatureStartupCoordinator` owns construction-through-activation rollback semantics,
-`FeatureOperationCoordinator` owns enable/disable/reload cascades, and `FeatureReloadState` prevents
-platform loaders from maintaining subtly different state machines. Platform loaders are composition
-roots: they supply construction, registration, platform-dependency, and logging callbacks.
+withdraw services, run feature cleanup, then release framework resources. Loading uses shared key
+resolution, dependency diagnostics/traversal, topological ordering, dependent closure, and ordered
+graph start/stop helpers. `FeatureStartupCoordinator` owns construction-through-activation rollback
+semantics and `FeatureOperationCoordinator` owns administrative enable/disable/reload cascades.
 
 Runtime-only collaboration uses `InternalServiceRegistry<O>`. `FeatureServiceManager<O>` applies the
 same staged activation and cleanup policy to public and internal registries through the
@@ -78,16 +113,12 @@ Administrative command front ends remain platform bindings, while `FeatureComman
 `FeatureCommandView`, and `FeatureOperationMessages` own platform-neutral lookup, suggestions,
 rendering, and operation-result mapping.
 
+## Consumer boundary
+
 `FeatureDefinition` removes product-specific manifest record boilerplate and `FeatureCollection` lets a
-plugin compose one or more feature packs into one artifact. `FeatureHost` is the platform-neutral graph
-owner: it performs discovery, storage preparation, configured enablement, dependency loading, catalog
-transitions, staged service activation, reload/rollback, and reverse shutdown. The `PaperFeatureHost`
-and `VelocityFeatureHost` adapters provide complete default composition roots. Products that need a
-custom API version or DataProvider policy use `PaperFeatureHostComposition` or
-`VelocityFeatureHostComposition`; those classes assemble `FeatureHost`, `FeatureScopeFactory`, typed
-platform contexts, platform resource factories, reload hooks, and platform-dependency checks. No
-graph, scope, lifecycle, configuration, localization, command-ownership, or service-registry
-implementation remains in the product.
+plugin compose one or more feature packs into one artifact. Consumers should use `PaperFeatureHost`,
+`VelocityFeatureHost`, or the corresponding composition type rather than owning a parallel graph or
+scope implementation.
 
 Consumer-side classes are permitted only as application composition or concrete behavior: plugin
 bootstrap and metadata, feature collections, domain capability contracts/adapters, persistence
@@ -96,10 +127,10 @@ must not be reimplemented there.
 
 Applications retain no framework feature base or framework `host` package. Their concrete features
 extend the corresponding FeatureFramework platform base directly, while bootstrap composition selects
-an optional DataRegistry plugin. Compatibility accessors, DataRegistry discovery/gate plumbing,
-player-reference resolution, proxy access, DataProvider discovery, feature contexts,
-configuration/localization handlers, resource managers, graph loaders, descriptors, registries, and
-capability implementations are framework-owned.
+optional DataProvider/DataRegistry integration. Compatibility accessors, DataRegistry gate plumbing,
+player-reference resolution, proxy access, feature contexts, configuration/localization handlers,
+resource managers, graph loaders, construction descriptors, registries, and capability implementations
+are framework-owned.
 
 ## Compatibility and packaging
 
@@ -107,11 +138,21 @@ Platform dependencies use `provided` scope. Consumers shade framework artifacts 
 Paper or Velocity API. Public framework packages use `nl.hauntedmc.featureframework`; consumer domain
 APIs retain their own namespaces. Releases publish normal, source, and Javadoc artifacts.
 
+The `API Compatibility` workflow builds the tagged `v1.0.0` baseline and the current branch, then
+compares every published framework module's public classes. Binary or source incompatible public API
+changes fail CI. Internal refactors should therefore prefer package-private implementation classes and
+preserve existing public façades unless a deliberate major-version change is planned.
+
 ## Acceptance boundary
 
 The `platform-acceptance` Maven profile packages independent dummy Paper and Velocity plugins. Each
 plugin hosts a two-feature collection: a provider publishes a public capability and a consumer declares
-and resolves it. The fixture then reloads the provider graph and asserts dependent recreation, stable
-capability-reference generation changes, `FeatureCatalogListener` transitions, and clean host shutdown
-against pinned real platform runtimes. This verifies the framework as a standalone consumer dependency,
-not merely as code reached through an application project.
+and resolves it. The fixtures exercise a real repeating task, listener, Brigadier command, and service,
+then reload the provider graph and assert the retired resource scope is `CLOSED` with no owned handles
+remaining. They repeat the cleanup assertions on final host shutdown.
+
+Paper additionally initiates reload from an asynchronous scheduler thread and asserts feature
+initialize/disable callbacks execute on Bukkit's primary thread. Velocity performs the same graph and
+resource lifecycle without a synthetic main-thread policy. Both fixtures verify dependent recreation,
+stable capability-reference generation changes, public catalog transitions, and clean host shutdown
+against pinned real platform runtimes.

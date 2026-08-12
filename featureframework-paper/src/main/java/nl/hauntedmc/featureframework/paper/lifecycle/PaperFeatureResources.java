@@ -5,11 +5,11 @@ import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycle;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
+import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.paper.command.FeatureCommandManager;
 import nl.hauntedmc.featureframework.paper.ui.inventory.menu.FeatureGUIManager;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -43,19 +43,21 @@ public class PaperFeatureResources<D> implements FeatureLifecycleResources {
         this.guiManager = Objects.requireNonNull(guiManager, "guiManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
         listenerManager.registerListener(guiManager);
-
-        List<Runnable> quiesce = new ArrayList<>(List.of(
-                listenerManager::quiesce, taskManager::quiesce, commandManager::quiesce, apiManager::quiesce));
-        List<Runnable> cleanup = new ArrayList<>(List.of(
-                guiManager::shutdown, listenerManager::unregisterAllListeners, taskManager::cancelAllTasks,
-                commandManager::unregisterAllBrigadierCommands, apiManager::unregisterAllServices));
-        if (dataManager != null) {
-            quiesce.add(Objects.requireNonNull(quiesceData, "quiesceData"));
-            cleanup.add(Objects.requireNonNull(cleanupData, "cleanupData"));
-        }
-        quiesce.add(cacheManager::quiesce);
-        cleanup.add(cacheManager::cleanupAll);
-        lifecycle = new FeatureLifecycle(quiesce, cleanup);
+        lifecycle = StandardFeatureResourceLifecycle.create(
+                listenerManager::quiesce,
+                listenerManager::unregisterAllListeners,
+                taskManager::quiesce,
+                taskManager::cancelAllTasks,
+                commandManager::quiesce,
+                commandManager::unregisterAllBrigadierCommands,
+                apiManager::quiesce,
+                apiManager::unregisterAllServices,
+                dataManager == null ? null : Objects.requireNonNull(quiesceData, "quiesceData"),
+                dataManager == null ? null : Objects.requireNonNull(cleanupData, "cleanupData"),
+                cacheManager::quiesce,
+                cacheManager::cleanupAll,
+                List.of(guiManager::shutdown)
+        );
     }
 
     public FeatureTaskManager getTaskManager() { return taskManager; }

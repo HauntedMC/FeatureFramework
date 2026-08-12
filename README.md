@@ -15,21 +15,23 @@ its own shaded JAR.
 - `featureframework-api` — dependency-free public runtime API: feature catalog models, runtime
   state/failures, stable feature identifiers, and capability registry contracts.
 - `featureframework-shared` — feature contracts, typed definitions and collections, the reusable
-  multi-feature host, lifecycle and graph/loading algorithms, capability/catalog implementations, owned service
-  publication, startup/rollback coordination, administrative command models, safe YAML configuration,
-  localization storage and component rendering, cache, HTTP, text, token, and testable utilities.
-- `featureframework-paper` — ready-to-use Paper feature/host contexts, schedulers, feature-owned
-  commands and listeners, Brigadier dispatch/takeover, logging, packets, registries, clocks, UI,
-  previews, and toast adapters.
-- `featureframework-velocity` — ready-to-use Velocity feature/host contexts, schedulers,
-  feature-owned commands and listeners, Brigadier adapters, command ownership, feature and structured
-  connection logging, and network utilities.
+  multi-feature host, host composition, lifecycle ownership trackers, graph/loading algorithms,
+  capability/catalog implementations, owned service publication, startup/rollback coordination,
+  administrative command models, safe YAML configuration, localization storage and component
+  rendering, cache, HTTP, text, token, and testable utilities.
+- `featureframework-paper` — ready-to-use Paper feature/host contexts, primary-thread lifecycle
+  execution, schedulers, feature-owned commands and listeners, Brigadier dispatch/takeover, logging,
+  packets, registries, clocks, UI, previews, and toast adapters.
+- `featureframework-velocity` — ready-to-use Velocity feature/host contexts, direct lifecycle
+  execution, schedulers, feature-owned commands and listeners, Brigadier adapters, command ownership,
+  feature and structured connection logging, and network utilities.
 - `featureframework-testkit` — reusable interface proxies and filesystem test fixtures.
 - `featureframework-mockito-testkit` — opt-in coverage-friendly Mockito extension used by test suites
   that cannot use the inline mock maker.
 
 The dependency rule is strict: `shared` depends on `api`, platform modules depend on `shared`, and
-neither `api` nor `shared` knows a Minecraft platform. No framework module contains application
+neither `api` nor `shared` knows a Minecraft platform. Paper and Velocity adapters must not depend on
+each other. Architecture tests enforce these boundaries. No framework module contains application
 features, plugin bootstrap code, or domain capability contracts.
 
 ## Consumer setup
@@ -97,10 +99,15 @@ disable, soft reload, graph reload, stable capability references, and catalog su
 implementations register commands, listeners, tasks, caches, and services through their scoped context;
 the host releases those resources on reload or shutdown.
 
+Paper host lifecycle operations are synchronous and execute on Bukkit's primary thread even when the
+caller is asynchronous. Velocity host lifecycle operations execute directly on the caller without a
+synthetic main-thread hop. Scheduling APIs remain native to each platform. See
+[Threading](docs/THREADING.md) for the exact contract.
+
 Use `PaperFeatureHostComposition` or `VelocityFeatureHostComposition` when the application needs a
 custom API version, localization policy, DataProvider resources, or optional DataRegistry discovery.
-Those compositions keep context creation, graph ownership, dependency checks, and resource lifecycle
-inside FeatureFramework.
+The public platform façades stay typed, while shared `FeatureHostComposition` owns their common scope
+and host wiring.
 
 Build everything with:
 
@@ -114,6 +121,9 @@ For a release candidate, run the same release-artifact profile used by GitHub fr
 ./mvnw -Prelease clean verify
 ```
 
+Pull requests also run a public API compatibility gate against the `v1.0.0` baseline. Binary or source
+incompatibilities in published framework types fail that gate rather than relying on review alone.
+
 Publishing is tag-driven: first set `<revision>` in the root `pom.xml` to the intended release
 version, then push the matching `vMAJOR.MINOR.PATCH` tag. GitHub runs the release build, the platform
 acceptance gate, and then deploys the verified artifacts to GitHub Packages.
@@ -124,7 +134,9 @@ Compile and boot independent dummy Paper and Velocity consumers with pinned real
 ./mvnw -Pplatform-acceptance clean verify
 ```
 
-The platform acceptance profile does not require Docker or an external database.
+The platform acceptance profile verifies graph reloads, platform execution semantics, and cleanup of
+feature-owned tasks, listeners, commands, and services. It does not require Docker or an external
+database.
 
-See [Architecture](docs/ARCHITECTURE.md), [Migration guide](docs/MIGRATION.md),
-[Contributing](CONTRIBUTING.md), and [Security](SECURITY.md).
+See [Architecture](docs/ARCHITECTURE.md), [Threading](docs/THREADING.md),
+[Migration guide](docs/MIGRATION.md), [Contributing](CONTRIBUTING.md), and [Security](SECURITY.md).

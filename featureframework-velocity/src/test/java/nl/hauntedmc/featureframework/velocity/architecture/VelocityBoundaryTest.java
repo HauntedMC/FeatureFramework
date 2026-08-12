@@ -11,7 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class VelocityBoundaryTest {
     @Test
     void velocityAdapterHasNoPaperKnowledge() throws IOException {
-        assertSourcesExclude("org.bukkit", "io.papermc");
+        assertSourcesExclude(
+                "org.bukkit",
+                "io.papermc",
+                "nl.hauntedmc.featureframework.paper"
+        );
     }
 
     private static void assertSourcesExclude(String... forbidden) throws IOException {

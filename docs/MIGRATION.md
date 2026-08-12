@@ -12,14 +12,28 @@ removing duplicated framework infrastructure from an application module.
 
 ## Move to FeatureFramework
 
-- feature contexts, scopes, descriptors, registries, graph loading, and lifecycle coordination;
+- feature contexts, scopes, construction descriptors, registries, graph loading, and lifecycle
+  coordination;
 - configuration/localization storage, capability publication, command models, and resource cleanup;
 - reusable platform adapters for Paper or Velocity;
 - DataProvider resource assembly and optional DataRegistry discovery/gate plumbing.
 
 Concrete features should extend `PaperDataProviderFeature` or `VelocityDataProviderFeature` directly
 when they use the standard data integration. Use `PaperFeature` or `VelocityFeature` for features
-without that dependency. Do not recreate a local base-feature, context, host, or manager hierarchy.
+without that dependency. Do not recreate a local base-feature, context, host, lifecycle tracker, or
+manager hierarchy.
+
+## Descriptor terminology
+
+FeatureFramework exposes two intentionally different descriptor types for compatibility:
+
+- `nl.hauntedmc.featureframework.loader.FeatureDescriptor<F, C>` is the host construction descriptor.
+  It contains the concrete feature type, constructor, and required/optional/plugin dependencies.
+- `nl.hauntedmc.featureframework.api.feature.FeatureDescriptor` is implementation-free public catalog
+  metadata. It is safe to expose to consumers of `FeatureFrameworkApi`.
+
+Use `FeatureDefinition` in application composition instead of constructing either descriptor directly
+unless you are implementing framework-level infrastructure.
 
 ## Migration steps
 
@@ -31,11 +45,25 @@ without that dependency. Do not recreate a local base-feature, context, host, or
 4. Migrate concrete features to the framework platform base and receive dependencies through their
    typed context rather than static application lookups.
 5. Register tasks, listeners, commands, services, caches, and data connections through the scoped
-   framework resources so reload and disable can clean them up.
+   framework resources so reload and disable own their complete cleanup lifecycle.
 6. Keep domain capability interfaces in the application API; publish them through the framework
    capability registry instead of exposing feature implementations.
-7. Add architecture tests that prevent reintroducing a local framework `host`, generic `util`, or
-   base-feature package.
+7. Remove application copies of framework host, scope, lifecycle, configuration/localization, and
+   platform-adapter infrastructure after the migrated build and tests are green.
+8. Add architecture tests that prevent reintroducing a local framework `host`, generic manager, or
+   base-feature hierarchy.
+
+## Threading during migration
+
+Do not add application-side thread marshaling around host operations. Paper host lifecycle operations
+already have synchronous primary-thread semantics, including calls originating from asynchronous
+threads. Velocity lifecycle operations execute directly without a synthetic main-thread hop. Keep
+long-running application work on the appropriate platform scheduler and use the feature task manager so
+it is cancelled during reload/shutdown.
+
+Do not acquire an application graph lock and then invoke a Paper host operation that may cross to the
+primary thread. FeatureFramework itself enters its execution-affinity boundary before acquiring the
+shared lifecycle lock; application code should preserve the same ordering principle.
 
 ## Verification
 
@@ -45,11 +73,16 @@ Run the application build from a clean checkout:
 ./mvnw clean verify
 ```
 
-For FeatureFramework itself, the optional real-platform gate is:
+For FeatureFramework itself, the real-platform gate is:
 
 ```shell
 ./mvnw -Pplatform-acceptance clean verify
 ```
 
 The acceptance profile compiles and boots independent Paper and Velocity plugins against pinned
-runtimes. It does not require Docker or an external database.
+runtimes and verifies graph reload plus feature-owned task/listener/command/service cleanup. It does not
+require Docker or an external database.
+
+FeatureFramework pull requests also run the API compatibility workflow against the `v1.0.0` baseline.
+A 1.x migration should not require consumers to adapt to source or binary incompatible framework API
+changes.

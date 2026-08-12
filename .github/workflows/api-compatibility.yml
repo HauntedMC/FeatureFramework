@@ -1,0 +1,117 @@
+name: API Compatibility
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  compatibility:
+    name: Public API vs v1.0.0
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    env:
+      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME }}
+      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN }}
+      BASELINE_REF: v1.0.0
+      JAPICMP_VERSION: 0.26.1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate package token
+        shell: bash
+        run: |
+          test -n "$PACKAGES_USER" \
+            || { echo "Missing secret HAUNTEDMC_PACKAGES_USERNAME." >&2; exit 1; }
+          test -n "$PACKAGES_TOKEN" \
+            || { echo "Missing secret HAUNTEDMC_PACKAGES_TOKEN (requires read:packages)." >&2; exit 1; }
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          server-id: github
+          server-username: PACKAGES_USER
+          server-password: PACKAGES_TOKEN
+
+      - name: Build v1.0.0 baseline
+        shell: bash
+        run: |
+          baseline="${RUNNER_TEMP}/featureframework-${BASELINE_REF}"
+          git worktree add --detach "$baseline" "$BASELINE_REF"
+          (
+            cd "$baseline"
+            ./mvnw -U -B -ntp -DskipTests package
+          )
+
+      - name: Build current branch
+        shell: bash
+        run: ./mvnw -U -B -ntp -DskipTests package
+
+      - name: Resolve japicmp
+        shell: bash
+        run: |
+          ./mvnw -B -ntp \
+            org.apache.maven.plugins:maven-dependency-plugin:3.8.1:get \
+            -Dartifact="com.github.siom79.japicmp:japicmp:${JAPICMP_VERSION}:jar:jar-with-dependencies"
+
+      - name: Check public API compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline="${RUNNER_TEMP}/featureframework-${BASELINE_REF}"
+          japicmp="${HOME}/.m2/repository/com/github/siom79/japicmp/japicmp/${JAPICMP_VERSION}/japicmp-${JAPICMP_VERSION}-jar-with-dependencies.jar"
+          test -f "$japicmp" || { echo "japicmp jar not found: $japicmp" >&2; exit 1; }
+
+          modules=(
+            featureframework-testkit
+            featureframework-mockito-testkit
+            featureframework-api
+            featureframework-shared
+            featureframework-paper
+            featureframework-velocity
+          )
+
+          for module in "${modules[@]}"; do
+            old_jar="$(find "$baseline/$module/target" -maxdepth 1 -type f \
+              -name "${module}-*.jar" ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+              ! -name 'original-*.jar' -print -quit)"
+            new_jar="$(find "$GITHUB_WORKSPACE/$module/target" -maxdepth 1 -type f \
+              -name "${module}-*.jar" ! -name '*-sources.jar' ! -name '*-javadoc.jar' \
+              ! -name 'original-*.jar' -print -quit)"
+
+            test -n "$old_jar" && test -f "$old_jar" \
+              || { echo "Baseline jar missing for $module" >&2; exit 1; }
+            test -n "$new_jar" && test -f "$new_jar" \
+              || { echo "Current jar missing for $module" >&2; exit 1; }
+
+            echo "::group::API compatibility: $module"
+            java -jar "$japicmp" \
+              --old "$old_jar" \
+              --new "$new_jar" \
+              -a public \
+              --include 'nl.hauntedmc.featureframework.*' \
+              --only-modified \
+              --ignore-missing-classes \
+              --error-on-binary-incompatibility \
+              --error-on-source-incompatibility
+            echo "::endgroup::"
+          done

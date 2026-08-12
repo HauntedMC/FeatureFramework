@@ -3,9 +3,9 @@ package nl.hauntedmc.featureframework.paper.command;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierCommand;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureOperationExecutor;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import nl.hauntedmc.featureframework.toolkit.text.TextPatterns;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandMap;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
@@ -14,17 +14,15 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BooleanSupplier;
 
-/**
- * Registers feature commands while coordinating plugin-wide label ownership and reversible external takeovers.
- */
+/** Registers feature commands with reversible ownership and Paper thread-affinity guarantees. */
 public class FeatureCommandManager {
-
     private final Plugin plugin;
     private final BrigadierDispatcher dispatcher;
     private final BooleanSupplier overwriteConflicts;
     private final FrameworkLogger logger;
     private final CommandLabelOwnership ownership;
     private final CommandRegistryTakeover registryTakeover;
+    private final PaperFeatureOperationExecutor operationExecutor;
     private final Map<String, BrigadierCommand> registeredBrigadierCommands = new ConcurrentHashMap<>();
     private final Map<String, List<String>> registeredBrigadierLabels = new ConcurrentHashMap<>();
     private final Map<String, CommandRegistryTakeover.Takeover> brigadierTakeovers = new ConcurrentHashMap<>();
@@ -42,6 +40,7 @@ public class FeatureCommandManager {
         this.ownership = Objects.requireNonNull(ownership, "ownership");
         this.overwriteConflicts = Objects.requireNonNull(overwriteConflicts, "overwriteConflicts");
         this.logger = Objects.requireNonNull(logger, "logger");
+        this.operationExecutor = new PaperFeatureOperationExecutor(plugin);
         CommandMap commandMap = plugin.getServer().getCommandMap();
         this.registryTakeover = new CommandRegistryTakeover(commandMap, dispatcher);
     }
@@ -72,8 +71,7 @@ public class FeatureCommandManager {
             claim = registryTakeover.claim(labels, overwriteConflicts.getAsBoolean());
         } catch (Throwable throwable) {
             ownership.release(command, labels);
-            logger.warn("[Brigadier] Failed to prepare labels for /" + name
-                    + ": " + throwable.getMessage());
+            logger.warn("[Brigadier] Failed to prepare labels for /" + name + ": " + throwable.getMessage());
             return;
         }
         if (!claim.claimed()) {
@@ -86,19 +84,16 @@ public class FeatureCommandManager {
         boolean registered = false;
         try {
             if (!dispatcher.attachBrigadierCommand(command, name, aliases)) {
-                logger.warn("[Brigadier] Could not attach /" + name
-                        + " after its labels were prepared.");
+                logger.warn("[Brigadier] Could not attach /" + name + " after its labels were prepared.");
                 return;
             }
             registeredBrigadierCommands.put(name, command);
             registeredBrigadierLabels.put(name, labels);
             brigadierTakeovers.put(name, claim.takeover());
             registered = true;
-            logger.info("[Brigadier] Registered /" + name
-                    + " (" + aliases.size() + " aliases)");
+            logger.info("[Brigadier] Registered /" + name + " (" + aliases.size() + " aliases)");
         } catch (Throwable throwable) {
-            logger.warn("[Brigadier] Attach failed for /" + name
-                    + ": " + throwable.getMessage());
+            logger.warn("[Brigadier] Attach failed for /" + name + ": " + throwable.getMessage());
         } finally {
             if (!registered) {
                 restoreTakeover(claim.takeover(), name);
@@ -119,14 +114,11 @@ public class FeatureCommandManager {
             return;
         }
         List<String> labels = registeredBrigadierLabels.remove(name);
-        if (labels == null) {
-            labels = commandLabels(name, sanitizeAliases(command.aliases(), name));
-        }
+        if (labels == null) labels = commandLabels(name, sanitizeAliases(command.aliases(), name));
         try {
             dispatcher.detachBrigadierCommand(command, labels);
         } catch (Throwable throwable) {
-            logger.warn("[Brigadier] Detach failed for /" + name
-                    + ": " + throwable.getMessage());
+            logger.warn("[Brigadier] Detach failed for /" + name + ": " + throwable.getMessage());
         } finally {
             ownership.release(command, labels);
             restoreTakeover(brigadierTakeovers.remove(name), name);
@@ -143,63 +135,36 @@ public class FeatureCommandManager {
     }
 
     public void quiesce() {
-        if (state == FeatureResourceState.OPEN) {
-            state = FeatureResourceState.QUIESCING;
-        }
+        if (state == FeatureResourceState.OPEN) state = FeatureResourceState.QUIESCING;
     }
 
-    public FeatureResourceState state() {
-        return state;
-    }
+    public FeatureResourceState state() { return state; }
 
     private void closeIfEmpty() {
-        if (registeredBrigadierCommands.isEmpty()) {
-            state = FeatureResourceState.CLOSED;
-        }
+        if (registeredBrigadierCommands.isEmpty()) state = FeatureResourceState.CLOSED;
     }
 
     private void requireOpen() {
-        if (state != FeatureResourceState.OPEN) {
-            throw new IllegalStateException("Command manager is " + state);
-        }
+        if (state != FeatureResourceState.OPEN) throw new IllegalStateException("Command manager is " + state);
     }
 
-    public int getTotalRegisteredCommandCount() {
-        return registeredBrigadierCommands.size();
-    }
+    public int getTotalRegisteredCommandCount() { return registeredBrigadierCommands.size(); }
 
     public Set<String> getAllRegisteredCommandNames() {
         return Collections.unmodifiableSet(new LinkedHashSet<>(registeredBrigadierCommands.keySet()));
     }
 
-    /**
-     * Returns whether a command label is currently claimed by any framework feature.
-     */
-    public boolean isLabelOwnedByFramework(String label) {
-        return ownership.isClaimed(label);
-    }
+    public boolean isLabelOwnedByFramework(String label) { return ownership.isClaimed(label); }
+    public Map<String, BrigadierCommand> getRegisteredBrigadierCommands() { return Map.copyOf(registeredBrigadierCommands); }
+    public int getRegisteredBrigadierCommandCount() { return registeredBrigadierCommands.size(); }
 
-    public Map<String, BrigadierCommand> getRegisteredBrigadierCommands() {
-        return Map.copyOf(registeredBrigadierCommands);
-    }
-
-    public int getRegisteredBrigadierCommandCount() {
-        return registeredBrigadierCommands.size();
-    }
-
-    private void logBlockedConflict(
-            String commandName,
-            CommandRegistryTakeover.Conflict conflict
-    ) {
+    private void logBlockedConflict(String commandName, CommandRegistryTakeover.Conflict conflict) {
         logger.warn("[Brigadier] Command label '/" + conflict.label() + "' is already owned by "
                 + conflict.ownerDescription() + "; skipping /" + commandName
                 + " because global.commands.overwrite-conflicts is false.");
     }
 
-    private void logTakeovers(
-            List<CommandRegistryTakeover.Conflict> conflicts,
-            String commandName
-    ) {
+    private void logTakeovers(List<CommandRegistryTakeover.Conflict> conflicts, String commandName) {
         for (CommandRegistryTakeover.Conflict conflict : conflicts) {
             logger.warn("[Brigadier] Replacing command label '/" + conflict.label() + "' from "
                     + conflict.ownerDescription() + " while registering /" + commandName + ".");
@@ -207,9 +172,7 @@ public class FeatureCommandManager {
     }
 
     private void restoreTakeover(CommandRegistryTakeover.Takeover takeover, String commandName) {
-        if (takeover == null || takeover.isEmpty()) {
-            return;
-        }
+        if (takeover == null || takeover.isEmpty()) return;
         try {
             CommandRegistryTakeover.RestoreResult result = registryTakeover.restore(takeover);
             if (!result.skippedBukkitLabels().isEmpty()) {
@@ -229,25 +192,17 @@ public class FeatureCommandManager {
     private static List<String> commandLabels(String name, Collection<String> aliases) {
         LinkedHashSet<String> labels = new LinkedHashSet<>();
         labels.add(normalize(name));
-        for (String alias : aliases) {
-            labels.add(normalize(alias));
-        }
+        for (String alias : aliases) labels.add(normalize(alias));
         return List.copyOf(labels);
     }
 
     private static List<String> sanitizeAliases(Collection<String> aliases, String commandName) {
-        if (aliases == null || aliases.isEmpty()) {
-            return List.of();
-        }
+        if (aliases == null || aliases.isEmpty()) return List.of();
         Map<String, String> sanitized = new LinkedHashMap<>();
         for (String alias : aliases) {
-            if (alias == null || alias.isBlank()) {
-                continue;
-            }
+            if (alias == null || alias.isBlank()) continue;
             String normalized = validateLabel(alias, "command alias");
-            if (!normalized.equals(commandName)) {
-                sanitized.putIfAbsent(normalized, normalized);
-            }
+            if (!normalized.equals(commandName)) sanitized.putIfAbsent(normalized, normalized);
         }
         return List.copyOf(sanitized.values());
     }
@@ -260,15 +215,6 @@ public class FeatureCommandManager {
         return normalized;
     }
 
-    private static String normalize(String label) {
-        return label.trim().toLowerCase(Locale.ROOT);
-    }
-
-    private void runOnMain(Runnable action) {
-        if (Bukkit.isPrimaryThread()) {
-            action.run();
-        } else {
-            Bukkit.getScheduler().runTask(plugin, action);
-        }
-    }
+    private static String normalize(String label) { return label.trim().toLowerCase(Locale.ROOT); }
+    private void runOnMain(Runnable action) { operationExecutor.run(action); }
 }

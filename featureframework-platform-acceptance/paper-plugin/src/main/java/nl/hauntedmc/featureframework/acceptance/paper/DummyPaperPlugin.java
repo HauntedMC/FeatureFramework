@@ -1,15 +1,24 @@
 package nl.hauntedmc.featureframework.acceptance.paper;
 
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalogListener;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
 import nl.hauntedmc.featureframework.api.service.CapabilityRef;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
 import nl.hauntedmc.featureframework.host.FeatureDefinition;
+import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
+import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierCommand;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureHost;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResources;
+import nl.hauntedmc.featureframework.paper.time.BukkitTime;
 import org.bukkit.Bukkit;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -51,15 +60,19 @@ public final class DummyPaperPlugin extends JavaPlugin {
         require(Provider.starts.get() == 1 && Consumer.starts.get() == 1,
                 "Feature collection did not initialize once");
         require("paper-1".equals(Consumer.lastGreeting), "Consumer did not resolve provider capability");
+        verifyOwnedResources(Provider.currentResources);
 
         CapabilityRef<GreetingApi> reference = host.capabilities().reference(GreetingApi.class);
         long generation = reference.generation().orElseThrow();
         getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_READY platform=paper features=2");
-        Bukkit.getScheduler().runTaskLater(this, () -> verifyReload(reference, generation), 2L);
+        Bukkit.getScheduler().runTaskLaterAsynchronously(
+                this, () -> verifyReload(reference, generation), 2L);
     }
 
     private void verifyReload(CapabilityRef<GreetingApi> reference, long initialGeneration) {
+        PaperFeatureResources<Void> previousResources = Provider.currentResources;
         try {
+            require(!Bukkit.isPrimaryThread(), "Reload caller was expected to be asynchronous");
             require(host.reloadFeature("Provider").success(), "Provider graph reload failed");
             require(Provider.starts.get() == 2 && Consumer.starts.get() == 2,
                     "Reload did not recreate provider and dependent");
@@ -69,6 +82,9 @@ public final class DummyPaperPlugin extends JavaPlugin {
                     "Stable capability reference did not advance generation");
             require(observedStopping.get(), "FeatureCatalogListener did not observe reload shutdown");
             require(catalogTransitions.get() >= 12, "Too few public catalog transitions were observed");
+            verifyClosedResources(previousResources, "reload");
+            require(Provider.currentResources != previousResources, "Reload reused the old resource scope");
+            verifyOwnedResources(Provider.currentResources);
             getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_PASS platform=paper");
         } catch (Throwable failure) {
             fail(failure);
@@ -78,21 +94,55 @@ public final class DummyPaperPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         Throwable failure = null;
+        PaperFeatureResources<Void> resources = Provider.currentResources;
         try {
             if (host != null) {
                 host.stop();
                 require(host.state() == RuntimeState.STOPPED, "Host did not stop");
+                verifyClosedResources(resources, "host shutdown");
             }
         } catch (Throwable shutdownFailure) {
             failure = shutdownFailure;
         } finally {
             closeSubscription();
         }
-        if (failure == null) {
-            getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_STOPPED platform=paper");
-        } else {
-            fail(failure);
-        }
+        if (failure == null) getLogger().info("FEATUREFRAMEWORK_ACCEPTANCE_STOPPED platform=paper");
+        else fail(failure);
+    }
+
+    private static void verifyOwnedResources(PaperFeatureResources<Void> resources) {
+        require(resources != null, "Provider resource scope was not captured");
+        require(resources.state() == FeatureResourceState.OPEN, "Provider resource scope is not open");
+        require(resources.getTaskManager().getActiveTaskCount() == 1, "Provider task was not tracked");
+        require(resources.getListenerManager().getRegisteredListenerCount() >= 2,
+                "Provider listeners were not tracked");
+        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 1,
+                "Provider command was not tracked");
+        require(resources.getApiManager().getRegisteredServiceCount() == 1,
+                "Provider service was not tracked");
+    }
+
+    private static void verifyClosedResources(PaperFeatureResources<Void> resources, String phase) {
+        require(resources != null, "Missing resource scope during " + phase);
+        require(resources.state() == FeatureResourceState.CLOSED, "Resource scope remained open after " + phase);
+        require(resources.getTaskManager().state() == FeatureResourceState.CLOSED,
+                "Task manager remained open after " + phase);
+        require(resources.getTaskManager().getActiveTaskCount() == 0,
+                "Tasks remained registered after " + phase);
+        require(resources.getTaskManager().getInFlightTaskCount() == 0,
+                "Tasks remained in flight after " + phase);
+        require(resources.getListenerManager().state() == FeatureResourceState.CLOSED,
+                "Listener manager remained open after " + phase);
+        require(resources.getListenerManager().getRegisteredListenerCount() == 0,
+                "Listeners remained registered after " + phase);
+        require(resources.getCommandManager().state() == FeatureResourceState.CLOSED,
+                "Command manager remained open after " + phase);
+        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 0,
+                "Commands remained registered after " + phase);
+        require(resources.getApiManager().state() == FeatureResourceState.CLOSED,
+                "Service manager remained open after " + phase);
+        require(resources.getApiManager().getRegisteredServiceCount() == 0,
+                "Services remained registered after " + phase);
     }
 
     private void closeSubscription() {
@@ -110,6 +160,10 @@ public final class DummyPaperPlugin extends JavaPlugin {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new IllegalStateException(message);
+    }
+
+    private static void requirePrimaryThread(String phase) {
+        require(Bukkit.isPrimaryThread(), phase + " did not run on Paper's primary thread");
     }
 
     private static FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features() {
@@ -131,41 +185,60 @@ public final class DummyPaperPlugin extends JavaPlugin {
                 .build();
     }
 
-    /** Public contract published by the provider feature. */
-    public interface GreetingApi {
-        String greeting();
-    }
+    public interface GreetingApi { String greeting(); }
 
     public static final class Provider extends PaperFeature<Plugin, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
+        private static volatile PaperFeatureResources<Void> currentResources;
 
-        public Provider(PaperFeatureContext<Plugin, Void> context) {
-            super(context);
-        }
+        public Provider(PaperFeatureContext<Plugin, Void> context) { super(context); }
 
         @Override
         public void initialize() {
+            requirePrimaryThread("Provider initialize");
             int generation = starts.incrementAndGet();
+            currentResources = getContext().resources();
+            currentResources.getTaskManager().scheduleRepeatingTask(
+                    () -> { }, BukkitTime.ticks(200L), BukkitTime.ticks(200L));
+            currentResources.getListenerManager().registerListener(new AcceptanceListener());
+            currentResources.getCommandManager().registerBrigadierCommand(new AcceptanceCommand());
             getContext().services().registerService(GreetingApi.class, () -> "paper-" + generation);
         }
 
-        @Override public void disable() { }
+        @Override public void disable() { requirePrimaryThread("Provider disable"); }
     }
 
     public static final class Consumer extends PaperFeature<Plugin, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile String lastGreeting;
 
-        public Consumer(PaperFeatureContext<Plugin, Void> context) {
-            super(context);
-        }
+        public Consumer(PaperFeatureContext<Plugin, Void> context) { super(context); }
 
         @Override
         public void initialize() {
+            requirePrimaryThread("Consumer initialize");
             lastGreeting = requireCapability(GreetingApi.class).greeting();
             starts.incrementAndGet();
         }
 
-        @Override public void disable() { }
+        @Override public void disable() { requirePrimaryThread("Consumer disable"); }
+    }
+
+    public static final class AcceptanceListener implements Listener {
+        @EventHandler
+        public void onJoin(PlayerJoinEvent event) {
+            // Registration ownership is the behavior under test; no event mutation is required.
+        }
+    }
+
+    public static final class AcceptanceCommand implements BrigadierCommand {
+        @Override public String name() { return "ffpaperaccept"; }
+
+        @Override
+        public com.mojang.brigadier.tree.LiteralCommandNode<CommandSourceStack> buildTree() {
+            return LiteralArgumentBuilder.<CommandSourceStack>literal(name())
+                    .executes(context -> 1)
+                    .build();
+        }
     }
 }

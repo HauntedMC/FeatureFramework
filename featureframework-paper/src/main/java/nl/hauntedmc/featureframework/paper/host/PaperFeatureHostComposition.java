@@ -5,8 +5,9 @@ import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
 import nl.hauntedmc.featureframework.host.FeatureHost;
-import nl.hauntedmc.featureframework.host.FeatureScopeFactory;
+import nl.hauntedmc.featureframework.host.FeatureHostComposition;
 import nl.hauntedmc.featureframework.paper.command.sync.CommandSync;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureOperationExecutor;
 import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResources;
 import nl.hauntedmc.featureframework.paper.localization.PaperLocalization;
 import nl.hauntedmc.featureframework.paper.log.FeatureLogger;
@@ -19,23 +20,30 @@ import org.bukkit.plugin.Plugin;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-/** Framework-owned composition of a product-specific Paper feature host and its scoped contexts. */
+/** Framework-owned Paper adapter around the shared host composition engine. */
 public final class PaperFeatureHostComposition<
         P extends Plugin,
         V,
         F extends PaperFeature<P, D>,
         D> implements AutoCloseable {
-    private final FeatureScopeFactory<
+    private final FeatureHostComposition<
+            V,
             F,
             PaperFeatureContext<P, D>,
             FeatureConfigHandler,
             PaperLocalization,
             FeatureLogger,
-            PaperFeatureResources<D>> scopes;
-    private final FeatureHost<V, F, PaperFeatureContext<P, D>> host;
+            PaperFeatureResources<D>> composition;
 
     private PaperFeatureHostComposition(Builder<P, V, F, D> builder) {
-        scopes = new FeatureScopeFactory<>(
+        builder.runtime.lifecycle().bindExecutor(new PaperFeatureOperationExecutor(builder.plugin));
+        composition = new FeatureHostComposition<>(
+                builder.hostName,
+                builder.version,
+                builder.capabilityNamespace,
+                builder.runtime,
+                builder.configuration,
+                builder.features,
                 builder.configuration::openFeatureConfig,
                 builder.localization::openFeature,
                 name -> new FeatureLogger(builder.plugin.getLogger(), name),
@@ -50,26 +58,13 @@ public final class PaperFeatureHostComposition<
                         logger,
                         builder.runtime.capabilities(),
                         builder.runtime.internalServices(),
-                        builder.dataRegistry)
+                        builder.dataRegistry),
+                name -> builder.plugin.getServer().getPluginManager().isPluginEnabled(name),
+                () -> CommandSync.apply(builder.plugin),
+                builder.localization::reloadLocalization,
+                builder.afterHostResourcesReload,
+                builder.logger
         );
-        host = FeatureHost.builder(
-                        builder.hostName,
-                        builder.version,
-                        builder.capabilityNamespace,
-                        builder.runtime,
-                        builder.configuration,
-                        builder.features)
-                .contextFactory(scopes::createContext)
-                .pluginAvailable(name -> builder.plugin.getServer().getPluginManager().isPluginEnabled(name))
-                .afterGraphMutation(() -> CommandSync.apply(builder.plugin))
-                .clearScopes(scopes::clear)
-                .reloadHostResources(() -> {
-                    builder.configuration.reloadConfig();
-                    builder.localization.reloadLocalization();
-                    builder.afterHostResourcesReload.run();
-                })
-                .logger(builder.logger)
-                .build();
     }
 
     public static <P extends Plugin, V, F extends PaperFeature<P, D>, D>
@@ -88,28 +83,12 @@ public final class PaperFeatureHostComposition<
                 localization, resources, features, logger);
     }
 
-    public FeatureHost<V, F, PaperFeatureContext<P, D>> host() {
-        return host;
-    }
+    public FeatureHost<V, F, PaperFeatureContext<P, D>> host() { return composition.host(); }
+    public PaperLocalization featureLocalization(String featureName) { return composition.localization(featureName); }
+    public void start() { composition.start(); }
+    public void stop() { composition.stop(); }
+    @Override public void close() { stop(); }
 
-    public PaperLocalization featureLocalization(String featureName) {
-        return scopes.localization(featureName);
-    }
-
-    public void start() {
-        host.start();
-    }
-
-    public void stop() {
-        host.stop();
-    }
-
-    @Override
-    public void close() {
-        stop();
-    }
-
-    /** Creates a fresh framework resource scope for one feature generation. */
     @FunctionalInterface
     public interface ScopedResourcesFactory<D> {
         PaperFeatureResources<D> create(
@@ -118,7 +97,7 @@ public final class PaperFeatureHostComposition<
                 InternalServiceRegistry<FeatureId> internalServices);
     }
 
-    /** Builder for the small amount of product metadata surrounding the standard Paper host. */
+    /** Builder for product metadata and optional Paper integrations. */
     public static final class Builder<
             P extends Plugin,
             V,
@@ -173,7 +152,7 @@ public final class PaperFeatureHostComposition<
         }
 
         public Builder<P, V, F, D> dataRegistry(Supplier<?> supplier) {
-            dataRegistry = Objects.requireNonNull(supplier, "supplier");
+            dataRegistry = Objects.requireNonNull(supplier, "dataRegistry");
             return this;
         }
 
