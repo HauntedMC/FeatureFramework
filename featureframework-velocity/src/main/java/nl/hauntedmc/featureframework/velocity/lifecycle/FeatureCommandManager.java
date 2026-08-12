@@ -5,12 +5,13 @@ import nl.hauntedmc.featureframework.velocity.command.CommandOwnershipRegistry;
 import org.slf4j.Logger;
 
 /**
- * Compatibility facade for the pre-1.2 command-manager package.
+ * Compatibility facade preserving the original public package while command ownership implementation
+ * lives with the Velocity command adapter.
  *
- * @deprecated Command ownership belongs to the Velocity command adapter. Use
- * {@link nl.hauntedmc.featureframework.velocity.command.FeatureCommandManager} for new code.
+ * <p>New framework internals should prefer
+ * {@link nl.hauntedmc.featureframework.velocity.command.FeatureCommandManager}; this facade remains a
+ * supported compatibility type for existing consumers.</p>
  */
-@Deprecated(forRemoval = false, since = "1.2")
 public class FeatureCommandManager
         extends nl.hauntedmc.featureframework.velocity.command.FeatureCommandManager {
 
