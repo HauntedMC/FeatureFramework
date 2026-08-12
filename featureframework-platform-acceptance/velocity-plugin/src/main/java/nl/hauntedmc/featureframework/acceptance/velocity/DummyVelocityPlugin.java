@@ -96,6 +96,9 @@ public final class DummyVelocityPlugin {
 
     private void verifyReload(CapabilityRef<GreetingApi> reference, long initialGeneration) {
         VelocityFeatureResources<Void> previousResources = Provider.currentResources;
+        Thread callerThread = Thread.currentThread();
+        Provider.expectedLifecycleThread = callerThread;
+        Consumer.expectedLifecycleThread = callerThread;
         try {
             require(host.reloadFeature("Provider").success(), "Provider graph reload failed");
             require(Provider.starts.get() == 2 && Consumer.starts.get() == 2,
@@ -112,6 +115,9 @@ public final class DummyVelocityPlugin {
             logger.info("FEATUREFRAMEWORK_ACCEPTANCE_PASS platform=velocity");
         } catch (Throwable failure) {
             fail(failure);
+        } finally {
+            Provider.expectedLifecycleThread = null;
+            Consumer.expectedLifecycleThread = null;
         }
     }
 
@@ -189,6 +195,13 @@ public final class DummyVelocityPlugin {
         if (!condition) throw new IllegalStateException(message);
     }
 
+    private static void requireExpectedLifecycleThread(Thread expectedThread, String feature, String operation) {
+        if (expectedThread != null) {
+            require(Thread.currentThread() == expectedThread,
+                    feature + " " + operation + " was moved off the Velocity lifecycle caller thread");
+        }
+    }
+
     private static FeatureCollection<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> features() {
         FeatureDefinition<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> consumer =
                 FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
@@ -216,6 +229,7 @@ public final class DummyVelocityPlugin {
     public static final class Provider extends VelocityFeature<Object, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile VelocityFeatureResources<Void> currentResources;
+        private static volatile Thread expectedLifecycleThread;
 
         public Provider(VelocityFeatureContext<Object, Void> context) {
             super(context);
@@ -223,6 +237,7 @@ public final class DummyVelocityPlugin {
 
         @Override
         public void initialize() {
+            requireExpectedLifecycleThread(expectedLifecycleThread, "Provider", "initialize");
             int generation = starts.incrementAndGet();
             currentResources = getContext().resources();
             currentResources.getTaskManager().scheduleRepeatingTask(
@@ -232,12 +247,16 @@ public final class DummyVelocityPlugin {
             getContext().services().registerService(GreetingApi.class, () -> "velocity-" + generation);
         }
 
-        @Override public void disable() { }
+        @Override
+        public void disable() {
+            requireExpectedLifecycleThread(expectedLifecycleThread, "Provider", "disable");
+        }
     }
 
     public static final class Consumer extends VelocityFeature<Object, Void> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile String lastGreeting;
+        private static volatile Thread expectedLifecycleThread;
 
         public Consumer(VelocityFeatureContext<Object, Void> context) {
             super(context);
@@ -245,11 +264,15 @@ public final class DummyVelocityPlugin {
 
         @Override
         public void initialize() {
+            requireExpectedLifecycleThread(expectedLifecycleThread, "Consumer", "initialize");
             lastGreeting = requireCapability(GreetingApi.class).greeting();
             starts.incrementAndGet();
         }
 
-        @Override public void disable() { }
+        @Override
+        public void disable() {
+            requireExpectedLifecycleThread(expectedLifecycleThread, "Consumer", "disable");
+        }
     }
 
     public static final class AcceptanceListener {
