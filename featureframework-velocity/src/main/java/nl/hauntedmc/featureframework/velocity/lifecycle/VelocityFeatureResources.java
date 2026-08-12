@@ -8,7 +8,6 @@ import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 
-import java.util.List;
 import java.util.Objects;
 
 /** Complete framework-owned resource scope for one Velocity feature instance. */
@@ -37,21 +36,19 @@ public class VelocityFeatureResources<D> implements FeatureLifecycleResources {
         this.dataManager = dataManager;
         this.cacheManager = Objects.requireNonNull(cacheManager, "cacheManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
-        lifecycle = StandardFeatureResourceLifecycle.create(
-                listenerManager::quiesce,
-                listenerManager::unregisterAllListeners,
-                taskManager::quiesce,
-                taskManager::cancelAllTasks,
-                commandManager::quiesce,
-                commandManager::unregisterAllBrigadierCommands,
-                apiManager::quiesce,
-                apiManager::unregisterAllServices,
-                dataManager == null ? null : Objects.requireNonNull(quiesceData, "quiesceData"),
-                dataManager == null ? null : Objects.requireNonNull(cleanupData, "cleanupData"),
-                cacheManager::quiesce,
-                cacheManager::cleanupAll,
-                List.of()
-        );
+
+        StandardFeatureResourceLifecycle.Builder lifecycleBuilder = StandardFeatureResourceLifecycle.builder()
+                .listeners(listenerManager::quiesce, listenerManager::unregisterAllListeners)
+                .tasks(taskManager::quiesce, taskManager::cancelAllTasks)
+                .commands(commandManager::quiesce, commandManager::unregisterAllBrigadierCommands)
+                .services(apiManager::quiesce, apiManager::unregisterAllServices)
+                .caches(cacheManager::quiesce, cacheManager::cleanupAll);
+        if (dataManager != null) {
+            lifecycleBuilder.data(
+                    Objects.requireNonNull(quiesceData, "quiesceData"),
+                    Objects.requireNonNull(cleanupData, "cleanupData"));
+        }
+        lifecycle = lifecycleBuilder.build();
     }
 
     public FeatureTaskManager getTaskManager() { return taskManager; }
