@@ -1,14 +1,13 @@
 package nl.hauntedmc.featureframework.paper.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
-import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycle;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
-import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.paper.command.FeatureCommandManager;
 import nl.hauntedmc.featureframework.paper.ui.inventory.menu.FeatureGUIManager;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
+import nl.hauntedmc.featureframework.spi.lifecycle.FeatureResourceScopeCore;
 
 import java.util.List;
 import java.util.Objects;
@@ -22,7 +21,7 @@ public class PaperFeatureResources<D> implements FeatureLifecycleResources {
     private final FeatureCacheManager cacheManager;
     private final FeatureGUIManager guiManager;
     private final FeatureServiceManager<FeatureId> apiManager;
-    private final FeatureLifecycle lifecycle;
+    private final FeatureResourceScopeCore lifecycle;
 
     public PaperFeatureResources(
             FeatureTaskManager taskManager,
@@ -43,7 +42,7 @@ public class PaperFeatureResources<D> implements FeatureLifecycleResources {
         this.guiManager = Objects.requireNonNull(guiManager, "guiManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
         listenerManager.registerListener(guiManager);
-        lifecycle = StandardFeatureResourceLifecycle.create(
+        lifecycle = FeatureResourceScopeCore.create(
                 listenerManager::quiesce,
                 listenerManager::unregisterAllListeners,
                 taskManager::quiesce,
@@ -70,7 +69,7 @@ public class PaperFeatureResources<D> implements FeatureLifecycleResources {
     public FeatureCacheManager getCacheManager() { return cacheManager; }
     public FeatureGUIManager getGuiManager() { return guiManager; }
     public FeatureServiceManager<FeatureId> getApiManager() { return apiManager; }
-    public synchronized FeatureResourceState state() { return lifecycle.state(); }
-    public synchronized void quiesce() { lifecycle.quiesce(); }
-    public synchronized void cleanup() { lifecycle.cleanup(); }
+    public FeatureResourceState state() { return lifecycle.state(); }
+    public void quiesce() { lifecycle.quiesce(); }
+    public void cleanup() { lifecycle.cleanup(); }
 }
