@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - run: ./mvnw --batch-mode --no-transfer-progress clean verify
+      - name: Upload test and coverage reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: verification-reports
+          if-no-files-found: warn
+          path: |
+            **/target/surefire-reports
+            **/target/site/jacoco
+
+  platform-acceptance:
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Boot dummy Paper and Velocity consumers
+        env:
+          PLATFORM_ACCEPTANCE_WORK_DIRECTORY: ${{ runner.temp }}/featureframework-platform-acceptance
+        run: ./mvnw --batch-mode --no-transfer-progress -Pplatform-acceptance verify
+      - name: Upload platform logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: platform-acceptance-logs
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/featureframework-platform-acceptance/paper/paper.log
+            ${{ runner.temp }}/featureframework-platform-acceptance/velocity/velocity.log

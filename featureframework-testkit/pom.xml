@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>nl.hauntedmc.featureframework</groupId>
+        <artifactId>featureframework-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>featureframework-testkit</artifactId>
+    <name>FeatureFramework Testkit</name>
+    <description>Reusable test support for FeatureFramework consumers.</description>
+    <properties>
+        <jacoco.skip>true</jacoco.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+    </properties>
+</project>

@@ -1,0 +1,73 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Validate release version
+        shell: bash
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "Release tag must be vMAJOR.MINOR.PATCH." >&2; exit 1; }
+          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          PROJECT_VERSION="$(sed -n 's|^[[:space:]]*<revision>\([^<]*\)</revision>[[:space:]]*$|\1|p' pom.xml | head -n 1)"
+          test "$PROJECT_VERSION" = "$RELEASE_VERSION" \
+            || { echo "Tag $GITHUB_REF_NAME does not match Maven version $PROJECT_VERSION." >&2; exit 1; }
+          ./mvnw -B -ntp -Drevision="$RELEASE_VERSION" validate
+      - name: Verify release artifacts and platform acceptance
+        env:
+          PLATFORM_ACCEPTANCE_WORK_DIRECTORY: ${{ runner.temp }}/featureframework-platform-acceptance
+        run: ./mvnw -B -ntp -Drevision="${GITHUB_REF_NAME#v}" -Prelease,platform-acceptance clean verify
+      - name: Upload platform logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-platform-acceptance-logs
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/featureframework-platform-acceptance/paper/paper.log
+            ${{ runner.temp }}/featureframework-platform-acceptance/velocity/velocity.log
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+      - name: Publish verified release artifacts
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./mvnw -B -ntp -DskipTests -Drevision="${GITHUB_REF_NAME#v}" -Prelease clean deploy

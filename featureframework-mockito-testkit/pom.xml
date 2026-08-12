@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>nl.hauntedmc.featureframework</groupId>
+        <artifactId>featureframework-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>featureframework-mockito-testkit</artifactId>
+    <name>FeatureFramework Mockito Testkit</name>
+    <description>Opt-in coverage-friendly Mockito mock maker for consumers that require it.</description>
+    <properties>
+        <jacoco.skip>true</jacoco.skip>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
+    </properties>
+    <dependencies>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>${mockito.version}</version></dependency>
+    </dependencies>
+</project>

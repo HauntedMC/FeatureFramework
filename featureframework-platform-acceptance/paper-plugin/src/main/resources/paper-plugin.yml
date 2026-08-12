@@ -1,0 +1,5 @@
+name: FeatureFrameworkAcceptancePaper
+main: nl.hauntedmc.featureframework.acceptance.paper.DummyPaperPlugin
+version: ${project.version}
+api-version: '26.2'
+description: Dummy multi-feature Paper plugin for FeatureFramework acceptance

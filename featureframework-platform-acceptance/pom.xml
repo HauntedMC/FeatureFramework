@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>nl.hauntedmc.featureframework</groupId>
+        <artifactId>featureframework-parent</artifactId>
+        <version>${revision}</version>
+    </parent>
+    <artifactId>featureframework-platform-acceptance</artifactId>
+    <packaging>pom</packaging>
+    <name>FeatureFramework Platform Acceptance Fixtures</name>
+    <modules>
+        <module>paper-plugin</module>
+        <module>velocity-plugin</module>
+        <!-- Must remain last: it boots artifacts packaged by both preceding modules. -->
+        <module>runtime</module>
+    </modules>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <configuration><skip>true</skip></configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
