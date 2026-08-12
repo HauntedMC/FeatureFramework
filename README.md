@@ -102,7 +102,7 @@ the host releases those resources on reload or shutdown.
 Paper host lifecycle operations are synchronous and execute on Bukkit's primary thread even when the
 caller is asynchronous. Velocity host lifecycle operations execute directly on the caller without a
 synthetic main-thread hop. Scheduling APIs remain native to each platform. See
-[Threading](docs/THREADING.md) for the exact contract.
+[Threading](docs/THREADING.md) and [Lifecycle](docs/LIFECYCLE.md) for the exact contracts.
 
 Use `PaperFeatureHostComposition` or `VelocityFeatureHostComposition` when the application needs a
 custom API version, localization policy, DataProvider resources, or optional DataRegistry discovery.
@@ -138,5 +138,13 @@ The platform acceptance profile verifies graph reloads, platform execution seman
 feature-owned tasks, listeners, commands, and services. It does not require Docker or an external
 database.
 
-See [Architecture](docs/ARCHITECTURE.md), [Threading](docs/THREADING.md),
-[Migration guide](docs/MIGRATION.md), [Contributing](CONTRIBUTING.md), and [Security](SECURITY.md).
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) — module ownership and dependency direction.
+- [Threading](docs/THREADING.md) — Paper affinity and Velocity direct-execution guarantees.
+- [Lifecycle](docs/LIFECYCLE.md) — feature/resource/task lifecycle contracts and teardown order.
+- [Platform adapters](docs/PLATFORM-ADAPTERS.md) — what is shared and what deliberately remains native.
+- [Toolkit](docs/TOOLKIT.md) — platform-neutral utility boundaries and formatting responsibilities.
+- [Maintaining](docs/MAINTAINING.md) — compatibility, abstraction, validation, and release rules.
+- [Migration guide](docs/MIGRATION.md) — consumer migration guidance.
+- [Contributing](CONTRIBUTING.md) and [Security](SECURITY.md).
