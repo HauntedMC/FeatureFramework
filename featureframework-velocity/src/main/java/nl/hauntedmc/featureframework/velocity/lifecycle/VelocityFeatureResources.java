@@ -2,10 +2,11 @@ package nl.hauntedmc.featureframework.velocity.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
+import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycle;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
+import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
-import nl.hauntedmc.featureframework.spi.lifecycle.FeatureResourceScopeCore;
 
 import java.util.List;
 import java.util.Objects;
@@ -18,7 +19,7 @@ public class VelocityFeatureResources<D> implements FeatureLifecycleResources {
     private final D dataManager;
     private final FeatureCacheManager cacheManager;
     private final FeatureServiceManager<FeatureId> apiManager;
-    private final FeatureResourceScopeCore lifecycle;
+    private final FeatureLifecycle lifecycle;
 
     public VelocityFeatureResources(
             FeatureTaskManager taskManager,
@@ -36,7 +37,7 @@ public class VelocityFeatureResources<D> implements FeatureLifecycleResources {
         this.dataManager = dataManager;
         this.cacheManager = Objects.requireNonNull(cacheManager, "cacheManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
-        lifecycle = FeatureResourceScopeCore.create(
+        lifecycle = StandardFeatureResourceLifecycle.create(
                 listenerManager::quiesce,
                 listenerManager::unregisterAllListeners,
                 taskManager::quiesce,
@@ -62,7 +63,7 @@ public class VelocityFeatureResources<D> implements FeatureLifecycleResources {
     }
     public FeatureCacheManager getCacheManager() { return cacheManager; }
     public FeatureServiceManager<FeatureId> getApiManager() { return apiManager; }
-    public FeatureResourceState state() { return lifecycle.state(); }
-    public void quiesce() { lifecycle.quiesce(); }
-    public void cleanup() { lifecycle.cleanup(); }
+    public synchronized FeatureResourceState state() { return lifecycle.state(); }
+    public synchronized void quiesce() { lifecycle.quiesce(); }
+    public synchronized void cleanup() { lifecycle.cleanup(); }
 }
