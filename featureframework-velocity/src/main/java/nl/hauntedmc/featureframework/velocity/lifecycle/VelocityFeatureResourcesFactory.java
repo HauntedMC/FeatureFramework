@@ -3,9 +3,8 @@ package nl.hauntedmc.featureframework.velocity.lifecycle;
 import com.velocitypowered.api.proxy.ProxyServer;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
-import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
+import nl.hauntedmc.featureframework.lifecycle.FeatureResourceFactoryCore;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
-import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import nl.hauntedmc.featureframework.velocity.command.CommandOwnershipRegistry;
@@ -18,20 +17,12 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Assembles the standard framework-owned resource scope for a Velocity feature.
- *
- * <p>Callers choose framework-owned DataProvider discovery or a no-data scope. Scheduler, command,
- * listener, cache, and service ownership are constructed consistently here.</p>
- */
+/** Assembles Velocity-native resources around the shared feature resource core. */
 public final class VelocityFeatureResourcesFactory<D> {
     private final Object plugin;
     private final ProxyServer proxy;
     private final Logger platformLogger;
-    private final Path dataDirectory;
-    private final FrameworkLogger logger;
-    private final Supplier<? extends D> dataManagerFactory;
-    private final BiConsumer<? super D, String> dataManagerBinder;
+    private final FeatureResourceFactoryCore<D> core;
     private final Consumer<? super D> dataManagerQuiesce;
     private final Consumer<? super D> dataManagerCleanup;
     private final CommandOwnershipRegistry commandOwnership = new CommandOwnershipRegistry();
@@ -50,15 +41,12 @@ public final class VelocityFeatureResourcesFactory<D> {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.proxy = Objects.requireNonNull(proxy, "proxy");
         this.platformLogger = Objects.requireNonNull(platformLogger, "platformLogger");
-        this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
-        this.logger = Objects.requireNonNull(logger, "logger");
-        this.dataManagerFactory = Objects.requireNonNull(dataManagerFactory, "dataManagerFactory");
-        this.dataManagerBinder = Objects.requireNonNull(dataManagerBinder, "dataManagerBinder");
+        this.core = new FeatureResourceFactoryCore<>(
+                dataDirectory, logger, dataManagerFactory, dataManagerBinder);
         this.dataManagerQuiesce = Objects.requireNonNull(dataManagerQuiesce, "dataManagerQuiesce");
         this.dataManagerCleanup = Objects.requireNonNull(dataManagerCleanup, "dataManagerCleanup");
     }
 
-    /** Creates the standard Velocity resource factory with framework-owned DataProvider discovery. */
     public static VelocityFeatureResourcesFactory<FeatureDataManager> withDataProvider(
             Object plugin,
             ProxyServer proxy,
@@ -85,7 +73,6 @@ public final class VelocityFeatureResourcesFactory<D> {
         );
     }
 
-    /** Creates the standard Velocity resource factory without a feature data resource. */
     public static VelocityFeatureResourcesFactory<Void> withoutDataProvider(
             Object plugin,
             ProxyServer proxy,
@@ -111,31 +98,20 @@ public final class VelocityFeatureResourcesFactory<D> {
             DefaultCapabilityRegistry capabilities,
             InternalServiceRegistry<FeatureId> internalServices
     ) {
-        String owner = requireText(featureName);
-        FeatureServiceManager<FeatureId> services = new FeatureServiceManager<>();
-        services.bindRegistries(capabilities, internalServices, FeatureId.of(owner));
-        D dataManager = dataManagerFactory.get();
-        if (dataManager != null) dataManagerBinder.accept(dataManager, owner);
+        FeatureResourceFactoryCore.Bundle<D> common = core.create(featureName, capabilities, internalServices);
+        D dataManager = common.dataManager();
         return new VelocityFeatureResources<>(
                 new FeatureTaskManager(proxy.getScheduler(), plugin),
                 new FeatureCommandManager(
-                        plugin, proxy.getCommandManager(), commandOwnership, platformLogger, owner),
+                        plugin, proxy.getCommandManager(), commandOwnership, platformLogger, common.featureName()),
                 new FeatureListenerManager(plugin, proxy.getEventManager()),
                 dataManager,
                 dataManager == null ? () -> { } : () -> dataManagerQuiesce.accept(dataManager),
                 dataManager == null ? () -> { } : () -> dataManagerCleanup.accept(dataManager),
-                new FeatureCacheManager(dataDirectory, logger),
-                services
+                common.cacheManager(),
+                common.serviceManager()
         );
     }
 
-    public CommandOwnershipRegistry commandOwnership() {
-        return commandOwnership;
-    }
-
-    private static String requireText(String value) {
-        String clean = Objects.requireNonNull(value, "featureName").trim();
-        if (clean.isEmpty()) throw new IllegalArgumentException("featureName must not be blank");
-        return clean;
-    }
+    public CommandOwnershipRegistry commandOwnership() { return commandOwnership; }
 }

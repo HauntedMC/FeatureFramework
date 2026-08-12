@@ -2,14 +2,13 @@ package nl.hauntedmc.featureframework.paper.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
-import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
+import nl.hauntedmc.featureframework.lifecycle.FeatureResourceFactoryCore;
 import nl.hauntedmc.featureframework.paper.command.CommandLabelOwnership;
 import nl.hauntedmc.featureframework.paper.command.FeatureCommandManager;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
 import nl.hauntedmc.featureframework.paper.integration.dataprovider.PaperDataProviderApiResolver;
 import nl.hauntedmc.featureframework.paper.ui.inventory.menu.FeatureGUIManager;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
-import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import org.bukkit.plugin.Plugin;
@@ -21,21 +20,13 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Assembles the standard framework-owned resource scope for a Paper feature.
- *
- * <p>Callers choose framework-owned DataProvider discovery or a no-data scope and provide only the
- * command-conflict policy. Task, command, listener, cache, GUI, and service ownership stay
- * centralized in FeatureFramework.</p>
- */
+/** Assembles Paper-native resources around the shared feature resource core. */
 public final class PaperFeatureResourcesFactory<D> {
     private final Plugin plugin;
-    private final Path dataDirectory;
     private final BrigadierDispatcher dispatcher;
     private final BooleanSupplier overwriteConflicts;
     private final FrameworkLogger logger;
-    private final Supplier<? extends D> dataManagerFactory;
-    private final BiConsumer<? super D, String> dataManagerBinder;
+    private final FeatureResourceFactoryCore<D> core;
     private final Consumer<? super D> dataManagerQuiesce;
     private final Consumer<? super D> dataManagerCleanup;
     private final CommandLabelOwnership commandOwnership = new CommandLabelOwnership();
@@ -52,17 +43,15 @@ public final class PaperFeatureResourcesFactory<D> {
             Consumer<? super D> dataManagerCleanup
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
-        this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
         this.dispatcher = Objects.requireNonNull(dispatcher, "dispatcher");
         this.overwriteConflicts = Objects.requireNonNull(overwriteConflicts, "overwriteConflicts");
         this.logger = Objects.requireNonNull(logger, "logger");
-        this.dataManagerFactory = Objects.requireNonNull(dataManagerFactory, "dataManagerFactory");
-        this.dataManagerBinder = Objects.requireNonNull(dataManagerBinder, "dataManagerBinder");
+        this.core = new FeatureResourceFactoryCore<>(
+                dataDirectory, logger, dataManagerFactory, dataManagerBinder);
         this.dataManagerQuiesce = Objects.requireNonNull(dataManagerQuiesce, "dataManagerQuiesce");
         this.dataManagerCleanup = Objects.requireNonNull(dataManagerCleanup, "dataManagerCleanup");
     }
 
-    /** Creates the standard Paper resource factory with framework-owned DataProvider discovery. */
     public static PaperFeatureResourcesFactory<FeatureDataManager> withDataProvider(
             Plugin plugin,
             Path dataDirectory,
@@ -94,7 +83,6 @@ public final class PaperFeatureResourcesFactory<D> {
         );
     }
 
-    /** Creates the standard Paper resource factory without a feature data resource. */
     public static PaperFeatureResourcesFactory<Void> withoutDataProvider(
             Plugin plugin,
             Path dataDirectory,
@@ -120,12 +108,9 @@ public final class PaperFeatureResourcesFactory<D> {
             DefaultCapabilityRegistry capabilities,
             InternalServiceRegistry<FeatureId> internalServices
     ) {
-        String owner = requireText(featureName);
+        FeatureResourceFactoryCore.Bundle<D> common = core.create(featureName, capabilities, internalServices);
+        D dataManager = common.dataManager();
         FeatureTaskManager tasks = new FeatureTaskManager(plugin);
-        FeatureServiceManager<FeatureId> services = new FeatureServiceManager<>();
-        services.bindRegistries(capabilities, internalServices, FeatureId.of(owner));
-        D dataManager = dataManagerFactory.get();
-        if (dataManager != null) dataManagerBinder.accept(dataManager, owner);
         return new PaperFeatureResources<>(
                 tasks,
                 new FeatureCommandManager(
@@ -134,15 +119,9 @@ public final class PaperFeatureResourcesFactory<D> {
                 dataManager,
                 dataManager == null ? () -> { } : () -> dataManagerQuiesce.accept(dataManager),
                 dataManager == null ? () -> { } : () -> dataManagerCleanup.accept(dataManager),
-                new FeatureCacheManager(dataDirectory, logger),
+                common.cacheManager(),
                 new FeatureGUIManager(plugin, tasks),
-                services
+                common.serviceManager()
         );
-    }
-
-    private static String requireText(String value) {
-        String clean = Objects.requireNonNull(value, "featureName").trim();
-        if (clean.isEmpty()) throw new IllegalArgumentException("featureName must not be blank");
-        return clean;
     }
 }
