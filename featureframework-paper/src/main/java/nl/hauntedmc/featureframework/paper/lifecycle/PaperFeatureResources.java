@@ -1,16 +1,15 @@
 package nl.hauntedmc.featureframework.paper.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycle;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
-import nl.hauntedmc.featureframework.lifecycle.FeatureCacheManager;
 import nl.hauntedmc.featureframework.lifecycle.StandardFeatureResourceLifecycle;
 import nl.hauntedmc.featureframework.paper.command.FeatureCommandManager;
 import nl.hauntedmc.featureframework.paper.ui.inventory.menu.FeatureGUIManager;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 
-import java.util.List;
 import java.util.Objects;
 
 /** Complete framework-owned resource scope for one Paper feature instance. */
@@ -43,21 +42,20 @@ public class PaperFeatureResources<D> implements FeatureLifecycleResources {
         this.guiManager = Objects.requireNonNull(guiManager, "guiManager");
         this.apiManager = Objects.requireNonNull(apiManager, "apiManager");
         listenerManager.registerListener(guiManager);
-        lifecycle = StandardFeatureResourceLifecycle.create(
-                listenerManager::quiesce,
-                listenerManager::unregisterAllListeners,
-                taskManager::quiesce,
-                taskManager::cancelAllTasks,
-                commandManager::quiesce,
-                commandManager::unregisterAllBrigadierCommands,
-                apiManager::quiesce,
-                apiManager::unregisterAllServices,
-                dataManager == null ? null : Objects.requireNonNull(quiesceData, "quiesceData"),
-                dataManager == null ? null : Objects.requireNonNull(cleanupData, "cleanupData"),
-                cacheManager::quiesce,
-                cacheManager::cleanupAll,
-                List.of(guiManager::shutdown)
-        );
+
+        StandardFeatureResourceLifecycle.Builder lifecycleBuilder = StandardFeatureResourceLifecycle.builder()
+                .listeners(listenerManager::quiesce, listenerManager::unregisterAllListeners)
+                .tasks(taskManager::quiesce, taskManager::cancelAllTasks)
+                .commands(commandManager::quiesce, commandManager::unregisterAllBrigadierCommands)
+                .services(apiManager::quiesce, apiManager::unregisterAllServices)
+                .caches(cacheManager::quiesce, cacheManager::cleanupAll)
+                .beforeListenerCleanup(guiManager::shutdown);
+        if (dataManager != null) {
+            lifecycleBuilder.data(
+                    Objects.requireNonNull(quiesceData, "quiesceData"),
+                    Objects.requireNonNull(cleanupData, "cleanupData"));
+        }
+        lifecycle = lifecycleBuilder.build();
     }
 
     public FeatureTaskManager getTaskManager() { return taskManager; }
