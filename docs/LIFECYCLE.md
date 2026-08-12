@@ -19,7 +19,10 @@ This ordering is intentional: a worker must never hold the graph lock while wait
 
 Each feature instance owns a resource scope. The scope transitions `OPEN -> QUIESCING -> CLOSED` and releases resources
 in a deterministic order. `StandardFeatureResourceLifecycle` builds the shared policy while Paper and Velocity resource
-facades retain their native manager types.
+facades retain their native manager types. New platform assembly uses `StandardFeatureResourceLifecycle.builder()` so
+listeners, tasks, commands, services, data, caches, and pre-listener cleanup are named at the call site instead of being
+passed as an error-prone positional callback list. The existing `create(...)` factory remains supported for
+compatibility.
 
 The standard policy is:
 
