@@ -28,7 +28,7 @@ class StandardFeatureResourceLifecycleTest {
     }
 
     @Test
-    void attemptsEveryCleanupStepAndAggregatesFailures() {
+    void legacyFactoryStillAggregatesFailures() {
         List<String> calls = new ArrayList<>();
         RuntimeException first = new RuntimeException("listener failure");
         RuntimeException later = new RuntimeException("task failure");
@@ -55,16 +55,30 @@ class StandardFeatureResourceLifecycleTest {
         ), calls);
     }
 
+    @Test
+    void builderRequiresDataCallbacksAsAPair() {
+        StandardFeatureResourceLifecycle.Builder builder = StandardFeatureResourceLifecycle.builder()
+                .listeners(() -> { }, () -> { })
+                .tasks(() -> { }, () -> { })
+                .commands(() -> { }, () -> { })
+                .services(() -> { }, () -> { })
+                .caches(() -> { }, () -> { });
+
+        assertThrows(NullPointerException.class, () -> builder.data(() -> { }, null));
+        assertThrows(NullPointerException.class, () -> builder.data(null, () -> { }));
+    }
+
     private static FeatureLifecycle lifecycle(List<String> calls, boolean noData) {
-        return StandardFeatureResourceLifecycle.create(
-                () -> calls.add("q-listener"), () -> calls.add("c-listener"),
-                () -> calls.add("q-task"), () -> calls.add("c-task"),
-                () -> calls.add("q-command"), () -> calls.add("c-command"),
-                () -> calls.add("q-service"), () -> calls.add("c-service"),
-                noData ? null : () -> calls.add("q-data"),
-                noData ? null : () -> calls.add("c-data"),
-                () -> calls.add("q-cache"), () -> calls.add("c-cache"),
-                List.of(() -> calls.add("pre-listener"))
-        );
+        StandardFeatureResourceLifecycle.Builder builder = StandardFeatureResourceLifecycle.builder()
+                .listeners(() -> calls.add("q-listener"), () -> calls.add("c-listener"))
+                .tasks(() -> calls.add("q-task"), () -> calls.add("c-task"))
+                .commands(() -> calls.add("q-command"), () -> calls.add("c-command"))
+                .services(() -> calls.add("q-service"), () -> calls.add("c-service"))
+                .caches(() -> calls.add("q-cache"), () -> calls.add("c-cache"))
+                .beforeListenerCleanup(() -> calls.add("pre-listener"));
+        if (!noData) {
+            builder.data(() -> calls.add("q-data"), () -> calls.add("c-data"));
+        }
+        return builder.build();
     }
 }
