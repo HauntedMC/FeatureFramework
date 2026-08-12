@@ -91,7 +91,8 @@ class FeatureTaskTrackerConcurrencyTest {
         try {
             IllegalStateException timeout = assertThrows(IllegalStateException.class,
                     () -> tracker.cancelAll(Handle::cancel, Duration.ofMillis(10)));
-            assertTrue(timeout.getMessage().contains("Timed out waiting for feature tasks to drain"));
+            assertTrue(timeout.getMessage().startsWith("Timed out waiting for "));
+            assertTrue(timeout.getMessage().contains("feature task callback"));
             assertTrue(handle.cancelled.get());
             assertEquals(0, tracker.activeCount());
             assertEquals(1, tracker.inFlightCount());
