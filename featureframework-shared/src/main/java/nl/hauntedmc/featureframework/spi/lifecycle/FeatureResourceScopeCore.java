@@ -9,9 +9,9 @@ import java.util.List;
 /**
  * Shared resource-scope lifecycle policy used by Paper and Velocity feature resource facades.
  *
- * <p>Native managers remain platform-owned. This core only fixes the lifecycle ordering and failure
- * aggregation contract: quiesce registrations first, then cancel/unregister/cleanup owned resources,
- * with optional platform-specific cleanup steps at the end.</p>
+ * <p>Native managers remain platform-owned. This core only fixes lifecycle ordering and failure
+ * aggregation: quiesce registrations first, then perform any established platform cleanup that must
+ * precede listener teardown, followed by listener/task/command/service/data/cache cleanup.</p>
  */
 public final class FeatureResourceScopeCore {
     private final FeatureLifecycle lifecycle;
@@ -33,7 +33,7 @@ public final class FeatureResourceScopeCore {
             Runnable cleanupData,
             Runnable quiesceCaches,
             Runnable cleanupCaches,
-            List<Runnable> finalCleanup
+            List<Runnable> cleanupBeforeListeners
     ) {
         return new FeatureResourceScopeCore(StandardFeatureResourceLifecycle.create(
                 quiesceListeners,
@@ -48,7 +48,7 @@ public final class FeatureResourceScopeCore {
                 cleanupData,
                 quiesceCaches,
                 cleanupCaches,
-                finalCleanup));
+                cleanupBeforeListeners));
     }
 
     public synchronized FeatureResourceState state() {
