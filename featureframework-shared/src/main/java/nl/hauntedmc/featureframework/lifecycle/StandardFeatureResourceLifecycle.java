@@ -78,38 +78,50 @@ public final class StandardFeatureResourceLifecycle {
         }
 
         public Builder listeners(Runnable quiesce, Runnable cleanup) {
-            listenerQuiesce = Objects.requireNonNull(quiesce, "listener quiesce");
-            listenerCleanup = Objects.requireNonNull(cleanup, "listener cleanup");
+            Objects.requireNonNull(quiesce, "listener quiesce");
+            Objects.requireNonNull(cleanup, "listener cleanup");
+            listenerQuiesce = quiesce;
+            listenerCleanup = cleanup;
             return this;
         }
 
         public Builder tasks(Runnable quiesce, Runnable cleanup) {
-            taskQuiesce = Objects.requireNonNull(quiesce, "task quiesce");
-            taskCleanup = Objects.requireNonNull(cleanup, "task cleanup");
+            Objects.requireNonNull(quiesce, "task quiesce");
+            Objects.requireNonNull(cleanup, "task cleanup");
+            taskQuiesce = quiesce;
+            taskCleanup = cleanup;
             return this;
         }
 
         public Builder commands(Runnable quiesce, Runnable cleanup) {
-            commandQuiesce = Objects.requireNonNull(quiesce, "command quiesce");
-            commandCleanup = Objects.requireNonNull(cleanup, "command cleanup");
+            Objects.requireNonNull(quiesce, "command quiesce");
+            Objects.requireNonNull(cleanup, "command cleanup");
+            commandQuiesce = quiesce;
+            commandCleanup = cleanup;
             return this;
         }
 
         public Builder services(Runnable quiesce, Runnable cleanup) {
-            serviceQuiesce = Objects.requireNonNull(quiesce, "service quiesce");
-            serviceCleanup = Objects.requireNonNull(cleanup, "service cleanup");
+            Objects.requireNonNull(quiesce, "service quiesce");
+            Objects.requireNonNull(cleanup, "service cleanup");
+            serviceQuiesce = quiesce;
+            serviceCleanup = cleanup;
             return this;
         }
 
         public Builder data(Runnable quiesce, Runnable cleanup) {
-            dataQuiesce = Objects.requireNonNull(quiesce, "data quiesce");
-            dataCleanup = Objects.requireNonNull(cleanup, "data cleanup");
+            Objects.requireNonNull(quiesce, "data quiesce");
+            Objects.requireNonNull(cleanup, "data cleanup");
+            dataQuiesce = quiesce;
+            dataCleanup = cleanup;
             return this;
         }
 
         public Builder caches(Runnable quiesce, Runnable cleanup) {
-            cacheQuiesce = Objects.requireNonNull(quiesce, "cache quiesce");
-            cacheCleanup = Objects.requireNonNull(cleanup, "cache cleanup");
+            Objects.requireNonNull(quiesce, "cache quiesce");
+            Objects.requireNonNull(cleanup, "cache cleanup");
+            cacheQuiesce = quiesce;
+            cacheCleanup = cleanup;
             return this;
         }
 
@@ -119,6 +131,11 @@ public final class StandardFeatureResourceLifecycle {
         }
 
         public FeatureLifecycle build() {
+            requireConfigured(listenerQuiesce, listenerCleanup, "listeners");
+            requireConfigured(taskQuiesce, taskCleanup, "tasks");
+            requireConfigured(commandQuiesce, commandCleanup, "commands");
+            requireConfigured(serviceQuiesce, serviceCleanup, "services");
+            requireConfigured(cacheQuiesce, cacheCleanup, "caches");
             return create(
                     listenerQuiesce,
                     listenerCleanup,
@@ -134,6 +151,12 @@ public final class StandardFeatureResourceLifecycle {
                     cacheCleanup,
                     cleanupBeforeListeners
             );
+        }
+
+        private static void requireConfigured(Runnable quiesce, Runnable cleanup, String role) {
+            if (quiesce == null || cleanup == null) {
+                throw new IllegalStateException("Resource lifecycle role '" + role + "' was not configured");
+            }
         }
     }
 
