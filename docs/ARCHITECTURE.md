@@ -7,7 +7,7 @@ catalogs, domain APIs, persistence entities, commands, and concrete behavior. Th
 dependency inversion: shared code defines small contracts and platform modules adapt them to Paper or
 Velocity.
 
-The 1.1 architecture deliberately maximizes shared implementation without pretending Paper and
+The 1.2 architecture deliberately maximizes shared implementation without pretending Paper and
 Velocity have the same execution model. Common ownership, graph, scope, and composition mechanics live
 once in `shared`; native platform objects and thread requirements remain in their adapters.
 
@@ -65,8 +65,8 @@ published through the public catalog.
 configuration, localization, resource, capability, and internal-service state, so consumers do not
 define parallel context records.
 
-Resources move through `OPEN`, `QUIESCING`, and `CLOSED`. Shared ownership infrastructure now contains
-the state machines that do not depend on native platform types:
+Resources move through `OPEN`, `QUIESCING`, and `CLOSED`. Shared ownership infrastructure contains the
+state machines that do not depend on native platform types:
 
 - `FeatureTaskTracker<H>` owns task registration races, in-flight accounting, quiescing, cancellation,
   and bounded draining while adapters supply native scheduling/cancellation callbacks.
@@ -75,7 +75,9 @@ the state machines that do not depend on native platform types:
 - `FeatureResourceFactoryCore` creates common service, cache, and data-resource pieces.
 
 Platform task/listener/command managers retain only native scheduling, registration, command dispatch,
-and handle types. Paper GUI cleanup is an additional Paper-only resource action.
+and handle types. Paper GUI cleanup is an additional Paper-only resource action. New abstractions are
+introduced only when they centralize behavior that these shared state machines do not already own; a
+pass-through wrapper is not considered a maintainability improvement.
 
 `LifecycleCoordinator` serializes host graph mutations, but serialization is intentionally separate
 from execution affinity. `FeatureOperationExecutor` is entered before the graph lock is acquired.
@@ -111,7 +113,9 @@ structured connection-event logging.
 
 Administrative command front ends remain platform bindings, while `FeatureCommandModel`,
 `FeatureCommandView`, and `FeatureOperationMessages` own platform-neutral lookup, suggestions,
-rendering, and operation-result mapping.
+rendering, and operation-result mapping. Existing public package names are kept stable in 1.2 even when
+a different package might look cleaner; cosmetic public moves are deferred to a major release rather
+than represented by duplicate public facade classes.
 
 ## Consumer boundary
 
@@ -138,10 +142,16 @@ Platform dependencies use `provided` scope. Consumers shade framework artifacts 
 Paper or Velocity API. Public framework packages use `nl.hauntedmc.featureframework`; consumer domain
 APIs retain their own namespaces. Releases publish normal, source, and Javadoc artifacts.
 
+The codebase distinguishes consumer API, framework-only cross-artifact SPI, and internal
+implementation. A new SPI namespace is used only when Java visibility across Maven artifacts genuinely
+requires it; existing public infrastructure is not wrapped merely to reclassify it. Internal refactors
+prefer package-private or `internal.*` implementation types where that does not move an existing public
+FQCN.
+
 The `API Compatibility` workflow builds the tagged `v1.0.0` baseline and the current branch, then
 compares every published framework module's public classes. Binary or source incompatible public API
-changes fail CI. Internal refactors should therefore prefer package-private implementation classes and
-preserve existing public façades unless a deliberate major-version change is planned.
+changes fail CI. Internal refactors should therefore preserve existing public façades unless a
+deliberate major-version change is planned.
 
 ## Acceptance boundary
 
@@ -152,7 +162,8 @@ then reload the provider graph and assert the retired resource scope is `CLOSED`
 remaining. They repeat the cleanup assertions on final host shutdown.
 
 Paper additionally initiates reload from an asynchronous scheduler thread and asserts feature
-initialize/disable callbacks execute on Bukkit's primary thread. Velocity performs the same graph and
-resource lifecycle without a synthetic main-thread policy. Both fixtures verify dependent recreation,
-stable capability-reference generation changes, public catalog transitions, and clean host shutdown
-against pinned real platform runtimes.
+initialize/disable callbacks execute on Bukkit's primary thread. Velocity records the scheduler caller
+thread and asserts provider/consumer lifecycle callbacks remain on that same thread, proving the direct
+executor adds no synthetic lifecycle hop. Both fixtures verify dependent recreation, stable
+capability-reference generation changes, public catalog transitions, and clean host shutdown against
+pinned real platform runtimes.
