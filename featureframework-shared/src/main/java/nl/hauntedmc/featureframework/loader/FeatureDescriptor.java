@@ -9,7 +9,13 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * Immutable, reflection-free description of a feature implementation and its dependencies.
+ * Immutable, reflection-free construction descriptor used by the host runtime.
+ *
+ * <p>Unlike the implementation-free public catalog metadata in
+ * {@link nl.hauntedmc.featureframework.api.feature.FeatureDescriptor}, this descriptor carries the
+ * concrete implementation type, construction callback, and platform/plugin dependency declarations
+ * required to create and order live feature instances. Application composition should normally use
+ * {@code FeatureDefinition} rather than constructing this type directly.</p>
  *
  * @param <F> feature implementation base type
  * @param <C> construction context type
