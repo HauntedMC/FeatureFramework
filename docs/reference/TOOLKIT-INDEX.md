@@ -26,18 +26,20 @@ Key areas:
 - `config` — feature configuration handling and reload results;
 - `localization` — platform-neutral localization contracts.
 
+## Practical guides by subsystem
+
+- [Commands and listeners](../toolkits/COMMANDS-AND-LISTENERS.md)
+- [Scheduling and async work](../toolkits/SCHEDULING-AND-ASYNC-WORK.md)
+- [Data and caching](../toolkits/DATA-AND-CACHING.md)
+- [Services, capabilities, and catalog](../toolkits/SERVICES-CAPABILITIES-AND-CATALOG.md)
+- [Configuration, localization, and logging](../toolkits/CONFIG-LOCALIZATION-AND-LOGGING.md)
+- [Paper UI and platform adapters](../toolkits/PAPER-UI-AND-PLATFORM-ADAPTERS.md)
+
 ## Shared toolkits
 
-The shared module also contains reusable platform-neutral toolkit packages. Consult their Javadocs/source when you need implementation-specific details. Major areas include:
+The shared module also contains reusable platform-neutral toolkit packages. Major areas include safe configuration/localization I/O, logging abstractions, cache/resource helpers, HTTP/network helpers, text/token utilities, and reusable testing-oriented utilities.
 
-- safe configuration and localization I/O;
-- logging abstractions;
-- cache/resource helpers;
-- HTTP/network helpers;
-- text/token utilities;
-- reusable testing-oriented utilities.
-
-Do not import a utility merely because it exists; keep feature code dependent on the narrowest useful abstraction.
+Do not import a utility merely because it exists; keep feature code dependent on the narrowest useful abstraction. Consult the class Javadocs/source for exact low-level helper semantics.
 
 ## Paper — `featureframework-paper`
 
@@ -73,7 +75,7 @@ Use `VelocityFeatureContext.proxy()` when native `ProxyServer` access is require
 ## Where to learn an API
 
 1. Find the subsystem here.
-2. Read the relevant platform example.
+2. Read the practical subsystem guide and relevant platform example.
 3. Read the public class/interface Javadocs/source for exact overloads.
 4. For runtime semantics, use [ARCHITECTURE.md](../ARCHITECTURE.md) and [THREADING.md](../THREADING.md).
 

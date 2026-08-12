@@ -16,6 +16,15 @@ Use this page as the documentation map. The root README is deliberately short; d
 - [Dependencies, capabilities, and services](concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) — choose the right relationship between features.
 - [Multi-feature plugin design](concepts/MULTI-FEATURE-PLUGIN-DESIGN.md) — structure real applications without a god bootstrap.
 
+## Practical subsystem guides
+
+- [Commands and listeners](toolkits/COMMANDS-AND-LISTENERS.md)
+- [Scheduling and async work](toolkits/SCHEDULING-AND-ASYNC-WORK.md)
+- [Data and caching](toolkits/DATA-AND-CACHING.md)
+- [Services, capabilities, and catalog](toolkits/SERVICES-CAPABILITIES-AND-CATALOG.md)
+- [Configuration, localization, and logging](toolkits/CONFIG-LOCALIZATION-AND-LOGGING.md)
+- [Paper UI and platform adapters](toolkits/PAPER-UI-AND-PLATFORM-ADAPTERS.md)
+
 ## Guides
 
 - [Configuration and localization](guides/CONFIGURATION-AND-LOCALIZATION.md)
