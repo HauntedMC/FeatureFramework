@@ -1,8 +1,8 @@
 package nl.hauntedmc.featureframework.paper.lifecycle;
 
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
+import nl.hauntedmc.featureframework.lifecycle.FeatureTaskTracker;
 import nl.hauntedmc.featureframework.paper.time.BukkitTime;
-import nl.hauntedmc.featureframework.spi.lifecycle.TaskLifecycleCore;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
@@ -16,7 +16,7 @@ import java.util.function.Supplier;
 /** Paper scheduler adapter backed by the shared feature task ownership state machine. */
 public class FeatureTaskManager {
     private final Plugin plugin;
-    private final TaskLifecycleCore<BukkitTask> lifecycle = new TaskLifecycleCore<>();
+    private final FeatureTaskTracker<BukkitTask> tracker = new FeatureTaskTracker<>();
     private final Map<BukkitTask, CompletableFuture<?>> taskFutures = new ConcurrentHashMap<>();
 
     public FeatureTaskManager(Plugin plugin) {
@@ -25,7 +25,7 @@ public class FeatureTaskManager {
 
     public BukkitTask scheduleOneTimeTask(Runnable task) {
         Objects.requireNonNull(task, "task");
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> Bukkit.getScheduler().runTask(plugin, runnable), task, BukkitTask::cancel);
     }
 
@@ -33,7 +33,7 @@ public class FeatureTaskManager {
         Objects.requireNonNull(task, "task");
         Objects.requireNonNull(delay, "delay");
         long ticks = clampDelay(delay);
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> Bukkit.getScheduler().runTaskLater(plugin, runnable, ticks), task, BukkitTask::cancel);
     }
 
@@ -47,14 +47,14 @@ public class FeatureTaskManager {
         Objects.requireNonNull(period, "period");
         long delayTicks = clampDelay(delay);
         long periodTicks = clampPeriod(period);
-        return lifecycle.scheduleRepeating(
+        return tracker.scheduleRepeating(
                 runnable -> Bukkit.getScheduler().runTaskTimer(plugin, runnable, delayTicks, periodTicks),
                 task, BukkitTask::cancel);
     }
 
     public BukkitTask scheduleAsyncTask(Runnable task) {
         Objects.requireNonNull(task, "task");
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> Bukkit.getScheduler().runTaskAsynchronously(plugin, runnable), task, BukkitTask::cancel);
     }
 
@@ -90,7 +90,7 @@ public class FeatureTaskManager {
         Objects.requireNonNull(task, "task");
         Objects.requireNonNull(delay, "delay");
         long ticks = clampDelay(delay);
-        return lifecycle.scheduleOnce(
+        return tracker.scheduleOnce(
                 runnable -> Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, runnable, ticks),
                 task, BukkitTask::cancel);
     }
@@ -101,23 +101,23 @@ public class FeatureTaskManager {
         Objects.requireNonNull(period, "period");
         long delayTicks = clampDelay(delay);
         long periodTicks = clampPeriod(period);
-        return lifecycle.scheduleRepeating(
+        return tracker.scheduleRepeating(
                 runnable -> Bukkit.getScheduler().runTaskTimerAsynchronously(
                         plugin, runnable, delayTicks, periodTicks),
                 task, BukkitTask::cancel);
     }
 
     public void cancelTask(BukkitTask task) {
-        lifecycle.cancel(task, this::cancelNative);
+        tracker.cancel(task, this::cancelNative);
     }
 
     public boolean isTaskQueued(int taskId) { return Bukkit.getScheduler().isQueued(taskId); }
     public boolean isTaskRunning(int taskId) { return Bukkit.getScheduler().isCurrentlyRunning(taskId); }
-    public void cancelAllTasks() { lifecycle.cancelAll(this::cancelNative); taskFutures.clear(); }
-    public void quiesce() { lifecycle.quiesce(); }
-    public FeatureResourceState state() { return lifecycle.state(); }
-    public int getInFlightTaskCount() { return lifecycle.inFlightCount(); }
-    public int getActiveTaskCount() { return lifecycle.activeCount(); }
+    public void cancelAllTasks() { tracker.cancelAll(this::cancelNative); taskFutures.clear(); }
+    public void quiesce() { tracker.quiesce(); }
+    public FeatureResourceState state() { return tracker.state(); }
+    public int getInFlightTaskCount() { return tracker.inFlightCount(); }
+    public int getActiveTaskCount() { return tracker.activeCount(); }
 
     private void cancelNative(BukkitTask task) {
         CompletableFuture<?> future = taskFutures.remove(task);
