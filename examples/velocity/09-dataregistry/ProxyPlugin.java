@@ -1,11 +1,11 @@
 package com.example.registryproxy;
 
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.example.registryproxy.catalog.BuiltInFeatures;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
@@ -19,6 +19,11 @@ import nl.hauntedmc.featureframework.velocity.localization.VelocityLocalization;
 
 import java.nio.file.Path;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.registryproxy.catalog.BuiltInFeatures",
+        featurePackage = "com.example.registryproxy",
+        featureBase = VelocityFeature.class,
+        featureContext = VelocityFeatureContext.class)
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -59,16 +64,6 @@ public final class ProxyPlugin {
                         dataDirectory,
                         frameworkLogger);
 
-        FeatureDefinition<VelocityFeature<ProxyPlugin, Void>, VelocityFeatureContext<ProxyPlugin, Void>> identity =
-                FeatureDefinition.<VelocityFeature<ProxyPlugin, Void>, VelocityFeatureContext<ProxyPlugin, Void>>builder(
-                                "Identity",
-                                "1.0.0",
-                                IdentityFeature.class,
-                                IdentityFeature::new)
-                        .requiresPlugins("dataregistry")
-                        .enabledByDefault()
-                        .build();
-
         featureHost = VelocityFeatureHostComposition.builder(
                         this,
                         proxy,
@@ -79,7 +74,7 @@ public final class ProxyPlugin {
                         configuration,
                         localization,
                         resources::create,
-                        FeatureCollection.of(identity),
+                        BuiltInFeatures.collection(),
                         frameworkLogger)
                 .hostName("ExampleRegistryProxy")
                 .dataRegistryPlugin("dataregistry")

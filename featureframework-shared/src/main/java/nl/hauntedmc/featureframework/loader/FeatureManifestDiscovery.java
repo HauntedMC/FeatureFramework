@@ -28,7 +28,7 @@ public final class FeatureManifestDiscovery {
         Set<Class<?>> bootstrap = bootstrapCapabilities == null ? Set.of() : Set.copyOf(bootstrapCapabilities);
         String namespace = requireText(capabilityNamespace, "capabilityNamespace");
         List<E> definitions = new ArrayList<>(manifest);
-        definitions.sort(Comparator.comparingInt(FeatureManifestDefinition::startupOrder));
+        definitions.sort(Comparator.comparing(FeatureManifestDefinition::startupPhase));
 
         Map<Class<?>, E> capabilityProviders = uniqueProviders(
                 definitions, FeatureManifestDefinition::providedCapabilities, "Capability");

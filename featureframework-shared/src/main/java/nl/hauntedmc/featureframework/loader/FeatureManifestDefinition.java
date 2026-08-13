@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.loader;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureClassification;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
+import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -10,7 +11,7 @@ import java.util.Set;
 public interface FeatureManifestDefinition<D extends FeatureDescriptor<?, ?>> {
     String featureName();
 
-    int startupOrder();
+    FeatureStartupPhase startupPhase();
 
     D descriptor(Set<String> requiredFeatureDependencies);
 

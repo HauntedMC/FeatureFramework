@@ -8,8 +8,8 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
+import com.example.proxy.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
@@ -17,6 +17,12 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
 import java.nio.file.Path;
 
 @Plugin(id = "ff-example-simple", name = "FeatureFrameworkSimpleExample", version = "1.0.0")
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.proxy.catalog.BuiltInFeatures",
+        featurePackage = "com.example.proxy.welcome",
+        featureBase = VelocityFeature.class,
+        featureContext = VelocityFeatureContext.class
+)
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -32,14 +38,8 @@ public final class ProxyPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        var welcome = FeatureDefinition
-                .<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
-                        "Welcome", "1.0.0", ProxyWelcomeFeature.class, ProxyWelcomeFeature::new)
-                .enabledByDefault()
-                .build();
-
         featureHost = VelocityFeatureHost.builder(
-                this, proxy, logger, dataDirectory, ProxyPlugin.class, FeatureCollection.of(welcome)
+                this, proxy, logger, dataDirectory, ProxyPlugin.class, BuiltInFeatures.collection()
         ).build();
         featureHost.start();
     }

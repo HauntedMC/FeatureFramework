@@ -51,7 +51,7 @@ A few practical rules help rollback remain predictable:
 - register resources through owned managers;
 - do not start background work you cannot cancel;
 - do not expose a service until the state behind it is ready;
-- keep required dependencies explicit in the definition.
+- keep required dependencies explicit in `@FeatureDeclaration`.
 
 ## Paper and Velocity differ
 

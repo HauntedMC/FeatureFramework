@@ -8,12 +8,20 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
+import com.example.proxy.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
+import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
+import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
 
 import java.nio.file.Path;
 
 @Plugin(id = "ff-example-capability", name = "FeatureFrameworkCapabilityExample", version = "1.0.0")
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.proxy.catalog.BuiltInFeatures",
+        featurePackage = "com.example.proxy",
+        featureBase = VelocityFeature.class,
+        featureContext = VelocityFeatureContext.class)
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -35,7 +43,7 @@ public final class ProxyPlugin {
                 logger,
                 dataDirectory,
                 ProxyPlugin.class,
-                FeatureCollection.of(Definitions.directory(), Definitions.consumer())
+                BuiltInFeatures.collection()
         ).build();
         featureHost.start();
     }

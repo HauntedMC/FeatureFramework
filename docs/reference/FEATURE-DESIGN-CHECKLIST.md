@@ -8,7 +8,7 @@ Use this before adding a new feature or reviewing one.
 - [ ] Disabling it should not require unrelated features to stop unless explicitly declared.
 - [ ] Normal helper classes remain normal Java classes rather than becoming tiny features.
 
-## Definition
+## Declaration
 
 - [ ] Name and version are stable and descriptive.
 - [ ] `enabledByDefault` is intentional.
@@ -37,7 +37,7 @@ Use this before adding a new feature or reviewing one.
 - [ ] Consumers depend on the contract they need, not a convenient global manager.
 - [ ] Public capabilities are small and implementation-independent.
 - [ ] Internal services are not exposed as public extension APIs unnecessarily.
-- [ ] Optional lookups use `find...`; required lookups use `require...` and are declared in the definition.
+- [ ] Optional lookups use `find...`; required lookups use `require...` and are declared in `@FeatureDeclaration`.
 
 ## Operations and tests
 

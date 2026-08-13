@@ -1,10 +1,10 @@
 package com.example.dataplugin;
 
 import nl.hauntedmc.dataprovider.api.DataProviderAPI;
+import com.example.dataplugin.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
@@ -19,6 +19,11 @@ import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.dataplugin.catalog.BuiltInFeatures",
+        featurePackage = "com.example.dataplugin",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class)
 public final class MyPlugin extends JavaPlugin {
     private PaperFeatureHostComposition<
             MyPlugin,
@@ -55,25 +60,6 @@ public final class MyPlugin extends JavaPlugin {
                         () -> "validate"
                 );
 
-        FeatureDefinition<
-                PaperFeature<MyPlugin, FeatureDataManager>,
-                PaperFeatureContext<MyPlugin, FeatureDataManager>> storage =
-                FeatureDefinition
-                        .<PaperFeature<MyPlugin, FeatureDataManager>,
-                                PaperFeatureContext<MyPlugin, FeatureDataManager>>builder(
-                                "PlayerStorage",
-                                "1.0.0",
-                                PlayerStorageFeature.class,
-                                PlayerStorageFeature::new)
-                        .requiresPlugins("DataProvider")
-                        .enabledByDefault()
-                        .build();
-
-        FeatureCollection<
-                PaperFeature<MyPlugin, FeatureDataManager>,
-                PaperFeatureContext<MyPlugin, FeatureDataManager>> features =
-                FeatureCollection.of(storage);
-
         featureHost = PaperFeatureHostComposition.builder(
                         this,
                         getPluginMeta().getVersion(),
@@ -82,7 +68,7 @@ public final class MyPlugin extends JavaPlugin {
                         configuration,
                         localization,
                         resources::create,
-                        features,
+                        BuiltInFeatures.collection(),
                         frameworkLogger)
                 .hostName(getName())
                 .build();

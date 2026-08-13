@@ -4,17 +4,17 @@ Use the relationship that matches what the consumer actually needs. This keeps t
 
 ## Feature dependencies
 
-Use `requiresFeatures("Profiles")` when a feature specifically depends on the lifecycle of another named feature.
+Use `requiresFeatures = "Profiles"` in `@FeatureDeclaration` when a feature specifically depends on the lifecycle of another named feature.
 
 ```java
-.requiresFeatures("Profiles")
+@FeatureDeclaration(name = "Chat", version = "1.0.0", requiresFeatures = "Profiles")
 ```
 
-Use `optionallyUsesFeatures(...)` when the other feature only adds optional behavior.
+Use `optionallyUsesFeatures = "DiscordBridge"` when the other feature only adds optional behavior.
 
 ## External plugin dependencies
 
-Use `requiresPlugins("PlaceholderAPI")` when one feature cannot work without a separately installed platform plugin.
+Use `requiresPlugins = "PlaceholderAPI"` when one feature cannot work without a separately installed platform plugin.
 
 Keep the dependency on the feature that actually needs the plugin instead of making the entire application depend on it.
 
@@ -31,8 +31,11 @@ public interface PlayerProfileApi {
 The provider declares and registers the capability:
 
 ```java
-// Definition
-.providesCapabilities(PlayerProfileApi.class)
+@FeatureDeclaration(
+        name = "Profiles",
+        version = "1.0.0",
+        classification = FeatureClassification.CAPABILITY_PROVIDER,
+        providesCapabilities = PlayerProfileApi.class)
 
 // Provider initialize()
 getContext().services().registerService(PlayerProfileApi.class, profileService);
@@ -41,8 +44,11 @@ getContext().services().registerService(PlayerProfileApi.class, profileService);
 A required consumer declares and resolves it:
 
 ```java
-// Definition
-.requiresCapabilities(PlayerProfileApi.class)
+@FeatureDeclaration(
+        name = "Chat",
+        version = "1.0.0",
+        classification = FeatureClassification.CAPABILITY_CONSUMER,
+        requiresCapabilities = PlayerProfileApi.class)
 
 // Consumer initialize()
 PlayerProfileApi profiles = requireCapability(PlayerProfileApi.class);
@@ -50,7 +56,7 @@ PlayerProfileApi profiles = requireCapability(PlayerProfileApi.class);
 
 For optional behavior, use `optionallyUsesCapabilities(...)` and `findCapability(...)`.
 
-Required capability relationships can also be used by manifest discovery to derive the feature dependency needed for startup ordering.
+Required capability relationships can also be used by manifest discovery to derive the feature dependency needed for lifecycle sequencing.
 
 Keep capability interfaces small and focused on domain behavior. Avoid exposing a database connection, implementation class, or mutable manager just to make it reachable from another feature.
 
@@ -59,14 +65,15 @@ Keep capability interfaces small and focused on domain behavior. Avoid exposing 
 Internal services work similarly, but are intended for private collaboration inside one application rather than a reusable public capability.
 
 ```java
-// Provider definition
-.providesInternalServices(ProfileStore.class)
+@FeatureDeclaration(
+        name = "Profiles",
+        version = "1.0.0",
+        providesInternalServices = ProfileStore.class)
 
 // Provider initialize()
 getContext().services().registerInternalService(ProfileStore.class, profileStore);
 
-// Consumer definition
-.requiresInternalServices(ProfileStore.class)
+@FeatureDeclaration(name = "Chat", version = "1.0.0", requiresInternalServices = ProfileStore.class)
 
 // Consumer initialize()
 ProfileStore store = requireInternalService(ProfileStore.class);

@@ -1,11 +1,13 @@
 package com.example.proxy.status;
 
+import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
+@FeatureDeclaration(name = "Status", version = "1.0.0", enabledByDefault = true)
 public final class ConfigurableProxyFeature extends VelocityFeature<Object, Void> {
     public ConfigurableProxyFeature(VelocityFeatureContext<Object, Void> context) {
         super(context);

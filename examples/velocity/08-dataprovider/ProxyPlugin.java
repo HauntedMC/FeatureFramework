@@ -1,11 +1,11 @@
 package com.example.dataproxy;
 
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.example.dataproxy.catalog.BuiltInFeatures;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
@@ -20,6 +20,11 @@ import nl.hauntedmc.featureframework.velocity.localization.VelocityLocalization;
 
 import java.nio.file.Path;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.dataproxy.catalog.BuiltInFeatures",
+        featurePackage = "com.example.dataproxy",
+        featureBase = VelocityFeature.class,
+        featureContext = VelocityFeatureContext.class)
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -62,25 +67,6 @@ public final class ProxyPlugin {
                         frameworkLogger,
                         () -> "validate");
 
-        FeatureDefinition<
-                VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>> storage =
-                FeatureDefinition
-                        .<VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>>builder(
-                                "NetworkStorage",
-                                "1.0.0",
-                                NetworkStorageFeature.class,
-                                NetworkStorageFeature::new)
-                        .requiresPlugins("dataprovider")
-                        .enabledByDefault()
-                        .build();
-
-        FeatureCollection<
-                VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>> features =
-                FeatureCollection.of(storage);
-
         featureHost = VelocityFeatureHostComposition.builder(
                         this,
                         proxy,
@@ -91,7 +77,7 @@ public final class ProxyPlugin {
                         configuration,
                         localization,
                         resources::create,
-                        features,
+                        BuiltInFeatures.collection(),
                         frameworkLogger)
                 .hostName("ExampleDataProxy")
                 .build();

@@ -32,7 +32,7 @@ class FeatureHostTest {
     void hostsCollectionAndReloadsProviderWithDependent() {
         ProviderFeature.starts.set(0);
         ConsumerFeature.starts.set(0);
-        List<String> startupOrder = new ArrayList<>();
+        List<String> startupSequence = new ArrayList<>();
         List<FeatureState> transitions = new ArrayList<>();
         FrameworkLogger logger = FrameworkLogger.noop();
         ConfigService configService = new ConfigService(
@@ -47,13 +47,13 @@ class FeatureHostTest {
 
         FeatureDefinition<TestFeature, TestContext> provider = FeatureDefinition.<TestFeature, TestContext>builder(
                         "Provider", "1.0.0", ProviderFeature.class,
-                        context -> new ProviderFeature(context, startupOrder))
+                        context -> new ProviderFeature(context, startupSequence))
                 .providesCapabilities(GreetingApi.class)
                 .enabledByDefault()
                 .build();
         FeatureDefinition<TestFeature, TestContext> consumer = FeatureDefinition.<TestFeature, TestContext>builder(
                         "Consumer", "1.0.0", ConsumerFeature.class,
-                        context -> new ConsumerFeature(context, startupOrder))
+                        context -> new ConsumerFeature(context, startupSequence))
                 .requiresCapabilities(GreetingApi.class)
                 .enabledByDefault()
                 .build();
@@ -70,7 +70,7 @@ class FeatureHostTest {
         host.start();
 
         assertEquals(RuntimeState.READY, host.state());
-        assertEquals(List.of("provider", "consumer"), startupOrder);
+        assertEquals(List.of("provider", "consumer"), startupSequence);
         assertEquals(2, host.features().snapshot().size());
         assertEquals(FeatureClassification.CAPABILITY_PROVIDER,
                 host.features().find(FeatureId.of("Provider")).orElseThrow().descriptor().classification());
@@ -128,15 +128,15 @@ class FeatureHostTest {
     }
 
     abstract static class TestFeature extends ManagedFeature<TestContext> {
-        private final List<String> startupOrder;
+        private final List<String> startupSequence;
 
-        TestFeature(TestContext context, List<String> startupOrder) {
+        TestFeature(TestContext context, List<String> startupSequence) {
             super(context);
-            this.startupOrder = startupOrder;
+            this.startupSequence = startupSequence;
         }
 
         void started(String feature) {
-            startupOrder.add(feature);
+            startupSequence.add(feature);
         }
 
         @Override public void disable() { }
@@ -145,8 +145,8 @@ class FeatureHostTest {
     static final class ProviderFeature extends TestFeature {
         private static final AtomicInteger starts = new AtomicInteger();
 
-        ProviderFeature(TestContext context, List<String> startupOrder) {
-            super(context, startupOrder);
+        ProviderFeature(TestContext context, List<String> startupSequence) {
+            super(context, startupSequence);
         }
 
         @Override
@@ -160,8 +160,8 @@ class FeatureHostTest {
     static final class ConsumerFeature extends TestFeature {
         private static final AtomicInteger starts = new AtomicInteger();
 
-        ConsumerFeature(TestContext context, List<String> startupOrder) {
-            super(context, startupOrder);
+        ConsumerFeature(TestContext context, List<String> startupSequence) {
+            super(context, startupSequence);
         }
 
         @Override

@@ -2,7 +2,7 @@
 
 This example is complete on its own:
 
-- `MyPlugin.java` creates the feature definition and host.
+- `MyPlugin.java` uses the generated feature catalog and host.
 - `ActivityFeature.java` registers a listener and repeating task through its resource scope.
 
 The important part is what **isn't** in `disable()`: there is no listener unregister and no task cancellation. Because both resources were registered through `PaperFeatureResources`, the framework owns their cleanup.

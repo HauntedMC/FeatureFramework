@@ -1,9 +1,9 @@
 package com.example.registryplugin;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import com.example.registryplugin.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
@@ -17,6 +17,11 @@ import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.registryplugin.catalog.BuiltInFeatures",
+        featurePackage = "com.example.registryplugin",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class)
 public final class MyPlugin extends JavaPlugin {
     private PaperFeatureHostComposition<
             MyPlugin,
@@ -49,16 +54,6 @@ public final class MyPlugin extends JavaPlugin {
                         () -> true,
                         frameworkLogger);
 
-        FeatureDefinition<PaperFeature<MyPlugin, Void>, PaperFeatureContext<MyPlugin, Void>> identity =
-                FeatureDefinition.<PaperFeature<MyPlugin, Void>, PaperFeatureContext<MyPlugin, Void>>builder(
-                                "Identity",
-                                "1.0.0",
-                                IdentityFeature.class,
-                                IdentityFeature::new)
-                        .requiresPlugins("DataRegistry")
-                        .enabledByDefault()
-                        .build();
-
         featureHost = PaperFeatureHostComposition.builder(
                         this,
                         getPluginMeta().getVersion(),
@@ -67,7 +62,7 @@ public final class MyPlugin extends JavaPlugin {
                         configuration,
                         localization,
                         resources::create,
-                        FeatureCollection.of(identity),
+                        BuiltInFeatures.collection(),
                         frameworkLogger)
                 .hostName(getName())
                 .dataRegistryPlugin("DataRegistry")

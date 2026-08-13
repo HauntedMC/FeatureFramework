@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.loader;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureClassification;
+import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 import nl.hauntedmc.featureframework.feature.Feature;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
@@ -14,9 +15,20 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FeatureManifestDiscoveryTest {
     @Test
+    void ordersIndependentFeaturesByStartupPhase() {
+        Definition deferred = definition("deferred", FeatureStartupPhase.DEFERRED, Set.of(), Set.of());
+        Definition foundation = definition("foundation", FeatureStartupPhase.FOUNDATION, Set.of(), Set.of());
+
+        var result = FeatureManifestDiscovery.discover(List.of(deferred, foundation), Set.of(), "demo");
+
+        assertEquals(List.of("foundation", "deferred"), result.discovered().stream()
+                .map(item -> item.descriptor().registryName()).toList());
+    }
+
+    @Test
     void derivesDependenciesOrdersFeaturesAndProjectsPublicMetadata() {
-        Definition consumer = definition("consumer", 2, Set.of(Service.class), Set.of());
-        Definition provider = definition("provider", 1, Set.of(), Set.of(Service.class));
+        Definition consumer = definition("consumer", FeatureStartupPhase.CORE, Set.of(Service.class), Set.of());
+        Definition provider = definition("provider", FeatureStartupPhase.SECURITY, Set.of(), Set.of(Service.class));
 
         var result = FeatureManifestDiscovery.discover(List.of(consumer, provider), Set.of(), "demo");
 
@@ -29,24 +41,24 @@ class FeatureManifestDiscoveryTest {
 
     @Test
     void rejectsMissingAndDuplicateProviders() {
-        Definition consumer = definition("consumer", 1, Set.of(Service.class), Set.of());
+        Definition consumer = definition("consumer", FeatureStartupPhase.SECURITY, Set.of(Service.class), Set.of());
         assertThrows(IllegalStateException.class,
                 () -> FeatureManifestDiscovery.discover(List.of(consumer), Set.of(), "demo"));
 
-        Definition first = definition("first", 1, Set.of(), Set.of(Service.class));
-        Definition second = definition("second", 2, Set.of(), Set.of(Service.class));
+        Definition first = definition("first", FeatureStartupPhase.SECURITY, Set.of(), Set.of(Service.class));
+        Definition second = definition("second", FeatureStartupPhase.CORE, Set.of(), Set.of(Service.class));
         assertThrows(IllegalStateException.class,
                 () -> FeatureManifestDiscovery.discover(List.of(first, second), Set.of(), "demo"));
     }
 
     private static Definition definition(
-            String name, int order, Set<Class<?>> required, Set<Class<?>> provided) {
-        return new Definition(name, order, required, provided);
+            String name, FeatureStartupPhase phase, Set<Class<?>> required, Set<Class<?>> provided) {
+        return new Definition(name, phase, required, provided);
     }
 
     private record Definition(
             String featureName,
-            int startupOrder,
+            FeatureStartupPhase startupPhase,
             Set<Class<?>> requiredCapabilities,
             Set<Class<?>> providedCapabilities
     ) implements FeatureManifestDefinition<FeatureDescriptor<TestFeature, Object>> {

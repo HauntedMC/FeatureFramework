@@ -8,8 +8,8 @@ import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
-import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureDefinition;
+import com.example.proxy.lifecycle.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
@@ -17,6 +17,11 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
 import java.nio.file.Path;
 
 @Plugin(id = "ff-example-lifecycle", name = "FeatureFrameworkLifecycleExample", version = "1.0.0")
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.proxy.lifecycle.catalog.BuiltInFeatures",
+        featurePackage = "com.example.proxy.lifecycle",
+        featureBase = VelocityFeature.class,
+        featureContext = VelocityFeatureContext.class)
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -32,13 +37,8 @@ public final class ProxyPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        var sync = FeatureDefinition
-                .<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
-                        "NetworkSync", "1.0.0", NetworkSyncFeature.class, NetworkSyncFeature::new)
-                .enabledByDefault()
-                .build();
         featureHost = VelocityFeatureHost.builder(
-                this, proxy, logger, dataDirectory, ProxyPlugin.class, FeatureCollection.of(sync)
+                this, proxy, logger, dataDirectory, ProxyPlugin.class, BuiltInFeatures.collection()
         ).build();
         featureHost.start();
     }

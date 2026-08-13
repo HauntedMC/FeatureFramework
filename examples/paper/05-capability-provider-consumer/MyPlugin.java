@@ -1,9 +1,17 @@
 package com.example.myplugin;
 
-import nl.hauntedmc.featureframework.host.FeatureCollection;
+import com.example.myplugin.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
+import nl.hauntedmc.featureframework.paper.host.PaperFeature;
+import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureHost;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.myplugin.catalog.BuiltInFeatures",
+        featurePackage = "com.example.myplugin",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class)
 public final class MyPlugin extends JavaPlugin {
     private PaperFeatureHost featureHost;
 
@@ -12,7 +20,7 @@ public final class MyPlugin extends JavaPlugin {
         featureHost = PaperFeatureHost.builder(
                 this,
                 MyPlugin.class,
-                FeatureCollection.of(Definitions.provider(), Definitions.consumer())
+                BuiltInFeatures.collection()
         ).build();
         featureHost.start();
     }

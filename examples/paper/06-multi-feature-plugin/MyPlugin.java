@@ -1,14 +1,23 @@
 package com.example.largeplugin;
 
+import com.example.largeplugin.catalog.BuiltInFeatures;
+import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
+import nl.hauntedmc.featureframework.paper.host.PaperFeature;
+import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureHost;
 import org.bukkit.plugin.java.JavaPlugin;
 
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.largeplugin.catalog.BuiltInFeatures",
+        featurePackage = "com.example.largeplugin",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class)
 public final class MyPlugin extends JavaPlugin {
     private PaperFeatureHost featureHost;
 
     @Override
     public void onEnable() {
-        featureHost = PaperFeatureHost.builder(this, MyPlugin.class, Features.all()).build();
+        featureHost = PaperFeatureHost.builder(this, MyPlugin.class, BuiltInFeatures.collection()).build();
         featureHost.start();
     }
 

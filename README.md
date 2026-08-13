@@ -77,19 +77,27 @@ public final class WelcomeFeature extends PaperFeature<Plugin, Void> {
 Declare it and start the host from your plugin bootstrap:
 
 ```java
-var welcome = FeatureDefinition
-        .<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
-                "Welcome", "1.0.0", WelcomeFeature.class, WelcomeFeature::new)
-        .enabledByDefault()
-        .build();
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.myplugin.catalog.BuiltInFeatures",
+        featurePackage = "com.example.myplugin.features",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class
+)
+public final class MyPlugin extends JavaPlugin {
+    @Override public void onEnable() {
+        featureHost = PaperFeatureHost.builder(this, MyPlugin.class, BuiltInFeatures.collection()).build();
+        featureHost.start();
+    }
+}
 
-featureHost = PaperFeatureHost.builder(
-        this,
-        MyPlugin.class,
-        FeatureCollection.of(welcome)
-).build();
-featureHost.start();
+@FeatureDeclaration(name = "Welcome", version = "1.0.0", enabledByDefault = true)
+public final class WelcomeFeature extends PaperFeature<MyPlugin, Void> {
+    public WelcomeFeature(PaperFeatureContext<MyPlugin, Void> context) { super(context); }
+}
 ```
+
+`featureframework-processor` generates `BuiltInFeatures` while compiling. Configure it explicitly as a Maven
+annotation processor; the generated catalog uses constructor references and does not scan the plugin JAR at runtime.
 
 Call `featureHost.stop()` from `onDisable()`. See the [complete Paper example](examples/paper/01-simple-feature/README.md) or the [Velocity equivalent](examples/velocity/01-simple-feature/README.md).
 

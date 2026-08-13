@@ -12,7 +12,8 @@ For each existing subsystem, identify its listeners, commands, tasks, caches, da
 
 Choose something with few dependencies, such as join messages, maintenance mode, a utility system, or an external integration.
 
-Create its `FeatureDefinition`, move its registrations into `initialize()`, and use feature-owned resource managers where possible.
+Add `@FeatureDeclaration` to its concrete feature class, move its registrations into `initialize()`, and use
+feature-owned resource managers where possible. The generated catalog will include it automatically.
 
 ## 3. Test cleanup before moving on
 

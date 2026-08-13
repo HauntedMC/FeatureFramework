@@ -1,9 +1,12 @@
 package com.example.proxy;
 
+import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import com.example.network.api.NetworkPlayerApi;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
+@FeatureDeclaration(
+        name = "NetworkCommands", version = "1.0.0", enabledByDefault = true, requiresCapabilities = NetworkPlayerApi.class)
 public final class NetworkCommandsFeature extends VelocityFeature<Object, Void> {
     private NetworkPlayerApi players;
 

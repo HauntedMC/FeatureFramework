@@ -26,4 +26,4 @@ That matters on Paper: waiting for persistence must not block the primary thread
 
 `.dataRegistryPlugin("DataRegistry")` asks FeatureFramework to find that Bukkit plugin and requires its instance to implement `DataRegistryApiProvider`. If your application already owns a `DataRegistryApi`, use `.dataRegistry(() -> yourRegistry)` instead.
 
-The feature also declares `.requiresPlugins("DataRegistry")`, so its external dependency is visible in the feature definition rather than hidden in `initialize()`.
+The feature also declares `requiresPlugins = "DataRegistry"`, so its external dependency is visible beside the implementation rather than hidden in `initialize()`.

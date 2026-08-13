@@ -1,18 +1,24 @@
 # Multi-feature Plugin Design
 
-For a larger plugin, keep application composition separate from feature implementation.
+For a larger plugin, keep bootstrap lifecycle separate from feature implementation, but keep each feature's
+metadata with that feature. `@FeatureDeclaration` is the application graph; the compiler builds the catalog.
 
 ## Keep the bootstrap small
 
 The Paper or Velocity entry point should build and start the host, not wire every subsystem itself.
 
 ```java
+@GenerateFeatureCatalog(
+        generatedClassName = "com.example.catalog.BuiltInFeatures",
+        featurePackage = "com.example.features",
+        featureBase = PaperFeature.class,
+        featureContext = PaperFeatureContext.class)
 public final class MyPlugin extends JavaPlugin {
     private PaperFeatureHost featureHost;
 
     @Override
     public void onEnable() {
-        featureHost = PaperFeatureHost.builder(this, MyPlugin.class, Features.all()).build();
+        featureHost = PaperFeatureHost.builder(this, MyPlugin.class, BuiltInFeatures.collection()).build();
         featureHost.start();
     }
 
@@ -23,24 +29,22 @@ public final class MyPlugin extends JavaPlugin {
 }
 ```
 
-## Keep definitions together
+## Declare relationships where they belong
 
-A central composition class gives reviewers one place to understand the plugin graph:
+The declaration is next to the feature implementation, which keeps reviews local without hiding the graph:
 
 ```java
-public final class Features {
-    public static FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> all() {
-        return FeatureCollection.of(
-                ProfilesFeature.definition(),
-                ChatFeature.definition(),
-                ModerationFeature.definition(),
-                LobbyFeature.definition()
-        );
-    }
+@FeatureDeclaration(
+        name = "Chat",
+        version = "1.0.0",
+        requiresCapabilities = PlayerProfileApi.class,
+        enabledByDefault = true)
+public final class ChatFeature extends PaperFeature<Plugin, Void> {
+    // ...
 }
 ```
 
-Each feature can still keep its own `definition()` method if that keeps feature-specific declarations close to the implementation.
+The generated `BuiltInFeatures.definitions()` remains a deterministic, inspectable representation of the complete graph.
 
 ## Depend on contracts where possible
 

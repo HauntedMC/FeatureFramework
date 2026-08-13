@@ -6,7 +6,7 @@ removing duplicated framework infrastructure from an application module.
 ## Keep in the application
 
 - plugin bootstrap and platform metadata;
-- the explicit `FeatureCollection`/catalog of concrete features;
+- concrete feature classes and their `@FeatureDeclaration` metadata;
 - domain capability contracts, persistence entities, and integration adapters;
 - application-specific commands, configuration defaults, and operator messaging.
 
@@ -32,14 +32,15 @@ FeatureFramework exposes two intentionally different descriptor types for distin
 - `nl.hauntedmc.featureframework.api.feature.FeatureDescriptor` is implementation-free public catalog
   metadata. It is safe to expose to consumers of `FeatureFrameworkApi`.
 
-Use `FeatureDefinition` in application composition instead of constructing either descriptor directly
-unless you are implementing framework-level infrastructure.
+Use `@FeatureDeclaration` on each concrete feature and `@GenerateFeatureCatalog` on the bootstrap. The
+processor generates the `FeatureDefinition`/`FeatureCollection` implementation. Manual composition remains an
+advanced option for inventories that are genuinely dynamic.
 
 ## Migration steps
 
 1. Add the required framework platform dependency and shade it into the application artifact.
-2. Replace reflective/scanned feature discovery with typed `FeatureDefinition` entries collected in a
-   `FeatureCollection`.
+2. Declare each concrete feature with `@FeatureDeclaration` and add `@GenerateFeatureCatalog` to the bootstrap.
+   Configure `featureframework-processor` explicitly in the compiler's annotation processor path.
 3. Replace application-owned feature loading and lifecycle managers with `PaperFeatureHost`,
    `VelocityFeatureHost`, or a platform host composition.
 4. Migrate concrete features to the framework platform base and receive dependencies through their

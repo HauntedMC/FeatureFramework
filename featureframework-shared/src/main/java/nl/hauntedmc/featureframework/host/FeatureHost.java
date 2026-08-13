@@ -199,7 +199,7 @@ public final class FeatureHost<V, F extends LifecycleFeature<C>, C extends Featu
         return runtime.lifecycle().callExclusive(() -> controller.loadFeature(featureName));
     }
 
-    /** Stops every feature in reverse dependency/startup order and marks the runtime stopped. */
+    /** Stops every feature in reverse lifecycle sequence and marks the runtime stopped. */
     public void stop() {
         runtime.lifecycle().runExclusive(this::stopLocked);
     }

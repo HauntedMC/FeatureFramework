@@ -1,5 +1,6 @@
 package com.example.registryplugin;
 
+import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.featureframework.paper.host.PaperDataRegistryFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import nl.hauntedmc.featureframework.paper.integration.dataregistry.PaperDataRegistryIdentityGate;
@@ -7,6 +8,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+@FeatureDeclaration(
+        name = "Identity", version = "1.0.0", enabledByDefault = true, requiresPlugins = "DataRegistry")
 public final class IdentityFeature extends PaperDataRegistryFeature<MyPlugin, Void> {
     public IdentityFeature(PaperFeatureContext<MyPlugin, Void> context) {
         super(context);

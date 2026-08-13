@@ -62,6 +62,7 @@
         <module>featureframework-testkit</module>
         <module>featureframework-mockito-testkit</module>
         <module>featureframework-api</module>
+        <module>featureframework-processor</module>
         <module>featureframework-shared</module>
         <module>featureframework-paper</module>
         <module>featureframework-velocity</module>

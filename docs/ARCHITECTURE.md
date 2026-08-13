@@ -115,8 +115,9 @@ rendering, and operation-result mapping.
 
 ## Consumer boundary
 
-`FeatureDefinition` removes product-specific manifest record boilerplate and `FeatureCollection` lets a
-plugin compose one or more feature packs into one artifact. Consumers should use `PaperFeatureHost`,
+`@FeatureDeclaration` and the compile-time `featureframework-processor` remove product-specific manifest
+boilerplate. `@GenerateFeatureCatalog` emits a deterministic, typed `FeatureCollection` without runtime scanning.
+`FeatureDefinition` remains available for advanced dynamic composition. Consumers should use `PaperFeatureHost`,
 `VelocityFeatureHost`, or the corresponding composition type rather than owning a parallel graph or
 scope implementation.
 

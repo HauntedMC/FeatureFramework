@@ -18,18 +18,21 @@ Each feature has its own lifecycle and resources. The plugin bootstrap only asse
 
 ### Plugin bootstrap
 
-Keep the Paper or Velocity entry point small. It should create the feature collection, build the host, start it, and stop it. Feature-specific listeners, commands, tasks, and integrations belong in their feature.
+Keep the Paper or Velocity entry point small. It declares `@GenerateFeatureCatalog`, builds the host from the
+generated collection, starts it, and stops it. Feature-specific listeners, commands, tasks, integrations, and
+metadata belong in their feature class.
 
-### `FeatureDefinition`
+### `@FeatureDeclaration` and generated `FeatureDefinition`
 
-A definition describes how a feature fits into the application. It contains the feature name, version, constructor, default enabled state, and any declared relationships such as:
+A declaration describes how a feature fits into the application. The compiler generates its typed definition and
+validates the constructor, identity, provider graph, and declared relationships such as:
 
 - required or optional features;
 - required external plugins;
 - required, optional, or provided capabilities;
 - required, optional, or provided internal services.
 
-Definitions are also where startup ordering can be declared when there is no real dependency but deterministic ordering is still useful.
+Declarations can also specify a readable `FeatureStartupPhase` when there is no real dependency but deterministic ordering is still useful. Dependencies remain the correct mechanism for a real lifecycle requirement.
 
 ### Feature implementation
 

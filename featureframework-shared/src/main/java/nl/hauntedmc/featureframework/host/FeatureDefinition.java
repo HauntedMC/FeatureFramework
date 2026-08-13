@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.host;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureClassification;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
+import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 import nl.hauntedmc.featureframework.feature.Feature;
 import nl.hauntedmc.featureframework.loader.FeatureDescriptor;
 import nl.hauntedmc.featureframework.loader.FeatureManifestDefinition;
@@ -27,7 +28,7 @@ public final class FeatureDefinition<F extends Feature, C>
     private final String featureVersion;
     private final Class<? extends F> implementationType;
     private final Function<C, ? extends F> constructor;
-    private final int startupOrder;
+    private final FeatureStartupPhase startupPhase;
     private final boolean enabledByDefault;
     private final FeatureClassification classification;
     private final Set<FeatureRole> roles;
@@ -46,7 +47,7 @@ public final class FeatureDefinition<F extends Feature, C>
         featureVersion = requireText(builder.featureVersion, "featureVersion");
         implementationType = Objects.requireNonNull(builder.implementationType, "implementationType");
         constructor = Objects.requireNonNull(builder.constructor, "constructor");
-        startupOrder = builder.startupOrder;
+        startupPhase = builder.startupPhase;
         enabledByDefault = builder.enabledByDefault;
         roles = immutableRoles(builder.roles);
         requiredFeatures = immutableText(builder.requiredFeatures, "requiredFeatures");
@@ -88,7 +89,7 @@ public final class FeatureDefinition<F extends Feature, C>
     public String featureVersion() { return featureVersion; }
     public Class<? extends F> implementationType() { return implementationType; }
     public Function<C, ? extends F> constructor() { return constructor; }
-    @Override public int startupOrder() { return startupOrder; }
+    @Override public FeatureStartupPhase startupPhase() { return startupPhase; }
     public boolean enabledByDefault() { return enabledByDefault; }
     @Override public FeatureClassification classification() { return classification; }
     public Set<String> requiredFeatures() { return requiredFeatures; }
@@ -132,7 +133,7 @@ public final class FeatureDefinition<F extends Feature, C>
         private final String featureVersion;
         private final Class<? extends F> implementationType;
         private final Function<C, ? extends F> constructor;
-        private int startupOrder;
+        private FeatureStartupPhase startupPhase = FeatureStartupPhase.CORE;
         private boolean enabledByDefault;
         private FeatureClassification classification;
         private final Set<FeatureRole> roles = new LinkedHashSet<>();
@@ -158,8 +159,11 @@ public final class FeatureDefinition<F extends Feature, C>
             this.constructor = constructor;
         }
 
-        public Builder<F, C> startupOrder(int value) {
-            startupOrder = value;
+        /**
+         * Sets a readable startup phase for an otherwise independent feature.
+         */
+        public Builder<F, C> startupPhase(FeatureStartupPhase value) {
+            startupPhase = Objects.requireNonNull(value, "value");
             return this;
         }
 

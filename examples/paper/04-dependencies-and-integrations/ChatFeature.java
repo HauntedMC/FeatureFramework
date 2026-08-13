@@ -1,9 +1,13 @@
 package com.example.myplugin;
 
+import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import org.bukkit.plugin.Plugin;
 
+@FeatureDeclaration(
+        name = "Chat", version = "1.0.0", enabledByDefault = true,
+        requiresFeatures = "Profiles", optionallyUsesFeatures = "DiscordBridge")
 public final class ChatFeature extends PaperFeature<Plugin, Void> {
     public ChatFeature(PaperFeatureContext<Plugin, Void> context) {
         super(context);

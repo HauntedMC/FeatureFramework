@@ -1,9 +1,12 @@
 package com.example.dataproxy;
 
+import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
+@FeatureDeclaration(
+        name = "NetworkStorage", version = "1.0.0", enabledByDefault = true, requiresPlugins = "dataprovider")
 public final class NetworkStorageFeature extends VelocityFeature<ProxyPlugin, FeatureDataManager> {
     public NetworkStorageFeature(VelocityFeatureContext<ProxyPlugin, FeatureDataManager> context) {
         super(context);

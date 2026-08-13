@@ -8,7 +8,8 @@ DiscordBridge --------> Queue (optional)
 luckperms plugin -----> LuckPermsBridge
 ```
 
-`FeatureDefinitions.java` declares all three relationship types. The corresponding feature classes and real Velocity bootstrap are included in this directory.
+The `@FeatureDeclaration` annotations declare all three relationship types. The corresponding feature classes and
+real Velocity bootstrap are included in this directory; the bootstrap receives the generated catalog.
 
 The `luckperms` dependency is intentionally external. `requiresPlugins(...)` is for a separately installed Velocity plugin; it would defeat the example to replace that dependency with a fake local class.
 
