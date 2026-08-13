@@ -15,12 +15,14 @@ If FeatureFramework is new to you, read the [feature mental model](concepts/FEAT
 - [Scheduling and async work](toolkits/SCHEDULING-AND-ASYNC-WORK.md)
 - [Data and caching](toolkits/DATA-AND-CACHING.md)
 - [Paper UI and platform adapters](toolkits/PAPER-UI-AND-PLATFORM-ADAPTERS.md)
+- [Text, formatting, and safe player input](toolkits/TEXT-AND-FORMATTING.md)
 - [Configuration and localization](guides/CONFIGURATION-AND-LOCALIZATION.md)
 
 ## Guides and reference
 
 - [Migrating an existing plugin](guides/MIGRATING-AN-EXISTING-PLUGIN.md)
 - [Testing, debugging, and operations](guides/TESTING-DEBUGGING-OPERATIONS.md)
+- [Operating a large feature plugin](guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md)
 - [Toolkit and component index](reference/TOOLKIT-INDEX.md)
 - [Feature design checklist](reference/FEATURE-DESIGN-CHECKLIST.md)
 

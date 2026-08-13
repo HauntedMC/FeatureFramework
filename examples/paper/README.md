@@ -13,6 +13,7 @@ Each directory below is self-contained at the application-source level: all cust
 | 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | recreation, async work, manually owned resources |
 | 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
 | 9 | [09-dataregistry](09-dataregistry/README.md) | `PaperDataRegistryFeature`, DataRegistry, identity readiness |
+| 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
 
 Every example declares metadata beside the feature with `@FeatureDeclaration`; the bootstrap uses
 `@GenerateFeatureCatalog` and generated `BuiltInFeatures.collection()`. Start with 01 if the framework is new to you.

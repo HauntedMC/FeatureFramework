@@ -7,7 +7,7 @@ The examples are split by platform and increase in complexity:
 
 ## How to use these examples
 
-**Every example directory is independent.** It contains every application class, feature class, capability contract, and helper that its source code references. You do not need to copy classes from an earlier example.
+**Every code example directory is independent.** It contains every application class, feature class, capability contract, and helper that its source code references. You do not need to copy classes from an earlier example. Example 10 is a design/reference example that intentionally points back to the concrete DataProvider and DataRegistry compositions in examples 08–09.
 
 Framework/platform classes still come from the real dependencies. Add FeatureFramework to a normal Paper or Velocity project using the setup in the [root README](../README.md), then copy the example that is closest to what you are building.
 
@@ -26,5 +26,8 @@ Both platform tracks cover:
 7. lifecycle, async work, and recreation;
 8. DataProvider with feature-owned data resources;
 9. DataRegistry and player identity readiness.
+10. an operations/control-plane design for a live, multi-feature network plugin.
 
 Examples 1–7 use the ready-to-use host. Examples 8–9 intentionally use the lower-level host composition because DataProvider and DataRegistry are optional integrations that change the feature resource/context type.
+
+Example 10 is a production-oriented design reference: it connects the host's structured lifecycle operations, feature-owned command registration, config/localization reload semantics, data-provider ownership, and capability boundaries. It deliberately complements examples 8–9 rather than hiding those optional integrations behind pretend infrastructure.

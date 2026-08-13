@@ -12,6 +12,20 @@ FeatureFramework is a library, not a Minecraft plugin. Your project provides the
 - **Feature-scoped infrastructure** — configuration, localization, logging, scheduling, commands, listeners, caching, and other toolkit components are available without application-wide singletons.
 - **Paper and Velocity support** — the same feature model on both platforms, with platform-specific behavior where it matters.
 
+## Built for a plugin that behaves like an application
+
+Large networks do not only need a cleaner startup class. They need a safe way to operate independently deployable subsystems while players are online: disable a failed integration, reconcile edited configuration, replace a data-backed feature without stale consumers, and inspect the active graph without guessing which registrations survived the last reload.
+
+FeatureFramework makes that model explicit:
+
+- lifecycle operations are serialized and return structured results for enable, disable, soft reload, feature recreation, and full graph reconciliation;
+- feature-owned commands, listeners, tasks, caches, services, DataProvider resources, and platform adapters are cleaned with the feature generation that created them;
+- capability contracts isolate consumers from backend, database, messaging, and third-party integration details;
+- `FeatureCommandModel` and `FeatureOperationMessages` provide the building blocks for a permissioned in-game operations command rather than another global singleton;
+- the shared text toolkit safely normalizes legacy and MiniMessage formats, supports explicit MiniMessage allowlists, sanitizes untrusted tags, autolinks URLs, serializes components, and provides reusable validation patterns.
+
+See [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) for the control-plane and data-integration pattern, and [Text, formatting, and safe player input](docs/toolkits/TEXT-AND-FORMATTING.md) for the text toolkit.
+
 If your plugin is small and has one responsibility, you may not need this. FeatureFramework becomes useful when the plugin contains several systems that should have clear ownership and lifecycle boundaries.
 
 ## Requirements
@@ -112,6 +126,8 @@ Call `featureHost.stop()` from `onDisable()`. See the [complete Paper example](e
 | Understand cleanup and reloads | [Lifecycle and resources](docs/concepts/LIFECYCLE-AND-RESOURCES.md) |
 | Share APIs between features | [Dependencies, capabilities, and services](docs/concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) |
 | Use config and messages | [Configuration and localization](docs/guides/CONFIGURATION-AND-LOCALIZATION.md) |
+| Operate a large, live feature graph | [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) |
+| Safely format, inspect, and serialize text | [Text and formatting](docs/toolkits/TEXT-AND-FORMATTING.md) |
 | Find a toolkit or component | [Toolkit index](docs/reference/TOOLKIT-INDEX.md) |
 | Migrate an existing plugin | [Migration guide](docs/guides/MIGRATING-AN-EXISTING-PLUGIN.md) |
 

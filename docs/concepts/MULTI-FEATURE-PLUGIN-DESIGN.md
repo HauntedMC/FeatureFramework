@@ -75,6 +75,25 @@ A feature should represent one coherent responsibility with one meaningful lifet
 
 Third-party integrations often make good features because they have clear startup, failure, and shutdown behavior: Redis, Discord, PlaceholderAPI, external HTTP services, permissions/economy bridges, and similar integrations.
 
+## Scale from a plugin graph to a network application
+
+At network scale, features are not merely a way to organize source folders. They become operational units: each can own a backend subscription, an external client, a capability, config, commands, and observability state, then be replaced without restarting unrelated systems.
+
+```text
+IdentityFeature                 NetworkTransportFeature
+  owns DataRegistry readiness     owns DataProvider connections and event subscriptions
+  provides PlayerIdentityApi      provides NetworkEventsApi
+       ├──> SessionPolicyFeature        ├──> CapacityFeature
+       └──> ModerationFeature           └──> AnnouncementFeature
+
+FeatureAdmin
+  observes the graph and invokes lifecycle operations
+```
+
+Keep data clients and repositories private to their owning feature. Publish a small capability representing behavior, not the raw client, then make consumers require that capability. When a provider is recreated, its consumers are recreated as necessary instead of continuing to use stale state.
+
+An admin/control-plane command is also a legitimate feature: it can list and inspect the graph, offer completion from `FeatureCommandModel`, and call structured host operations. Give that command elevated permissions and decide whether it must be protected from disabling itself. See [Operating a large feature plugin](../guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) for the full pattern.
+
 ## Configuration and failures
 
 Keep feature-specific config with the feature. Keep only truly global host settings outside it.

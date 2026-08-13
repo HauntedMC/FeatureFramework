@@ -13,6 +13,7 @@ Each directory is self-contained at the application-source level and includes it
 | 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | concurrency, recreation, manually owned clients |
 | 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
 | 9 | [09-dataregistry](09-dataregistry/README.md) | `VelocityDataRegistryFeature`, DataRegistry, identity readiness |
+| 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
 
 Every example declares metadata beside the feature with `@FeatureDeclaration`; the bootstrap uses
 `@GenerateFeatureCatalog` and generated `BuiltInFeatures.collection()`. Velocity host lifecycle operations run directly on the caller; FeatureFramework does not create a Bukkit-style main thread. See [Threading](../../docs/THREADING.md).
