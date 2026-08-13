@@ -1,0 +1,83 @@
+# Feature Mental Model
+
+The main idea is simple: **your plugin owns a host, and the host owns features**.
+
+```text
+Plugin bootstrap
+      |
+      v
+FeatureHost
+  ├── ChatFeature
+  ├── ModerationFeature
+  └── LobbyFeature
+```
+
+Each feature has its own lifecycle and resources. The plugin bootstrap only assembles the application and starts or stops the host.
+
+## The main pieces
+
+### Plugin bootstrap
+
+Keep the Paper or Velocity entry point small. It should create the feature collection, build the host, start it, and stop it. Feature-specific listeners, commands, tasks, and integrations belong in their feature.
+
+### `FeatureDefinition`
+
+A definition describes how a feature fits into the application. It contains the feature name, version, constructor, default enabled state, and any declared relationships such as:
+
+- required or optional features;
+- required external plugins;
+- required, optional, or provided capabilities;
+- required, optional, or provided internal services.
+
+Definitions are also where startup ordering can be declared when there is no real dependency but deterministic ordering is still useful.
+
+### Feature implementation
+
+Use `PaperFeature<P, D>` on Paper and `VelocityFeature<P, D>` on Velocity.
+
+The important lifecycle methods are:
+
+- `initialize()` — create feature state and register resources;
+- `disable()` — release state that FeatureFramework does not already own;
+- `getDefaultConfig()` and `getDefaultMessages()` — optional feature defaults;
+- `applyConfiguration()` — decide whether a config change can be applied live or needs recreation.
+
+### Feature context
+
+The context gives one feature access to its plugin, config, localization, logger, resource managers, capabilities, and services. Velocity contexts also expose `ProxyServer`.
+
+This is preferable to reaching into application-wide static managers because it makes ownership and dependencies visible.
+
+### Feature host
+
+The host loads the dependency graph and controls feature startup, shutdown, enable/disable, reloads, capabilities, and service lifetime. Most feature code only needs its context; it should not depend on loader/runtime internals.
+
+## Choosing a feature boundary
+
+A useful test is: **would it make sense to disable this functionality without disabling unrelated functionality?**
+
+Good feature boundaries are things such as chat, moderation, queues, cosmetics, maintenance mode, a Discord bridge, or a Redis-backed network integration.
+
+Do not make every class a feature. Repositories, services, listeners, command handlers, and domain objects can remain normal Java classes owned by one feature.
+
+## Package by feature
+
+For a larger plugin, this is usually easier to navigate:
+
+```text
+com.example.myplugin
+├── MyPlugin.java
+├── Features.java
+├── chat/
+│   ├── ChatFeature.java
+│   ├── ChatService.java
+│   ├── ChatListener.java
+│   └── ChatCommand.java
+└── moderation/
+    ├── ModerationFeature.java
+    └── ...
+```
+
+rather than putting every listener in one package, every command in another, and every manager in a third.
+
+Next: [Lifecycle and resources](LIFECYCLE-AND-RESOURCES.md).
