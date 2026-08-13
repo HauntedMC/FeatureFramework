@@ -28,7 +28,7 @@ public MessageMap getDefaultMessages() {
 Boolean enabled = getConfigHandler().get("enabled", Boolean.class);
 ```
 
-Feature config is stored under `features/<feature>/config.yml`. Global settings are available explicitly through the handler's global view methods when a feature genuinely needs them.
+Read feature values through `FeatureConfigHandler` rather than opening YAML directly. Global settings are available explicitly through the handler's global view methods when a feature genuinely needs them.
 
 ## Reload behavior
 
