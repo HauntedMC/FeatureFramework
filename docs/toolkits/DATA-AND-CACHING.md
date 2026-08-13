@@ -2,11 +2,40 @@
 
 Data clients and caches should have a clear owner just like listeners and tasks.
 
-## Data resources
+## DataProvider integration
 
-The ready-to-use Paper and Velocity hosts use a no-data-provider composition. Applications that want framework-managed data resources can use the platform host-composition layer and provide their own data manager/provider.
+The ready-to-use `PaperFeatureHost` and `VelocityFeatureHost` deliberately use `Void` as their data-manager type. If features need DataProvider, use the platform host-composition API with `PaperFeatureResourcesFactory.withDataProvider(...)` or `VelocityFeatureResourcesFactory.withDataProvider(...)`.
 
-If several features need the same backend, prefer exposing the behavior they need through a capability instead of handing every feature a raw client:
+Those factories create one `FeatureDataManager` for each feature scope. The manager is bound to the feature name and participates in lifecycle quiescing/cleanup automatically.
+
+`FeatureDataManager` can own:
+
+- database providers/connections;
+- typed `DataAccess` instances;
+- Redis messaging providers/access;
+- ORM contexts.
+
+Paper resolves `DataProviderAPI` through Bukkit's service registry. Velocity resolves the plugin id `dataprovider` and expects its instance to expose `DataProviderApiSupplier`.
+
+See the complete [Paper DataProvider example](../../examples/paper/08-dataprovider/README.md) and [Velocity DataProvider example](../../examples/velocity/08-dataprovider/README.md).
+
+## DataRegistry integration
+
+DataRegistry is separate from the feature data manager. Custom host composition can supply it with:
+
+```java
+.dataRegistry(() -> registryApi)
+```
+
+or discover the platform plugin with `.dataRegistryPlugin(...)`.
+
+Features that need player identity/readiness behavior can extend `PaperDataRegistryFeature` or `VelocityDataRegistryFeature`. These bases expose the typed registry and integrate with the platform-specific DataRegistry readiness gates.
+
+See the [Paper DataRegistry example](../../examples/paper/09-dataregistry/README.md) and [Velocity DataRegistry example](../../examples/velocity/09-dataregistry/README.md).
+
+## Shared infrastructure vs raw clients
+
+If several features need the same logical backend, prefer exposing the behavior through a capability instead of handing every feature a raw client:
 
 ```text
 RedisFeature
@@ -16,7 +45,7 @@ RedisFeature
        └──> ModerationFeature
 ```
 
-This keeps Redis-specific code in one place and lets consumers depend on the contract instead of the library/client.
+This keeps backend-specific code in one place and lets consumers depend on a contract.
 
 ## Caches
 

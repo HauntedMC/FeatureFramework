@@ -1,4 +1,4 @@
-package com.example.velocitydata;
+package com.example.dataproxy;
 
 import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
@@ -11,14 +11,17 @@ public final class NetworkStorageFeature extends VelocityFeature<ProxyPlugin, Fe
 
     @Override
     public void initialize() {
-        resources().getDataManager()
-                .registerRedisMessagingProvider("network", "hauntedmc")
+        FeatureDataManager data = resources().getDataManager();
+
+        data.registerRedisMessagingProvider("network", "hauntedmc")
                 .orElseThrow(() -> new IllegalStateException(
                         "Required Redis messaging connection is unavailable"));
+
+        logger().info("NetworkStorage data resources are ready");
     }
 
     @Override
     public void disable() {
-        // The feature resource scope closes FeatureDataManager automatically.
+        // FeatureDataManager is cleaned up by VelocityFeatureResources.
     }
 }

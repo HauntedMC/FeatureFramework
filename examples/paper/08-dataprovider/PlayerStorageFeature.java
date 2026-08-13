@@ -12,17 +12,20 @@ public final class PlayerStorageFeature extends PaperFeature<MyPlugin, FeatureDa
 
     @Override
     public void initialize() {
-        resources().getDataManager()
-                .registerConnection(
+        FeatureDataManager data = resources().getDataManager();
+
+        data.registerConnection(
                         "players",
                         DatabaseType.MYSQL,
                         FeatureDataManager.PLAYER_DATA_RW_CONNECTION)
                 .orElseThrow(() -> new IllegalStateException(
                         "Required player database connection is unavailable"));
+
+        logger().info("PlayerStorage data resources are ready");
     }
 
     @Override
     public void disable() {
-        // The feature resource scope closes FeatureDataManager automatically.
+        // FeatureDataManager is owned by PaperFeatureResources and is closed automatically.
     }
 }

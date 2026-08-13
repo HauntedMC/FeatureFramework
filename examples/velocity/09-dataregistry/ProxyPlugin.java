@@ -1,4 +1,4 @@
-package com.example.dataproxy;
+package com.example.registryproxy;
 
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -6,7 +6,6 @@ import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
 import nl.hauntedmc.featureframework.host.FeatureDefinition;
-import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
@@ -27,8 +26,8 @@ public final class ProxyPlugin {
     private VelocityFeatureHostComposition<
             ProxyPlugin,
             String,
-            VelocityFeature<ProxyPlugin, FeatureDataManager>,
-            FeatureDataManager> featureHost;
+            VelocityFeature<ProxyPlugin, Void>,
+            Void> featureHost;
 
     public ProxyPlugin(ProxyServer proxy, ComponentLogger logger, Path dataDirectory) {
         this.proxy = proxy;
@@ -41,7 +40,7 @@ public final class ProxyPlugin {
         DefaultCapabilityRegistry capabilities = new DefaultCapabilityRegistry(
                 getClass().getPackageName(), getClass().getClassLoader());
         FeatureRuntime<FeatureId, DefaultCapabilityRegistry> runtime =
-                new FeatureRuntime<>("ExampleDataProxy", capabilities);
+                new FeatureRuntime<>("ExampleRegistryProxy", capabilities);
 
         ConfigService configService = new ConfigService(
                 dataDirectory, frameworkLogger, getClass().getClassLoader());
@@ -52,48 +51,38 @@ public final class ProxyPlugin {
                 getClass().getClassLoader(),
                 configService,
                 player -> Language.EN);
-
-        VelocityFeatureResourcesFactory<FeatureDataManager> resources =
-                VelocityFeatureResourcesFactory.withDataProvider(
+        VelocityFeatureResourcesFactory<Void> resources =
+                VelocityFeatureResourcesFactory.withoutDataProvider(
                         this,
                         proxy,
                         logger,
                         dataDirectory,
-                        frameworkLogger,
-                        () -> "validate");
+                        frameworkLogger);
 
-        FeatureDefinition<
-                VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>> storage =
-                FeatureDefinition
-                        .<VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>>builder(
-                                "NetworkStorage",
+        FeatureDefinition<VelocityFeature<ProxyPlugin, Void>, VelocityFeatureContext<ProxyPlugin, Void>> identity =
+                FeatureDefinition.<VelocityFeature<ProxyPlugin, Void>, VelocityFeatureContext<ProxyPlugin, Void>>builder(
+                                "Identity",
                                 "1.0.0",
-                                NetworkStorageFeature.class,
-                                NetworkStorageFeature::new)
-                        .requiresPlugins("dataprovider")
+                                IdentityFeature.class,
+                                IdentityFeature::new)
+                        .requiresPlugins("dataregistry")
                         .enabledByDefault()
                         .build();
-
-        FeatureCollection<
-                VelocityFeature<ProxyPlugin, FeatureDataManager>,
-                VelocityFeatureContext<ProxyPlugin, FeatureDataManager>> features =
-                FeatureCollection.of(storage);
 
         featureHost = VelocityFeatureHostComposition.builder(
                         this,
                         proxy,
                         logger,
                         "1.0.0",
-                        "exampledataproxy",
+                        "exampleregistryproxy",
                         runtime,
                         configuration,
                         localization,
                         resources::create,
-                        features,
+                        FeatureCollection.of(identity),
                         frameworkLogger)
-                .hostName("ExampleDataProxy")
+                .hostName("ExampleRegistryProxy")
+                .dataRegistryPlugin("dataregistry")
                 .build();
         featureHost.start();
     }

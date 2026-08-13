@@ -1,4 +1,4 @@
-package com.example.paperdata;
+package com.example.registryplugin;
 
 import nl.hauntedmc.featureframework.paper.host.PaperDataRegistryFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
@@ -7,8 +7,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
-public final class ReadyPlayerFeature extends PaperDataRegistryFeature<MyPlugin, Void> {
-    public ReadyPlayerFeature(PaperFeatureContext<MyPlugin, Void> context) {
+public final class IdentityFeature extends PaperDataRegistryFeature<MyPlugin, Void> {
+    public IdentityFeature(PaperFeatureContext<MyPlugin, Void> context) {
         super(context);
     }
 
@@ -25,10 +25,12 @@ public final class ReadyPlayerFeature extends PaperDataRegistryFeature<MyPlugin,
         @EventHandler
         public void onJoin(PlayerJoinEvent event) {
             PaperDataRegistryIdentityGate.runWhenReady(
-                    ReadyPlayerFeature.this,
+                    IdentityFeature.this,
                     event.getPlayer(),
-                    player -> logger().info("DataRegistry is ready for " + player.getName()),
-                    "prepare player data");
+                    (player, identity) -> logger().info(
+                            player.getName() + " has DataRegistry player id " + identity.playerId()),
+                    "load player identity"
+            );
         }
     }
 }
