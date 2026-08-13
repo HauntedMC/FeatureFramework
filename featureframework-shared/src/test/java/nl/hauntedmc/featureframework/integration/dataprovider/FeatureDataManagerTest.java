@@ -30,7 +30,7 @@ class FeatureDataManagerTest {
         when(scope.registerDatabaseOrThrow(DatabaseType.MYSQL, "default")).thenReturn(provider);
         FeatureDataManager manager = manager(api);
 
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertSame(provider, manager.registerConnection("main", DatabaseType.MYSQL, "default").orElseThrow());
         assertEquals(1, manager.getActiveConnCount());
@@ -51,7 +51,7 @@ class FeatureDataManagerTest {
                 .thenThrow(new IllegalStateException("missing configuration"))
                 .thenReturn(disconnected);
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertTrue(manager.registerConnection("main", DatabaseType.MYSQL, "default").isEmpty());
         assertSame(disconnected, manager.registerConnection("main", DatabaseType.MYSQL, "default").orElseThrow());
@@ -70,7 +70,7 @@ class FeatureDataManagerTest {
         when(provider.getDataAccess()).thenReturn(access);
         when(scope.registerDatabaseOrThrow(DatabaseType.REDIS_MESSAGING, "hauntedmc")).thenReturn(provider);
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         Optional<MessagingDataAccess> result = manager.registerRedisMessagingDataAccess("redis", "hauntedmc");
 
@@ -90,7 +90,7 @@ class FeatureDataManagerTest {
         when(scope.registerDatabaseOrThrow(DatabaseType.MYSQL, "default")).thenReturn(provider);
         when(api.createOrmContext(same(dataSource), any(), eq("validate"), eq(String.class))).thenReturn(ormContext);
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertTrue(manager.registerConnection("main", DatabaseType.MYSQL, "default").isPresent());
         assertSame(ormContext, manager.createORMContext("main", String.class).orElseThrow());
@@ -108,7 +108,7 @@ class FeatureDataManagerTest {
         when(provider.isConnected()).thenReturn(true);
         when(scope.registerDatabaseOrThrow(DatabaseType.REDIS, "default")).thenReturn(provider);
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertTrue(manager.registerConnection("cache", DatabaseType.REDIS, "default").isPresent());
         assertTrue(manager.createORMContext("cache", String.class).isEmpty());
@@ -122,7 +122,7 @@ class FeatureDataManagerTest {
         when(provider.isConnected()).thenReturn(false);
         when(scope.registerDatabaseOrThrow(DatabaseType.MYSQL, "default")).thenReturn(provider);
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertSame(provider, manager.registerConnection("main", DatabaseType.MYSQL, "default").orElseThrow());
         assertSame(provider, manager.getDataProvider("main").orElseThrow());
@@ -144,7 +144,7 @@ class FeatureDataManagerTest {
         when(scope.registerDatabaseOrThrow(DatabaseType.MYSQL, "default")).thenReturn(provider);
         doThrow(new IllegalStateException("closed")).when(scope).close();
         FeatureDataManager manager = manager(api);
-        manager.initDataProvider("Queue");
+        manager.initializeForFeature("Queue");
 
         assertTrue(manager.registerConnection("main", DatabaseType.MYSQL, "default").isPresent());
         manager.closeAllConnections();

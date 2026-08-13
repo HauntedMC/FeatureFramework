@@ -11,19 +11,10 @@ public abstract class VelocityFeature<P, D> extends ManagedFeature<VelocityFeatu
         super(context);
     }
 
-    public final P plugin() { return getContext().plugin(); }
-    @Override public final FeatureLogger logger() { return getContext().logger(); }
-    public final VelocityFeatureResources<D> resources() { return getContext().resources(); }
-    public final VelocityLocalization localization() { return getContext().localization(); }
-
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public P getPlugin() { return plugin(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public FeatureLogger getLogger() { return logger(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public VelocityFeatureResources<D> getLifecycleManager() { return resources(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public VelocityLocalization getLocalizationHandler() { return localization(); }
+    public P plugin() { return getContext().plugin(); }
+    @Override public FeatureLogger logger() { return getContext().logger(); }
+    public VelocityFeatureResources<D> resources() { return getContext().resources(); }
+    public VelocityLocalization localization() { return getContext().localization(); }
 
     protected D dataManager() { return resources().getDataManager(); }
 

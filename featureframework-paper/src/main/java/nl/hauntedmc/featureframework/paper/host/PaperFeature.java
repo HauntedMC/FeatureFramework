@@ -12,19 +12,10 @@ public abstract class PaperFeature<P extends Plugin, D> extends ManagedFeature<P
         super(context);
     }
 
-    public final P plugin() { return getContext().plugin(); }
-    @Override public final FeatureLogger logger() { return getContext().logger(); }
-    public final PaperFeatureResources<D> resources() { return getContext().resources(); }
-    public final PaperLocalization localization() { return getContext().localization(); }
-
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public P getPlugin() { return plugin(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public FeatureLogger getLogger() { return logger(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public PaperFeatureResources<D> getLifecycleManager() { return resources(); }
-    /** Compatibility alias for feature implementations migrating from a consumer-owned base. */
-    public PaperLocalization getLocalizationHandler() { return localization(); }
+    public P plugin() { return getContext().plugin(); }
+    @Override public FeatureLogger logger() { return getContext().logger(); }
+    public PaperFeatureResources<D> resources() { return getContext().resources(); }
+    public PaperLocalization localization() { return getContext().localization(); }
 
     @Override
     protected void onCleanupStarted() {

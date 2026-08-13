@@ -56,8 +56,4 @@ public record FeatureSnapshot(
         );
     }
 
-    /** Compatibility constructor for callers that only consume the original projection. */
-    public FeatureSnapshot(FeatureDescriptor descriptor, FeatureState state, Optional<String> failure, Instant observedAt) {
-        this(descriptor, false, state, failure, Optional.empty(), Set.of(), observedAt, Optional.empty(), 0L, observedAt);
-    }
 }

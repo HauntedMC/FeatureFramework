@@ -25,7 +25,7 @@ manager hierarchy.
 
 ## Descriptor terminology
 
-FeatureFramework exposes two intentionally different descriptor types for compatibility:
+FeatureFramework exposes two intentionally different descriptor types for distinct responsibilities:
 
 - `nl.hauntedmc.featureframework.loader.FeatureDescriptor<F, C>` is the host construction descriptor.
   It contains the concrete feature type, constructor, and required/optional/plugin dependencies.
@@ -83,6 +83,5 @@ The acceptance profile compiles and boots independent Paper and Velocity plugins
 runtimes and verifies graph reload plus feature-owned task/listener/command/service cleanup. It does not
 require Docker or an external database.
 
-FeatureFramework pull requests also run the API compatibility workflow against the `v1.0.0` baseline.
-A 1.x migration should not require consumers to adapt to source or binary incompatible framework API
-changes.
+FeatureFramework 2.x intentionally removes legacy accessors. Migrate feature code to `plugin()`,
+`logger()`, `resources()`, and `localization()`.

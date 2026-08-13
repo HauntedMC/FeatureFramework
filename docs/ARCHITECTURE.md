@@ -127,21 +127,19 @@ must not be reimplemented there.
 
 Applications retain no framework feature base or framework `host` package. Their concrete features
 extend the corresponding FeatureFramework platform base directly, while bootstrap composition selects
-optional DataProvider/DataRegistry integration. Compatibility accessors, DataRegistry gate plumbing,
+optional DataProvider/DataRegistry integration. Canonical feature accessors, DataRegistry gate plumbing,
 player-reference resolution, proxy access, feature contexts, configuration/localization handlers,
 resource managers, graph loaders, construction descriptors, registries, and capability implementations
 are framework-owned.
 
-## Compatibility and packaging
+## Packaging
 
 Platform dependencies use `provided` scope. Consumers shade framework artifacts but do not embed the
 Paper or Velocity API. Public framework packages use `nl.hauntedmc.featureframework`; consumer domain
 APIs retain their own namespaces. Releases publish normal, source, and Javadoc artifacts.
 
-The `API Compatibility` workflow builds the tagged `v1.0.0` baseline and the current branch, then
-compares every published framework module's public classes. Binary or source incompatible public API
-changes fail CI. Internal refactors should therefore prefer package-private implementation classes and
-preserve existing public façades unless a deliberate major-version change is planned.
+The framework follows semantic versioning. Breaking API changes are released in a new major version;
+consumers should migrate to the canonical platform feature accessors when upgrading.
 
 ## Acceptance boundary
 

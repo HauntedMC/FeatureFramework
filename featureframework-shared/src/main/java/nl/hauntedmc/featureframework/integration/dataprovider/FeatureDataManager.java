@@ -109,11 +109,6 @@ public class FeatureDataManager {
         initializeBoundFeature();
     }
 
-    /** Compatibility name used by existing Paper feature implementations. */
-    public void initDataProvider(String featureName) {
-        initializeForFeature(featureName);
-    }
-
     public void quiesce() {
         if (state == FeatureResourceState.OPEN) state = FeatureResourceState.QUIESCING;
     }

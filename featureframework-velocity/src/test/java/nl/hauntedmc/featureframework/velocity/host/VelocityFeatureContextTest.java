@@ -52,7 +52,7 @@ class VelocityFeatureContextTest {
     }
 
     @Test
-    void dataRegistryFeatureOwnsPlatformGateAndCompatibilityAccessors() {
+    void dataRegistryFeatureOwnsPlatformGateAndCanonicalAccessors() {
         Object plugin = new Object();
         DataRegistryApi dataRegistry = mock();
         PlayerData playerData = mock();
@@ -81,10 +81,10 @@ class VelocityFeatureContextTest {
         TestDataRegistryFeature feature = new TestDataRegistryFeature(context);
         Runnable continuation = () -> { };
 
-        assertSame(plugin, feature.getPlugin());
-        assertSame(logger, feature.getLogger());
-        assertSame(resources, feature.getLifecycleManager());
-        assertSame(localization, feature.getLocalizationHandler());
+        assertSame(plugin, feature.plugin());
+        assertSame(logger, feature.logger());
+        assertSame(resources, feature.resources());
+        assertSame(localization, feature.localization());
         assertSame(dataRegistry, feature.dataRegistry());
         assertSame(feature.playerReferences(), feature.playerReferences());
         assertSame(player, feature.connectedPlayer(playerId).orElseThrow());

@@ -40,7 +40,7 @@ public abstract class VelocityDataRegistryFeature<P, D> extends VelocityFeature<
 
     @Override
     public void scheduleContinuation(Runnable continuation) {
-        getLifecycleManager().getTaskManager().scheduleTask(continuation);
+        resources().getTaskManager().scheduleTask(continuation);
     }
 
     @Override
@@ -50,6 +50,6 @@ public abstract class VelocityDataRegistryFeature<P, D> extends VelocityFeature<
 
     @Override
     public void warn(String message) {
-        getLogger().warn(message);
+        logger().warn(message);
     }
 }

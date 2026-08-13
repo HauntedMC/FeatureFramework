@@ -18,16 +18,16 @@ public abstract class PaperDataRegistryFeature<P extends Plugin, D> extends Pape
 
     @Override
     public void scheduleContinuation(Runnable continuation) {
-        getLifecycleManager().getTaskManager().scheduleOneTimeTask(continuation);
+        resources().getTaskManager().scheduleOneTimeTask(continuation);
     }
 
     @Override
     public boolean hostAvailable() {
-        return getPlugin().isEnabled();
+        return plugin().isEnabled();
     }
 
     @Override
     public void warn(String message) {
-        getLogger().warning(message);
+        logger().warning(message);
     }
 }

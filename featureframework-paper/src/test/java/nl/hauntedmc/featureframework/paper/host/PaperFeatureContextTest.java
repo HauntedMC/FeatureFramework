@@ -47,7 +47,7 @@ class PaperFeatureContextTest {
     }
 
     @Test
-    void dataRegistryFeatureOwnsPlatformGateAndCompatibilityAccessors() {
+    void dataRegistryFeatureOwnsPlatformGateAndCanonicalAccessors() {
         Plugin plugin = mock();
         DataRegistryApi dataRegistry = mock();
         FeatureDescriptor<?, ?> descriptor = mock();
@@ -68,10 +68,10 @@ class PaperFeatureContextTest {
         TestDataRegistryFeature feature = new TestDataRegistryFeature(context);
         Runnable continuation = () -> { };
 
-        assertSame(plugin, feature.getPlugin());
-        assertSame(logger, feature.getLogger());
-        assertSame(resources, feature.getLifecycleManager());
-        assertSame(localization, feature.getLocalizationHandler());
+        assertSame(plugin, feature.plugin());
+        assertSame(logger, feature.logger());
+        assertSame(resources, feature.resources());
+        assertSame(localization, feature.localization());
         assertSame(dataRegistry, feature.dataRegistry());
         assertTrue(feature.hostAvailable());
         feature.scheduleContinuation(continuation);
