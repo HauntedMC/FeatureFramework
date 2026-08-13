@@ -127,4 +127,6 @@ Run the full verification suite with:
 ./mvnw clean verify
 ```
 
-Contributor, release, and compatibility details are documented in [CONTRIBUTING.md](CONTRIBUTING.md). For internals, see [Architecture](docs/ARCHITECTURE.md) and [Threading](docs/THREADING.md).
+Contributor and compatibility details are documented in [CONTRIBUTING.md](CONTRIBUTING.md). For FeatureFramework
+releases, see the [release process](docs/RELEASE.md). For internals, see [Architecture](docs/ARCHITECTURE.md) and
+[Threading](docs/THREADING.md).
