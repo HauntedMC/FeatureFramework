@@ -1,88 +1,60 @@
-# Lifecycle and Resource Ownership
+# Lifecycle and Resources
 
-Lifecycle ownership is the core reliability feature of FeatureFramework.
+A managed feature should be able to stop cleanly without leaving listeners, commands, tasks, services, or other resources behind.
 
-A feature should be able to stop without leaving ingress or work behind.
+## Register resources through the feature
 
-## Startup
+During `initialize()`, create the feature's domain objects and register framework/platform resources through its scoped resource managers whenever an adapter exists.
 
-During `initialize()`, a feature creates domain objects and registers platform/framework resources through its scoped context.
+Common owned resources include:
 
-Typical owned resources include:
-
-- listeners;
-- commands;
+- listeners and commands;
 - scheduled tasks;
 - caches;
-- GUIs and other platform adapters;
+- Paper GUIs;
 - data resources;
-- published feature services.
+- published services.
 
-Registration through the feature scope matters because the framework can then track what must be quiesced and released.
-
-## Shutdown order
-
-Managed features use a deliberate cleanup sequence:
-
-1. configuration reload listeners are detached;
-2. platform-specific pre-quiesce hooks may run;
-3. resource ingress is quiesced;
-4. callable services are deactivated;
-5. the feature's `disable()` hook runs;
-6. tracked resources are cleaned up.
-
-This prevents a common plugin-reload race: a listener, command, task, or service calls into state while that state is already being destroyed.
-
-## What belongs in `disable()`?
-
-Release **domain state that the framework does not already own**.
-
-Good examples:
-
-- close a custom client created directly by the feature;
-- flush an in-memory aggregate if that is your feature's responsibility;
-- detach from a third-party callback registration not wrapped by a framework tracker;
-- clear your own domain collections.
-
-Do not manually unregister every framework-owned listener/task/command/service a second time. The lifecycle scope owns those.
-
-## Resource-manager rule
-
-Prefer:
+For example:
 
 ```java
 resources().getListenerManager().registerListener(listener);
 resources().getTaskManager().scheduleRepeatingTask(task, period);
 ```
 
-over registering directly with global platform managers when FeatureFramework provides an owned adapter.
+The direct Paper or Velocity APIs are still available. If you register something directly, however, its cleanup is your responsibility.
 
-The direct platform API is still available, but direct registrations become your manual cleanup responsibility.
+## What happens during shutdown
 
-## Reloads
+FeatureFramework stops new framework-managed callbacks and services before feature state is released, then cleans up the tracked resources. This avoids callbacks arriving while `disable()` is tearing down the state they use.
 
-There are two useful mental models:
+You normally do **not** need to manually unregister framework-owned listeners, commands, tasks, or services in `disable()`.
 
-- **soft configuration application** — the feature remains alive and applies compatible configuration changes;
-- **recreation/graph reload** — affected feature instances stop and are recreated in dependency-safe order.
+Use `disable()` for state the framework does not own, for example:
 
-Return the appropriate `ConfigReloadResult` from `applyConfiguration()` for your feature. Prefer recreation when state cannot safely be mutated in place.
+- a third-party client created directly by the feature;
+- an external subscription with its own close handle;
+- feature-specific in-memory state that needs flushing or clearing.
 
-## Failure behavior
+## Reloading configuration
 
-Treat `initialize()` as a transaction boundary. If initialization fails, do not assume partially registered resources can remain. The host/lifecycle machinery is designed around rollback and cleanup of managed resources.
+`applyConfiguration()` tells the host whether a feature can safely use new configuration without being recreated. The managed default is `RECREATE_REQUIRED`.
 
-Feature initialization should therefore:
+Use a live/soft configuration update only when the affected state can be changed consistently. Recreation is usually safer when callbacks, clients, dependency relationships, or long-lived state depend on the old configuration.
 
-- fail fast on invalid required state;
+## Initialization failures
+
+Treat `initialize()` as a startup boundary: validate required state early and let startup fail if the feature cannot work correctly.
+
+A few practical rules help rollback remain predictable:
+
 - register resources through owned managers;
-- avoid launching untracked background work;
-- avoid publishing a service before its backing state is ready.
+- do not start background work you cannot cancel;
+- do not expose a service until the state behind it is ready;
+- keep required dependencies explicit in the definition.
 
-## Paper vs Velocity
+## Paper and Velocity differ
 
-Paper lifecycle operations obey the primary-thread execution contract documented in [Threading](../THREADING.md). Velocity host lifecycle operations execute directly on the caller. Scheduling remains platform-native through each platform's adapters.
+Paper host lifecycle operations follow Bukkit primary-thread rules. Velocity lifecycle operations execute directly on the caller. Scheduling remains platform-specific on both platforms.
 
-## Operational payoff
-
-When ownership is consistent, administrators can disable/reload one feature without treating the entire plugin JVM state as disposable. Developers also get a precise answer to “who owns this listener/task/service?”: the feature that registered it.
+Read [Threading](../THREADING.md) before mixing lifecycle changes with asynchronous database, HTTP, or network work.

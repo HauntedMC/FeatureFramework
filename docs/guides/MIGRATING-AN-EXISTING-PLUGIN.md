@@ -1,78 +1,52 @@
 # Migrating an Existing Plugin
 
-Do not rewrite a large plugin into FeatureFramework in one pass. Migrate by lifecycle boundary.
+Do not rewrite a large plugin into FeatureFramework all at once. Move one clear subsystem at a time.
 
-For framework-version-specific compatibility details, also read [MIGRATION.md](../MIGRATION.md).
+For framework-version compatibility changes, also see [MIGRATION.md](../MIGRATION.md).
 
-## 1. Inventory owned resources
+## 1. Find the ownership boundaries
 
-For each current subsystem, list:
+For each existing subsystem, identify its listeners, commands, tasks, caches, data resources, integrations, public APIs, and shutdown behavior. This usually makes the first feature boundaries obvious.
 
-- listeners;
-- commands;
-- tasks;
-- caches;
-- database/data resources;
-- external plugin integrations;
-- APIs consumed by other subsystems;
-- startup/shutdown assumptions.
+## 2. Start with an isolated feature
 
-This usually reveals natural feature boundaries immediately.
+Choose something with few dependencies, such as join messages, maintenance mode, a utility system, or an external integration.
 
-## 2. Extract one low-dependency feature
+Create its `FeatureDefinition`, move its registrations into `initialize()`, and use feature-owned resource managers where possible.
 
-Start with functionality that has few cross-plugin dependencies: join messages, maintenance mode, simple utilities, or an isolated integration.
+## 3. Test cleanup before moving on
 
-Create its `FeatureDefinition`, move platform registrations into its `initialize()`, and register them through feature-owned resource managers.
+Enable, use, disable/reload, and re-enable the feature. Check for duplicate listeners or commands, orphan tasks, stale services, and retained state.
 
-Do not extract your most central subsystem first.
+A migration has not gained much if the new feature class still registers everything globally and relies on plugin-wide cleanup.
 
-## 3. Make cleanup real
+## 4. Replace direct subsystem access
 
-Before migrating another feature, prove that the first one can be enabled, disabled, and recreated without:
+For each cross-feature relationship, choose the right mechanism:
 
-- duplicate listeners;
-- duplicate commands;
-- orphan tasks;
-- stale services;
-- retained domain state.
-
-A migration that only changes class names but keeps global registrations does not gain the framework's main benefit.
-
-## 4. Replace direct cross-subsystem access
-
-For each dependency, decide:
-
-- specific lifecycle dependency -> `requiresFeatures`;
+- named lifecycle dependency -> `requiresFeatures`;
 - reusable contract -> capability;
-- private application collaboration -> internal service;
+- private application contract -> internal service;
 - external platform plugin -> `requiresPlugins`.
 
-Do not build a new global `Services` singleton to avoid making this decision.
+Avoid replacing the old global manager with a new global `Services` singleton.
 
-## 5. Thin the bootstrap incrementally
+## 5. Move config and messages with the feature
 
-As features move, delete their wiring from the bootstrap. The end state should be composition, not orchestration of every subsystem.
+Keep only genuinely global host settings outside features. Feature-specific defaults and localization should move with the feature that interprets them.
 
-## 6. Move config/messages with the feature
+## 6. Migrate central systems last
 
-Once ownership is clear, move feature-specific defaults and localization to the feature contract. Keep only genuinely global host settings outside it.
+Once the simpler features have proven the pattern, move shared/stateful systems and convert their consumers to explicit capabilities or services.
 
-## 7. Introduce advanced toolkit adapters last
+A sensible order is:
 
-First get lifecycle and dependency boundaries correct. Then replace direct platform registrations with FeatureFramework command/task/listener/cache/GUI/data adapters where they improve ownership and consistency.
-
-## Suggested migration order
-
-1. isolated utility/integration feature;
+1. isolated feature or integration;
 2. event-driven feature;
 3. scheduled/background feature;
 4. feature with config/messages;
-5. capability provider;
-6. capability consumers;
-7. central stateful features;
-8. remaining global bootstrap wiring.
+5. capability provider and its consumers;
+6. central stateful systems;
+7. remaining bootstrap wiring.
 
-## Definition of done
-
-A migrated feature is not complete until its resource ownership and relationship declarations are explicit and its disable/reload behavior has been exercised.
+The migration is complete when the bootstrap mostly composes features and each migrated feature can survive a full disable/re-enable cycle cleanly.

@@ -1,7 +1,7 @@
 # 05 — Capability provider and consumer
 
-Network plugins benefit from capability contracts because the provider may later move from local memory to Redis, a database, or another implementation without changing consumers.
+This example shows a complete proxy-side capability flow.
 
-This example uses `NetworkPlayerApi` as the contract. Feature definitions express provider/consumer roles; consumers use `requireCapability` for required contracts and `findCapability` for optional ones.
+`NetworkPlayerApi` is platform-neutral. `NetworkDirectoryFeature` implements it using the current `ProxyServer`, publishes it with `services().registerService(...)`, and its definition declares the provided capability. `NetworkCommandsFeature` declares the capability as required and resolves it with `requireCapability(...)`.
 
-Keep a shared capability interface platform-neutral when possible. A Paper-side and Velocity-side application can then depend on the same domain contract even though the providers are different.
+The consumer does not need to know whether the provider uses Velocity state, Redis, a database, or something else.

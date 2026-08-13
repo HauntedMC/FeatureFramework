@@ -1,7 +1,11 @@
 package com.example.proxy.activity;
 
+import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.PostLoginEvent;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
+
+import java.time.Duration;
 
 public final class OwnedResourcesFeature extends VelocityFeature<Object, Void> {
     public OwnedResourcesFeature(VelocityFeatureContext<Object, Void> context) {
@@ -10,13 +14,21 @@ public final class OwnedResourcesFeature extends VelocityFeature<Object, Void> {
 
     @Override
     public void initialize() {
-        var tasks = resources().getTaskManager();
-        var listeners = resources().getListenerManager();
-        logger().info("Owned task manager: " + tasks.getClass().getSimpleName());
-        logger().info("Owned listener manager: " + listeners.getClass().getSimpleName());
+        resources().getListenerManager().registerListener(new LoginListener());
+        resources().getTaskManager().scheduleRepeatingTask(
+                () -> logger().info("Players online: " + getContext().proxy().getPlayerCount()),
+                Duration.ofSeconds(30)
+        );
     }
 
     @Override
     public void disable() {
+    }
+
+    private final class LoginListener {
+        @Subscribe
+        public void onPostLogin(PostLoginEvent event) {
+            logger().info(event.getPlayer().getUsername() + " connected");
+        }
     }
 }

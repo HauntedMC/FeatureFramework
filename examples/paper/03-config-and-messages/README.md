@@ -1,14 +1,12 @@
 # 03 — Configuration and messages
 
-Feature defaults belong to the feature instead of a giant application-wide defaults class.
+`ConfigurableWelcomeFeature.java` shows feature-scoped config defaults, message defaults, runtime config reads, and an explicit reload policy.
 
-`ConfigurableWelcomeFeature.java` shows the two default-map hooks and an explicit reload decision.
+The important APIs are:
 
-Key ideas:
+- `ConfigMap` for defaults;
+- `MessageMap` for localization keys/default text;
+- `getConfigHandler()` for effective runtime values;
+- `applyConfiguration()` for the soft-reload vs recreation decision.
 
-- `ConfigMap.put(...)` defines typed default values.
-- `MessageMap.add(...)` defines stable localization keys and fallback text.
-- `getConfigHandler()` is the feature's configuration boundary at runtime.
-- `applyConfiguration()` decides whether an existing feature can absorb changes or should be recreated.
-
-The safe default for stateful features is recreation. Only implement a soft application path when all affected state can be updated consistently.
+`RECREATE_REQUIRED` is a good default when changed configuration affects long-lived feature state.

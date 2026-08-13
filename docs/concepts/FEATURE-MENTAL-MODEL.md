@@ -1,105 +1,83 @@
-# The Feature Mental Model
+# Feature Mental Model
 
-FeatureFramework is easiest to understand when you separate **application composition** from **feature implementation**.
+The main idea is simple: **your plugin owns a host, and the host owns features**.
 
-## The five pieces
+```text
+Plugin bootstrap
+      |
+      v
+FeatureHost
+  ├── ChatFeature
+  ├── ModerationFeature
+  └── LobbyFeature
+```
 
-### 1. Plugin bootstrap
+Each feature has its own lifecycle and resources. The plugin bootstrap only assembles the application and starts or stops the host.
 
-Your normal Paper or Velocity entry point owns application startup and shutdown. Keep it thin. It should assemble the feature definitions, create the host, start it, and stop it.
+## The main pieces
 
-It should not become the location where every command, listener, cache, database integration, and gameplay mechanic is registered.
+### Plugin bootstrap
 
-### 2. `FeatureDefinition`
+Keep the Paper or Velocity entry point small. It should create the feature collection, build the host, start it, and stop it. Feature-specific listeners, commands, tasks, and integrations belong in their feature.
 
-A definition is the declarative description of one feature. It tells the host:
+### `FeatureDefinition`
 
-- feature name and version;
-- implementation constructor;
-- whether it is enabled by default;
-- startup order when a deterministic tie-break is useful;
-- required and optional feature dependencies;
-- required plugin dependencies;
-- required, optional, and provided capabilities;
-- required, optional, and provided internal services;
-- optional classification and roles.
+A definition describes how a feature fits into the application. It contains the feature name, version, constructor, default enabled state, and any declared relationships such as:
 
-Definitions are application composition. Put them together in one obvious place rather than scattering dependency knowledge through feature constructors.
+- required or optional features;
+- required external plugins;
+- required, optional, or provided capabilities;
+- required, optional, or provided internal services.
 
-### 3. Feature implementation
+Definitions are also where startup ordering can be declared when there is no real dependency but deterministic ordering is still useful.
 
-On Paper, subclass `PaperFeature<P, D>`. On Velocity, subclass `VelocityFeature<P, D>`.
+### Feature implementation
 
-A feature should represent a coherent unit that an operator or developer can reason about independently: chat moderation, lobby navigation, punishments, queues, cosmetics, party integration, join messaging, maintenance mode, and so on.
+Use `PaperFeature<P, D>` on Paper and `VelocityFeature<P, D>` on Velocity.
 
-It implements the normal feature contract:
+The important lifecycle methods are:
 
-- `initialize()` — acquire domain state and register resources;
-- `disable()` — release domain state not already owned by framework resource managers;
-- `getDefaultConfig()` — optional feature defaults;
-- `getDefaultMessages()` — optional feature message defaults;
-- `applyConfiguration()` — optionally support a soft configuration application instead of recreation.
+- `initialize()` — create feature state and register resources;
+- `disable()` — release state that FeatureFramework does not already own;
+- `getDefaultConfig()` and `getDefaultMessages()` — optional feature defaults;
+- `applyConfiguration()` — decide whether a config change can be applied live or needs recreation.
 
-### 4. Feature context
+### Feature context
 
-The host assembles a context for each feature instance. The context exposes the scoped systems the feature is allowed to use:
+The context gives one feature access to its plugin, config, localization, logger, resource managers, capabilities, and services. Velocity contexts also expose `ProxyServer`.
 
-- plugin/bootstrap instance;
-- descriptor metadata;
-- configuration handler;
-- localization;
-- lifecycle/resource scope;
-- feature logger;
-- capability registry;
-- internal service registry;
-- owned service manager.
+This is preferable to reaching into application-wide static managers because it makes ownership and dependencies visible.
 
-Velocity contexts additionally expose the configured `ProxyServer`.
+### Feature host
 
-This makes dependencies visible and testable instead of relying on global singletons.
+The host loads the dependency graph and controls feature startup, shutdown, enable/disable, reloads, capabilities, and service lifetime. Most feature code only needs its context; it should not depend on loader/runtime internals.
 
-### 5. Feature host/runtime
+## Choosing a feature boundary
 
-The host turns definitions into a running dependency graph. It controls startup, shutdown, enable/disable, reload behavior, capability visibility, service publication, and cleanup order.
+A useful test is: **would it make sense to disable this functionality without disabling unrelated functionality?**
 
-Most application code should not need the lower-level runtime classes directly.
+Good feature boundaries are things such as chat, moderation, queues, cosmetics, maintenance mode, a Discord bridge, or a Redis-backed network integration.
 
-## A useful boundary test
+Do not make every class a feature. Repositories, services, listeners, command handlers, and domain objects can remain normal Java classes owned by one feature.
 
-Ask: **Could this functionality be disabled and cleaned up without disabling unrelated functionality?**
+## Package by feature
 
-If yes, it is probably a good feature boundary.
-
-If two pieces always share state, lifetime, and purpose, keep them in one feature until a real boundary appears.
-
-## What FeatureFramework is not
-
-It is not a dependency-injection container that should abstract every Java object. Plain constructor composition inside a feature is still good design.
-
-It is not a reason to turn every class into a feature. Features are lifecycle/application boundaries; services, repositories, handlers, and domain objects can remain normal classes owned by a feature.
-
-It is not a replacement for Paper or Velocity APIs. Platform adapters preserve native platform behavior while adding ownership and composition around it.
-
-## Recommended package layout
+For a larger plugin, this is usually easier to navigate:
 
 ```text
 com.example.myplugin
-├── MyPlugin.java                 # thin bootstrap
-├── Features.java                 # FeatureDefinition collection
+├── MyPlugin.java
+├── Features.java
 ├── chat/
 │   ├── ChatFeature.java
 │   ├── ChatService.java
-│   └── ...
-├── moderation/
-│   ├── ModerationFeature.java
-│   └── ...
-└── lobby/
-    ├── LobbyFeature.java
+│   ├── ChatListener.java
+│   └── ChatCommand.java
+└── moderation/
+    ├── ModerationFeature.java
     └── ...
 ```
 
-For a very large plugin, one package per feature is usually clearer than organizing all listeners together, all commands together, and all managers together.
+rather than putting every listener in one package, every command in another, and every manager in a third.
 
-## Next
-
-Read [Lifecycle and resource ownership](LIFECYCLE-AND-RESOURCES.md), then follow the examples for your platform.
+Next: [Lifecycle and resources](LIFECYCLE-AND-RESOURCES.md).

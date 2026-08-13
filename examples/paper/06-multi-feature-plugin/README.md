@@ -1,19 +1,15 @@
 # 06 — Multi-feature Paper plugin
 
-This is the recommended shape for a larger plugin.
+This example shows the shape of a larger application:
 
 ```text
-MyPlugin
-  -> Features.all()
-      -> Profiles
-      -> Chat        requires Profiles
-      -> Moderation  requires Profiles
-      -> PlaceholderBridge requires PlaceholderAPI
-      -> Cosmetics   optional economy capability
+Profiles
+├──> Chat
+└──> Moderation
+
+PlaceholderBridge -> requires PlaceholderAPI
 ```
 
-Keep domain code inside feature packages. Keep the bootstrap focused on host creation. Keep definitions in one composition layer so a reviewer can understand the application graph without searching constructors.
+`Features.java` keeps the application graph in one place. `MyPlugin.java` stays focused on creating and starting the host.
 
-`Features.java` demonstrates centralized composition. `MyPlugin.java` demonstrates the final thin bootstrap.
-
-For a production application, individual feature packages can contain normal repositories, services, handlers, listeners, commands, and DTOs. They do not all need to become framework types.
+The feature classes referenced by the composition example represent normal application features and are intentionally not repeated here. In a real plugin, each feature package can contain its own repositories, services, listeners, commands, handlers, and models.

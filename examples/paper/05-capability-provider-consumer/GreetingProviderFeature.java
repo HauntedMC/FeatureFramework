@@ -5,21 +5,18 @@ import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import org.bukkit.plugin.Plugin;
 
-public final class GreetingConsumerFeature extends PaperFeature<Plugin, Void> {
-    private GreetingApi greetings;
-
-    public GreetingConsumerFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class GreetingProviderFeature extends PaperFeature<Plugin, Void> {
+    public GreetingProviderFeature(PaperFeatureContext<Plugin, Void> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        greetings = requireCapability(GreetingApi.class);
-        logger().info("Greeting API resolved");
+        GreetingApi greetings = playerId -> "Welcome, " + playerId;
+        getContext().services().registerService(GreetingApi.class, greetings);
     }
 
     @Override
     public void disable() {
-        greetings = null;
     }
 }

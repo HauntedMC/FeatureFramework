@@ -1,12 +1,7 @@
 # 04 — Dependencies and integrations
 
-Proxy applications often contain network concerns that should not all become global services.
+`FeatureDefinitions.java` focuses on the dependency declaration itself; the example feature implementations are omitted.
 
-Examples:
+`Queue` requires `ServerDirectory` and can optionally use `DiscordBridge`. The same definition API can declare an external plugin with `requiresPlugins(...)` when a feature genuinely depends on one.
 
-- `Queue` can require `ServerDirectory` as a feature dependency.
-- `DiscordBridge` can be optional to moderation announcements.
-- an integration feature can declare the external plugin it needs with `requiresPlugins(...)` where platform plugin discovery is part of its contract.
-- reusable contracts such as `NetworkPlayerApi` should normally be capabilities instead of hard-coding a provider feature name.
-
-`FeatureDefinitions.java` makes these relationships visible at composition time.
+Use a capability instead when the consumer needs a reusable contract rather than a specific provider feature.

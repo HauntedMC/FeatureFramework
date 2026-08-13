@@ -27,7 +27,8 @@ public final class ConfigurableProxyFeature extends VelocityFeature<Object, Void
 
     @Override
     public void initialize() {
-        logger().info("Configurable proxy feature initialized");
+        Boolean announceSwitches = getConfigHandler().get("announce-switches", Boolean.class);
+        logger().info("Announce server switches: " + announceSwitches);
     }
 
     @Override

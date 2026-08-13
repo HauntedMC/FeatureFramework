@@ -1,43 +1,32 @@
 # Data and Caching
 
-FeatureFramework treats data and caches as lifecycle-owned resources rather than invisible global state.
+Data clients and caches should have a clear owner just like listeners and tasks.
 
 ## Data resources
 
-Platform feature resources can be composed with a data manager/provider. The ready-to-use hosts default to a no-data-provider composition; applications that need custom data resources can use the platform host-composition layer.
+The ready-to-use Paper and Velocity hosts use a no-data-provider composition. Applications that want framework-managed data resources can use the platform host-composition layer and provide their own data manager/provider.
 
-Use a feature-scoped data manager when the data resource's lifetime should follow one feature. Use a shared infrastructure capability when several features need the same logical backend without sharing its implementation directly.
-
-Example:
+If several features need the same backend, prefer exposing the behavior they need through a capability instead of handing every feature a raw client:
 
 ```text
 RedisFeature
   owns Redis client
   provides NetworkBusApi
-
-QueueFeature ------> NetworkBusApi
-ModerationFeature -> NetworkBusApi
+       ├──> QueueFeature
+       └──> ModerationFeature
 ```
 
-That is preferable to handing the raw Redis client to every feature.
+This keeps Redis-specific code in one place and lets consumers depend on the contract instead of the library/client.
 
 ## Caches
 
-Both platform resource scopes include a `FeatureCacheManager`. A cache registered there is cleaned up with the owning feature.
+Both platform resource scopes include a `FeatureCacheManager`. Caches registered there are cleaned up with the feature.
 
-A cache should have a clear answer to:
+Before adding a cache, be clear about its key, invalidation rule, lifetime, and whether stale values are acceptable. Do not use a cache as hidden cross-feature state.
 
-- what is the key?
-- what invalidates an entry?
-- what happens on feature reload?
-- can stale values be tolerated?
-- is this cache local or network-authoritative?
+## Persistence code
 
-Do not use a cache as an undeclared cross-feature communication channel.
-
-## Persistence boundaries
-
-Keep persistence concerns behind normal repositories/services inside the feature:
+Repositories and data services can remain normal classes inside a feature:
 
 ```text
 ProfilesFeature
@@ -46,12 +35,4 @@ ProfilesFeature
 └── ProfileCache
 ```
 
-Publish a capability such as `PlayerProfileApi` if other features need profiles. Do not expose the repository or database handle unless that is intentionally the contract.
-
-## Shutdown
-
-Data ingress is part of lifecycle quiescing. For custom clients not managed by the framework, close them only after callers can no longer reach the service that uses them.
-
-## Testing
-
-Test recreation with warm caches and in-flight data operations. The second enable cycle is where leaked handles and stale callbacks are most likely to become visible.
+If another feature needs profile behavior, expose a `PlayerProfileApi` capability instead of the repository or database handle.

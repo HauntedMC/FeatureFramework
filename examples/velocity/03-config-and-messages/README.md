@@ -1,7 +1,7 @@
 # 03 — Configuration and messages
 
-Paper and Velocity share the managed feature config/message contract, so feature defaults look almost identical across platforms.
+Paper and Velocity use the same managed config/message contract.
 
-`ConfigurableProxyFeature.java` demonstrates `ConfigMap`, `MessageMap`, and the conservative `RECREATE_REQUIRED` reload policy.
+`ConfigurableProxyFeature.java` defines defaults with `ConfigMap` and `MessageMap`, reads the effective feature config through `getConfigHandler()`, and chooses `RECREATE_REQUIRED` for config changes.
 
-Keep proxy-specific rendering in the Velocity localization layer; keep domain decisions independent of formatted message strings.
+Keep Velocity-specific rendering at the presentation edge instead of returning formatted messages from domain code.

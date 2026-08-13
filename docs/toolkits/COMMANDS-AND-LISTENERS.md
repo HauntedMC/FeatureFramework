@@ -1,55 +1,27 @@
 # Commands and Listeners
 
-Commands and listeners are **ingress**: they allow the platform to call into a feature. That makes ownership especially important during reloads and shutdown.
-
-## Ownership rule
-
-If a command or listener exists because one feature is enabled, register it through that feature's resource manager when FeatureFramework provides an adapter.
-
-Paper exposes feature-owned command and listener managers through `PaperFeatureResources`. Velocity exposes the equivalent proxy managers through `VelocityFeatureResources`.
-
-When cleanup begins, ingress is quiesced before feature domain state is released. This prevents new callbacks from entering a feature while it is shutting down.
+Commands and listeners let the platform call into a feature, so they should normally have the same lifetime as that feature.
 
 ## Listeners
 
-Paper's `FeatureListenerManager` supports both normal `Listener` registration and programmatic event registration. The manager tracks registrations and unregisters them with the feature.
+Register listeners through the feature listener manager when possible. Paper's `FeatureListenerManager` supports normal Bukkit listeners and programmatic event registration; Velocity has an equivalent owned listener manager.
 
-Prefer feature-local listener classes:
-
-```text
-ChatFeature
-├── ChatService
-├── ChatListener
-└── ChatCommand
+```java
+resources().getListenerManager().registerListener(new JoinListener());
 ```
 
-Avoid a single plugin-global listener that dispatches every event to unrelated features; it obscures ownership and creates manual enable/disable checks everywhere.
+The framework unregisters managed listeners when the feature stops. This prevents duplicate registrations after recreation and avoids callback code reaching state that has already been torn down.
 
-Velocity follows the same ownership principle with its native listener adapter.
+Keep listeners close to the feature that owns their behavior. A plugin-wide listener that manually dispatches every event to unrelated systems usually makes ownership harder to follow.
 
 ## Commands
 
-FeatureFramework platform modules provide feature-owned command managers and Brigadier integration. Commands registered through the feature scope can be withdrawn when the feature stops, avoiding duplicate registrations after recreation.
+Paper and Velocity both provide feature-owned command managers and Brigadier adapters. Registering a command through the feature resource scope lets the framework remove it with the feature.
 
-Keep command code thin:
+Keep command handlers small: parse and validate input, call domain code, then render the result. The command class does not need to contain the whole feature implementation.
 
-```text
-command input
-  -> validate platform/user concerns
-  -> call feature/domain service
-  -> render localized result
-```
+## When to use the native platform API
 
-Do not put the feature's complete business logic in a command executor.
+Use the Paper or Velocity API directly when FeatureFramework does not wrap the integration you need. If that registration survives the current method call, keep its unregister/close handle and release it during feature shutdown.
 
-## When direct registration is acceptable
-
-Use the native platform API directly when the framework does not expose the required integration. In that case, treat registration handles as domain-owned resources and explicitly unregister them during feature shutdown.
-
-## Review questions
-
-- Which feature owns this callback?
-- Can callbacks arrive after shutdown starts?
-- Will recreation register a duplicate?
-- Does the command depend on another feature contract that should be declared?
-- Is user-facing output localized rather than embedded in the handler?
+See [Paper owned resources](../../examples/paper/02-owned-resources/README.md) and [Velocity owned resources](../../examples/velocity/02-owned-resources/README.md).

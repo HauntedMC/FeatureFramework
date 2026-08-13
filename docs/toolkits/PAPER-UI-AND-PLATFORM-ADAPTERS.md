@@ -1,45 +1,27 @@
 # Paper UI and Platform Adapters
 
-The Paper module includes more than the feature host. It contains Paper-specific adapters for areas that cannot live in the platform-neutral shared module.
-
-Depending on the framework version, these areas include:
-
-- inventory/menu GUI support;
-- packets;
-- registries;
-- clocks/time helpers;
-- previews;
-- toast/UI integrations;
-- Brigadier/Paper command integration.
+The Paper module contains platform-specific helpers that cannot live in the shared module, including inventory/menu UI support, command/Brigadier integration, packets, registries, time/clock helpers, previews, and toast/UI adapters.
 
 ## GUI ownership
 
-`PaperFeatureResources` owns a `FeatureGUIManager`, and that manager participates in lifecycle cleanup. If a menu exists only because a feature is enabled, keep its creation/registration under that feature's resource scope.
+`PaperFeatureResources` owns a `FeatureGUIManager`. Menus created for one feature should stay under that feature's resource scope so they are shut down with it.
 
-Do not keep plugin-global references to feature-owned menus after feature recreation.
+Avoid storing plugin-global references to a feature-owned menu after the feature can be reloaded or recreated.
 
 ## Time helpers
 
-Use `BukkitTime` for framework scheduling APIs that accept a Minecraft time quantity. It provides factories such as `ticks`, `milliseconds`, `seconds`, `minutes`, and `hours`, keeping unit conversions visible.
+FeatureFramework scheduling APIs use `BukkitTime` where a Minecraft time quantity is expected:
 
-## Native APIs are still valid
-
-FeatureFramework does not try to wrap every Paper API. Use native APIs directly when they are the clearest choice. The architectural rule is ownership, not “everything must have a wrapper.”
-
-When a native registration/resource outlives a method call, decide who owns its cleanup.
-
-## Platform-neutral code
-
-Keep Paper types at the edge where possible:
-
-```text
-Paper listener/command/UI
-        |
-        v
-feature domain service
-        |
-        v
-platform-neutral models/contracts
+```java
+BukkitTime.ticks(20);
+BukkitTime.seconds(5);
+BukkitTime.minutes(1);
 ```
 
-This makes behavior easier to test and, where useful, lets Paper and Velocity features share domain contracts.
+This keeps units explicit instead of spreading manual tick conversions through feature code.
+
+## Native Paper APIs
+
+FeatureFramework does not need to wrap every Paper API. Use native APIs when they are clearer. The important question is who owns any long-lived registration or resource and how it is cleaned up.
+
+Keep platform code near the edge of the feature where practical so domain services and capability contracts remain easy to test and reuse.

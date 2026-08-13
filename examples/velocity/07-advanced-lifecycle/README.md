@@ -1,14 +1,14 @@
 # 07 — Advanced Velocity lifecycle
 
-Velocity does not have Bukkit's primary-thread lifecycle rule. Host lifecycle operations execute directly on their caller, so your application must choose where lifecycle mutations are initiated and coordinate concurrent work deliberately.
+Velocity does not use Bukkit's primary-thread lifecycle model. Feature host operations execute on their caller, so coordinate concurrent lifecycle operations and shared state like normal proxy code.
 
-## Long-running I/O
+## Long-running work
 
-Prefer feature-owned scheduling/resources where available. If a feature owns an external client or executor directly, stop accepting new work before closing it and release it in the feature lifecycle.
+Prefer feature-owned scheduling where it fits. If a feature owns an external client, executor, or subscription directly, stop new work and close it during feature shutdown.
 
 ## Infrastructure capabilities
 
-A useful advanced pattern is:
+A useful pattern is:
 
 ```text
 RedisFeature -> provides NetworkBusApi
@@ -16,12 +16,10 @@ QueueFeature -> requires NetworkBusApi
 ModerationFeature -> optionally uses NetworkBusApi
 ```
 
-The domain features do not know which Redis library is used. Replacing the provider changes composition, not every consumer.
+The consumers only know the contract, so changing the Redis client or provider implementation does not require changing them.
 
 ## Reload policy
 
-Use soft reload only for state that can be replaced atomically. Recreate a feature when callbacks, subscriptions, network clients, or dependency topology would otherwise retain stale configuration.
+Use a soft config update only when the relevant state can change safely in place. Recreate the feature when subscriptions, network clients, callbacks, or dependencies would otherwise keep old state.
 
-## Verify withdrawal
-
-During shutdown, services are withdrawn before the feature's domain state is released. Consumers must still avoid retaining implementation objects beyond their advertised lifecycle.
+Services are withdrawn as their provider shuts down, so consumers should not retain provider implementation objects beyond the feature lifetime.

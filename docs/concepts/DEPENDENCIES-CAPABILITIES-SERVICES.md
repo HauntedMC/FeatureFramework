@@ -1,32 +1,26 @@
 # Dependencies, Capabilities, and Services
 
-FeatureFramework provides several relationship types because they solve different problems. Use the narrowest one that expresses your intent.
+Use the relationship that matches what the consumer actually needs. This keeps the feature graph understandable and prevents unnecessary coupling.
 
-## Required feature dependency
+## Feature dependencies
 
-Use `requiresFeatures("Name")` when the consumer depends on the **lifecycle and identity of a specific feature**.
+Use `requiresFeatures("Profiles")` when a feature specifically depends on the lifecycle of another named feature.
 
 ```java
 .requiresFeatures("Profiles")
 ```
 
-The dependency participates in graph ordering. The consumer should not run without that feature.
+Use `optionallyUsesFeatures(...)` when the other feature only adds optional behavior.
 
-Use `optionallyUsesFeatures(...)` when the relationship enhances behavior but is not required for startup.
+## External plugin dependencies
 
-## External plugin dependency
+Use `requiresPlugins("PlaceholderAPI")` when one feature cannot work without a separately installed platform plugin.
 
-Use `requiresPlugins("PlaceholderAPI")` when a feature cannot work without a separately installed platform plugin.
+Keep the dependency on the feature that actually needs the plugin instead of making the entire application depend on it.
 
-This is different from a feature dependency: FeatureFramework does not own the external plugin's lifecycle.
+## Capabilities
 
-Keep the dependency on the smallest feature that needs it rather than making the entire application depend on the integration.
-
-## Capability
-
-A capability is the best choice when the consumer needs **a contract**, not a particular implementation.
-
-Example:
+Use a capability when the consumer needs an **interface**, not a particular feature implementation.
 
 ```java
 public interface PlayerProfileApi {
@@ -34,59 +28,68 @@ public interface PlayerProfileApi {
 }
 ```
 
-Provider definition:
+The provider declares and registers the capability:
 
 ```java
+// Definition
 .providesCapabilities(PlayerProfileApi.class)
+
+// Provider initialize()
+getContext().services().registerService(PlayerProfileApi.class, profileService);
 ```
 
-Consumer definition:
+A required consumer declares and resolves it:
 
 ```java
+// Definition
 .requiresCapabilities(PlayerProfileApi.class)
-```
 
-Consumer implementation:
-
-```java
+// Consumer initialize()
 PlayerProfileApi profiles = requireCapability(PlayerProfileApi.class);
 ```
 
-Required capability relationships can be used by manifest discovery to derive graph dependencies, allowing implementations to change without hard-coding feature names into consumers.
+For optional behavior, use `optionallyUsesCapabilities(...)` and `findCapability(...)`.
 
-Use `optionallyUsesCapabilities(...)` plus `findCapability(...)` for optional integrations.
+Required capability relationships can also be used by manifest discovery to derive the feature dependency needed for startup ordering.
 
-### Capability design rules
+Keep capability interfaces small and focused on domain behavior. Avoid exposing a database connection, implementation class, or mutable manager just to make it reachable from another feature.
 
-- publish a small interface, not an implementation class;
-- keep domain contracts free from Paper/Velocity types when cross-platform reuse is valuable;
-- do not expose mutable implementation internals;
-- make availability/lifetime follow the provider feature;
-- prefer one cohesive API over a bag of unrelated methods.
+## Internal services
 
-## Internal service
+Internal services work similarly, but are intended for private collaboration inside one application rather than a reusable public capability.
 
-Internal services represent implementation-level collaboration inside one application. Declare them with `providesInternalServices`, `requiresInternalServices`, or `optionallyUsesInternalServices` and resolve them through `requireInternalService`/`findInternalService`.
+```java
+// Provider definition
+.providesInternalServices(ProfileStore.class)
 
-Choose an internal service when the contract is not intended as a reusable public extension point.
+// Provider initialize()
+getContext().services().registerInternalService(ProfileStore.class, profileStore);
 
-## Owned service publication
+// Consumer definition
+.requiresInternalServices(ProfileStore.class)
 
-Each feature context also exposes a feature service manager (`services()` / the platform resource API manager). Services published through the owned scope are withdrawn during feature cleanup before domain state is released.
+// Consumer initialize()
+ProfileStore store = requireInternalService(ProfileStore.class);
+```
 
-That lifecycle guarantee is the important part: consumers should never keep calling a service whose provider is already shutting down.
+Use `optionallyUsesInternalServices(...)` with `findInternalService(...)` for optional collaboration.
 
-## Decision table
+## Service lifetime
+
+Services registered through the feature service manager are removed when their provider stops. Do not keep implementation objects around after the provider feature has been disabled or recreated.
+
+## Runtime operations
+
+`PaperFeatureHost` and `VelocityFeatureHost` implement `FeatureFrameworkApi<String>`. Application/admin code can inspect feature state and perform enable, disable, soft reload, feature reload, and graph reload operations through the host instead of reaching into loader internals.
+
+## Which one should I use?
 
 | Need | Use |
 |---|---|
-| Must start after a specific feature | required feature dependency |
-| Optional behavior from a specific feature | optional feature dependency |
-| Requires an installed third-party plugin | plugin dependency |
-| Needs a reusable interface, implementation does not matter | capability |
-| Optional reusable interface | optional capability |
-| Private collaboration between features in one application | internal service |
+| Must run with a specific named feature | required feature dependency |
+| Optional behavior from a specific named feature | optional feature dependency |
+| Needs a separately installed plugin | plugin dependency |
+| Needs a reusable interface | capability |
+| Needs a private cross-feature contract inside one application | internal service |
 
-## Avoid dependency chains based on convenience
-
-A common anti-pattern is making Feature C require Feature B only because B can reach A. C should declare what it actually needs. Explicit relationships make graph reloads and future refactors predictable.
+Declare the relationship directly. Avoid chains such as “C depends on B because B can reach A” when C actually depends on A.

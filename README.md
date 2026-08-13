@@ -1,60 +1,28 @@
 # FeatureFramework
 
-FeatureFramework is a Java 25 framework for building **modular Paper and Velocity plugins** from independently managed features.
+FeatureFramework is a Java 25 library for building modular Paper and Velocity plugins. It lets one plugin contain multiple independently managed features without pushing every command, listener, task, integration, and service into one global bootstrap.
 
-Instead of growing one plugin class into a collection of global managers, listeners, commands, tasks, caches, and integrations, you split the application into features with explicit lifecycle ownership and explicit relationships.
+FeatureFramework is a library, not a Minecraft plugin. Your project provides the Paper or Velocity entry point and shades the framework into its plugin JAR.
 
-A feature can be enabled, disabled, reloaded, composed with other features, and cleaned up without leaving its resources behind.
+## What it gives you
 
-## Why use it?
+- **Feature lifecycle** — enable, disable, reload, and recreate individual parts of a plugin.
+- **Owned resources** — commands, listeners, tasks, caches, GUIs, data resources, and services can be tied to the feature that created them and cleaned up with it.
+- **Explicit relationships** — declare required or optional features, external plugins, capabilities, and internal services.
+- **Feature-scoped infrastructure** — configuration, localization, logging, scheduling, commands, listeners, caching, and other toolkit components are available without application-wide singletons.
+- **Paper and Velocity support** — the same feature model on both platforms, with platform-specific behavior where it matters.
 
-FeatureFramework is useful when a plugin is becoming a platform rather than a single mechanic.
-
-It gives you:
-
-- **Feature isolation** — each feature owns its commands, listeners, tasks, caches, GUIs, data resources, and services.
-- **Reliable cleanup** — framework-owned resources are quiesced and released when a feature stops or reloads.
-- **Dependency graphs** — express required/optional feature, plugin, capability, and internal-service relationships instead of hand-ordering startup.
-- **Composable APIs** — publish capabilities between independently reusable features and internal services between features in the same application.
-- **Configuration and localization** — feature-scoped configuration and messages are part of the feature lifecycle.
-- **Paper and Velocity parity** — the same architecture and shared contracts, with platform-native adapters where behavior must differ.
-- **Large-plugin maintainability** — add or remove a feature without turning the bootstrap class into the application.
-
-FeatureFramework is a **library**, not a Minecraft plugin. Your project supplies the Paper or Velocity bootstrap and shades the framework into its own plugin JAR.
-
-## The mental model
-
-```text
-Your plugin bootstrap
-        |
-        v
-FeatureHost
-        |
-        +--> Feature A --> owned commands/listeners/tasks/config/services
-        |
-        +--> Feature B --> owned commands/listeners/tasks/config/services
-        |
-        +--> Feature C --> requires capability from A
-```
-
-A feature normally consists of:
-
-1. a `FeatureDefinition` describing identity and relationships;
-2. a `PaperFeature` or `VelocityFeature` implementation;
-3. resources registered through its feature context;
-4. optional configuration, messages, capabilities, or services.
-
-Start with [The Feature Mental Model](docs/concepts/FEATURE-MENTAL-MODEL.md) before reading the architecture internals.
+If your plugin is small and has one responsibility, you may not need this. FeatureFramework becomes useful when the plugin contains several systems that should have clear ownership and lifecycle boundaries.
 
 ## Requirements
 
 - Java 25
-- Maven 3.9+ (the checked-in wrapper is recommended)
+- Maven 3.9+; the included Maven wrapper is recommended
 - Paper or Velocity for platform integration
 
-## Add FeatureFramework
+## Add the dependency
 
-Paper (Bukkit-side):
+Paper:
 
 ```xml
 <dependency>
@@ -74,7 +42,7 @@ Velocity:
 </dependency>
 ```
 
-For GitHub Packages:
+For GitHub Packages, add the repository to your Maven configuration and authenticate with package-read access:
 
 ```xml
 <repository>
@@ -83,99 +51,80 @@ For GitHub Packages:
 </repository>
 ```
 
-Platform APIs are `provided`; your application chooses its Paper/Velocity version. Shade FeatureFramework into the final plugin JAR and **do not relocate FeatureFramework packages**, because public extension types must preserve their published class identity.
+Platform APIs are `provided`, so your application controls the Paper or Velocity version. Shade FeatureFramework into the final plugin JAR. Do not relocate FeatureFramework packages; public extension types need to keep their published class identity.
 
-## Your first feature
+## Minimal Paper example
 
-A managed Paper feature is intentionally small:
+A feature is a normal managed class:
 
 ```java
-public final class WelcomeFeature extends PaperFeature<MyPlugin, Void> {
-    public WelcomeFeature(PaperFeatureContext<MyPlugin, Void> context) {
+public final class WelcomeFeature extends PaperFeature<Plugin, Void> {
+    public WelcomeFeature(PaperFeatureContext<Plugin, Void> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        logger().info("Welcome feature enabled");
+        logger().info("Welcome enabled");
     }
 
     @Override
     public void disable() {
-        // Only release domain state you own directly.
-        // Framework-owned resources are cleaned up by the feature lifecycle.
     }
 }
 ```
 
-Describe it once:
+Declare it and start the host from your plugin bootstrap:
 
 ```java
-FeatureDefinition<PaperFeature<MyPlugin, Void>, PaperFeatureContext<MyPlugin, Void>> welcome =
-        FeatureDefinition.<PaperFeature<MyPlugin, Void>, PaperFeatureContext<MyPlugin, Void>>builder(
-                        "Welcome", "1.0.0", WelcomeFeature.class, WelcomeFeature::new)
-                .enabledByDefault()
-                .build();
+var welcome = FeatureDefinition
+        .<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
+                "Welcome", "1.0.0", WelcomeFeature.class, WelcomeFeature::new)
+        .enabledByDefault()
+        .build();
+
+featureHost = PaperFeatureHost.builder(
+        this,
+        MyPlugin.class,
+        FeatureCollection.of(welcome)
+).build();
+featureHost.start();
 ```
 
-Then put definitions in a `FeatureCollection` and start a `PaperFeatureHost` from the plugin bootstrap. Velocity uses the equivalent `VelocityFeature`, `VelocityFeatureContext`, and `VelocityFeatureHost` types.
+Call `featureHost.stop()` from `onDisable()`. See the [complete Paper example](examples/paper/01-simple-feature/README.md) or the [Velocity equivalent](examples/velocity/01-simple-feature/README.md).
 
-The examples show the complete composition rather than hiding it in the README.
+## Where to go next
 
-## Choose a learning path
-
-| Goal | Start here |
+| I want to... | Read |
 |---|---|
-| Build my first Paper feature | [`examples/paper`](examples/paper/README.md) |
-| Build my first Velocity feature | [`examples/velocity`](examples/velocity/README.md) |
+| Understand the basic model | [Feature mental model](docs/concepts/FEATURE-MENTAL-MODEL.md) |
+| Build a Paper feature | [Paper examples](examples/paper/README.md) |
+| Build a Velocity feature | [Velocity examples](examples/velocity/README.md) |
 | Structure a plugin with many features | [Multi-feature plugin design](docs/concepts/MULTI-FEATURE-PLUGIN-DESIGN.md) |
-| Understand cleanup and reload safety | [Lifecycle and resource ownership](docs/concepts/LIFECYCLE-AND-RESOURCES.md) |
-| Share functionality between features | [Dependencies, capabilities, and services](docs/concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) |
-| Add config and translated messages | [Configuration and localization](docs/guides/CONFIGURATION-AND-LOCALIZATION.md) |
-| Migrate an existing large plugin | [Migration](docs/MIGRATION.md) and [migration strategy](docs/guides/MIGRATING-AN-EXISTING-PLUGIN.md) |
-| Find a framework subsystem | [Toolkit and component index](docs/reference/TOOLKIT-INDEX.md) |
-| Understand internals | [Architecture](docs/ARCHITECTURE.md) |
-| Understand thread guarantees | [Threading](docs/THREADING.md) |
+| Understand cleanup and reloads | [Lifecycle and resources](docs/concepts/LIFECYCLE-AND-RESOURCES.md) |
+| Share APIs between features | [Dependencies, capabilities, and services](docs/concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) |
+| Use config and messages | [Configuration and localization](docs/guides/CONFIGURATION-AND-LOCALIZATION.md) |
+| Find a toolkit or component | [Toolkit index](docs/reference/TOOLKIT-INDEX.md) |
+| Migrate an existing plugin | [Migration guide](docs/guides/MIGRATING-AN-EXISTING-PLUGIN.md) |
 
-See the complete [documentation map](docs/README.md).
+The full documentation index is in [`docs/README.md`](docs/README.md).
 
 ## Modules
 
-- `featureframework-api` — stable, dependency-free public runtime API and capability contracts.
-- `featureframework-shared` — feature model, host/runtime composition, lifecycle, graph loading, config/localization, services, and platform-neutral toolkits.
-- `featureframework-paper` — Paper host/context plus feature-owned scheduling, commands, listeners, GUIs, packets, registries, clocks, previews, and UI adapters.
-- `featureframework-velocity` — Velocity host/context plus feature-owned scheduling, commands, listeners, logging, and network utilities.
-- `featureframework-testkit` — reusable interface proxies and filesystem test fixtures.
-- `featureframework-mockito-testkit` — opt-in Mockito test support.
+- `featureframework-api` — stable public runtime and capability contracts.
+- `featureframework-shared` — feature model, host/runtime, lifecycle, dependency loading, services, config/localization, and shared toolkits.
+- `featureframework-paper` — Paper host and platform adapters.
+- `featureframework-velocity` — Velocity host and platform adapters.
+- `featureframework-testkit` and `featureframework-mockito-testkit` — reusable test support.
 
-`shared` depends on `api`; platform modules depend on `shared`; Paper and Velocity adapters do not depend on each other. Architecture tests enforce these boundaries.
+The shared modules do not depend on Paper or Velocity, and the two platform modules do not depend on each other. Architecture tests enforce those boundaries.
 
-## Build and verify
+## Working on FeatureFramework
+
+Run the full verification suite with:
 
 ```shell
 ./mvnw clean verify
 ```
 
-Release-equivalent artifact verification:
-
-```shell
-./mvnw -Prelease clean verify
-```
-
-Platform acceptance consumers:
-
-```shell
-./mvnw -Pplatform-acceptance clean verify
-```
-
-Publishing is tag-driven. Set `<revision>` in the root `pom.xml`, then push the matching `vMAJOR.MINOR.PATCH` tag. Pull requests also run public API compatibility checks against the published baseline.
-
-## Deeper documentation
-
-- [Documentation map](docs/README.md)
-- [Architecture](docs/ARCHITECTURE.md)
-- [Threading](docs/THREADING.md)
-- [Migration](docs/MIGRATION.md)
-- [Examples](examples/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Security](SECURITY.md)
+Contributor, release, and compatibility details are documented in [CONTRIBUTING.md](CONTRIBUTING.md). For internals, see [Architecture](docs/ARCHITECTURE.md) and [Threading](docs/THREADING.md).

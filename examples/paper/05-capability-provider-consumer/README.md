@@ -1,9 +1,13 @@
 # 05 — Capability provider and consumer
 
-Capabilities decouple **what a feature needs** from **which feature implements it**.
+Capabilities let a feature depend on a contract instead of a named implementation.
 
-This example models a `GreetingApi` contract. The provider definition declares `providesCapabilities(GreetingApi.class)` and the consumer declares `requiresCapabilities(GreetingApi.class)`.
+This example contains the complete framework-specific flow:
 
-Inside the consumer, `requireCapability(GreetingApi.class)` resolves the current provider. Required capability relationships also allow the framework's manifest discovery to derive graph dependencies.
+1. `GreetingApi` defines the contract.
+2. `Definitions.provider()` declares `providesCapabilities(GreetingApi.class)`.
+3. `GreetingProviderFeature` registers the implementation with `services().registerService(...)`.
+4. `Definitions.consumer()` declares `requiresCapabilities(GreetingApi.class)`.
+5. `GreetingConsumerFeature` resolves it with `requireCapability(...)`.
 
-In a real provider, publish the capability implementation through the feature-owned service/capability publication path during initialization so its availability follows the feature lifecycle. The exact publication API depends on the service contract/host composition you use; keep the interface itself small and platform-independent where possible.
+The service is owned by the provider feature and is removed when that feature stops.

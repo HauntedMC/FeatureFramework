@@ -1,26 +1,20 @@
 # FeatureFramework examples
 
-This directory is a progressive cookbook for application developers. The examples are intentionally **not** part of the framework Maven reactor: they teach composition patterns without becoming production modules of FeatureFramework itself.
+The examples are arranged from small to advanced and are split by platform:
 
-Choose your platform:
-
-- [Paper (Bukkit-side)](paper/README.md)
+- [Paper](paper/README.md)
 - [Velocity](velocity/README.md)
 
-## Progression
+Each directory focuses on one FeatureFramework concept rather than being a complete standalone Maven plugin. Normal application/domain classes that do not add anything to that lesson may be omitted.
 
-Both tracks follow the same order:
+Both tracks cover the same progression:
 
-1. one minimal feature;
-2. feature-owned platform resources;
-3. feature configuration and messages;
-4. dependencies and optional integrations;
-5. capability provider/consumer design;
-6. a realistic multi-feature plugin composition;
-7. advanced lifecycle/reload decisions.
+1. one feature and host bootstrap;
+2. owned listeners/tasks/resources;
+3. config and messages;
+4. feature and plugin dependencies;
+5. capability provider/consumer;
+6. larger multi-feature composition;
+7. reload, async, and lifecycle decisions.
 
-The goal is not to memorize APIs. Learn the ownership model first, then copy the pattern closest to the feature you are building.
-
-## About the Java files
-
-Source files are focused examples. Package declarations use `com.example...`, imports may be shortened to keep the teaching point visible, and application-specific API interfaces are intentionally small. For exact overloads and platform semantics, use the framework Javadocs/source and [documentation map](../docs/README.md).
+Start at the level closest to what you are building. The Java examples use the current FeatureFramework APIs; the surrounding plugin metadata and build setup are intentionally left to the consuming application.

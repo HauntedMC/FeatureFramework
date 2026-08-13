@@ -1,38 +1,17 @@
 # FeatureFramework Velocity
 
-The Velocity module is the proxy platform adapter for FeatureFramework. It uses the same feature definitions, lifecycle model, dependency graph, capability model, configuration approach, and service ownership as the Paper adapter while preserving Velocity-native execution and APIs.
+`featureframework-velocity` is the Velocity adapter for FeatureFramework.
 
-## Start here
-
-1. Read the root [FeatureFramework overview](../README.md).
-2. Follow [`examples/velocity/01-simple-feature`](../examples/velocity/01-simple-feature/README.md).
-3. Learn [lifecycle/resource ownership](../docs/concepts/LIFECYCLE-AND-RESOURCES.md).
-4. Continue through the [Velocity example path](../examples/velocity/README.md).
+Start with the [Velocity examples](../examples/velocity/README.md). Dependency, GitHub Packages, and shading setup are in the [root README](../README.md).
 
 ## Main types
 
-- `VelocityFeature<P, D>` — base class for a managed Velocity feature.
-- `VelocityFeatureContext<P, D>` — feature-scoped plugin/config/localization/resources/logging/services plus native `ProxyServer` access.
-- `VelocityFeatureResources<D>` — feature ownership scope for Velocity resources.
-- `VelocityFeatureHost` — runs a collection of definitions.
-- `VelocityFeatureHostComposition` — lower-level host composition for custom application policy/resources.
+- `VelocityFeature<P, D>` — managed Velocity feature base.
+- `VelocityFeatureContext<P, D>` — plugin, `ProxyServer`, config, localization, logger, resources, capabilities, and services for one feature.
+- `VelocityFeatureResources<D>` — owned tasks, commands, listeners, data, caches, and services.
+- `VelocityFeatureHost` — ready-to-use host for normal proxy composition.
+- `VelocityFeatureHostComposition` — lower-level composition when custom data/resources or host policy are needed.
 
-## Rule of thumb
+Velocity host lifecycle operations execute directly on the caller; FeatureFramework does not add a Bukkit-style main thread. See [Threading](../docs/THREADING.md).
 
-Platform registrations should have one obvious owner. If a task, command, listener, cache, or service exists because a feature is enabled, prefer the feature-owned adapter so it disappears with that feature.
-
-## Velocity execution
-
-Velocity host lifecycle operations execute directly on the caller; the framework does not invent a Bukkit-style main-thread hop. Read [THREADING.md](../docs/THREADING.md) before coordinating lifecycle changes with asynchronous work.
-
-## Dependency
-
-```xml
-<dependency>
-  <groupId>nl.hauntedmc.featureframework</groupId>
-  <artifactId>featureframework-velocity</artifactId>
-  <version>RELEASE_VERSION</version>
-</dependency>
-```
-
-See the root README for GitHub Packages and shading requirements.
+As on Paper, long-lived tasks, listeners, commands, caches, and services should have one clear owning feature whenever possible.

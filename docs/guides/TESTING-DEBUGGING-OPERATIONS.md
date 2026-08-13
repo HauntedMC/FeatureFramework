@@ -1,77 +1,67 @@
 # Testing, Debugging, and Operations
 
-FeatureFramework is designed for dynamic lifecycle operations, so tests should verify more than first startup.
+A feature that starts once is not necessarily lifecycle-safe. Test startup, cleanup, and recreation.
 
-## Test three levels
+## What to test
 
-### Domain tests
+### Domain code
 
-Most feature logic should remain normal Java. Test services, repositories, parsers, policies, and calculators without a Minecraft runtime whenever possible.
+Keep most business logic as normal Java and test services, repositories, parsers, policies, and calculations without a Minecraft runtime where possible.
 
-### Feature tests
+### Feature lifecycle
 
-Verify the feature's lifecycle contract:
+Check that:
 
-- initialization registers the expected resources;
-- invalid required state fails startup;
-- cleanup can run after partial initialization;
-- configuration application returns the intended reload result;
-- optional dependencies genuinely remain optional.
+- initialization registers the resources you expect;
+- invalid required state fails clearly;
+- cleanup works after partial initialization;
+- optional dependencies really are optional;
+- config reload behavior matches `applyConfiguration()`.
 
-The repository includes `featureframework-testkit` and `featureframework-mockito-testkit` for reusable fixtures where appropriate.
+`featureframework-testkit` and `featureframework-mockito-testkit` provide reusable fixtures for framework test suites that need them.
 
-### Host/graph tests
+### Multiple features
 
-For applications with many features, test:
+For a larger application, also test dependency ordering, required dependency failures, optional integrations, capability/service availability, and repeated graph reloads.
 
-- dependency ordering;
-- required-dependency failure propagation;
-- optional integration absence;
-- capability availability and withdrawal;
-- graph reload after configuration changes;
-- no duplicate resources after repeated reloads.
+## A useful reload test
 
-## Operational checks
-
-When a feature misbehaves, first determine which layer failed:
-
-1. **definition** — wrong dependency/capability declaration;
-2. **construction** — context or constructor failure;
-3. **initialization** — feature domain/platform startup failure;
-4. **runtime** — task/listener/command/service behavior;
-5. **cleanup** — untracked resources or domain shutdown failure.
-
-The framework's feature logger and runtime/catalog state are more useful when each feature name is stable and descriptive.
-
-## Reload testing
-
-A production-grade feature should survive this sequence in a test/staging server:
+Run this sequence more than once on a test server:
 
 ```text
 start host
 use feature
-reload or disable feature
-verify ingress stopped
-verify resources removed
-re-enable/recreate feature
-use feature again
+disable or reload feature
+verify listeners/commands/tasks/services are gone
+re-enable feature
+use it again
 stop host
 ```
 
-Run it more than once. Many registration leaks only appear on the second cycle.
+The second cycle often exposes registrations or state that the first startup does not.
+
+## Debugging lifecycle problems
+
+When a feature fails, narrow it down to one stage:
+
+1. definition/dependency resolution;
+2. context or construction;
+3. `initialize()`;
+4. normal runtime callbacks/tasks/services;
+5. cleanup or `disable()`.
+
+Stable feature names and feature-scoped logs make this much easier to follow.
 
 ## Threading
 
-Do not infer threading from examples. Read [THREADING.md](../THREADING.md), especially before mixing lifecycle changes with asynchronous database/network work.
+Read [THREADING.md](../THREADING.md) before combining lifecycle operations with asynchronous database, HTTP, or network work. Paper and Velocity deliberately have different execution contracts.
 
 ## Framework repository verification
 
-For FeatureFramework itself:
+When changing FeatureFramework itself, the normal verification command is:
 
 ```shell
 ./mvnw clean verify
-./mvnw -Prelease clean verify
-./mvnw -Pplatform-acceptance clean verify
 ```
 
-The platform acceptance profile boots independent dummy consumers against pinned real runtimes and checks lifecycle/resource behavior.
+Release and platform-acceptance workflows are documented with the contributor/release process rather than repeated throughout the user documentation.

@@ -1,78 +1,60 @@
 # Configuration and Localization
 
-Configuration and messages are feature-scoped parts of the managed feature contract.
+Feature configuration and messages belong to the feature that uses them.
 
-## Defaults belong to the feature
+## Defaults
 
-`ManagedFeature` supplies empty defaults. Override them only when your feature needs them:
+Override the default hooks when a feature needs configuration or messages:
 
 ```java
 @Override
 public ConfigMap getDefaultConfig() {
-    ConfigMap config = new ConfigMap();
-    // Add the feature's defaults here using ConfigMap's typed helpers.
-    return config;
+    return new ConfigMap()
+            .put("enabled", true)
+            .put("cooldown-seconds", 10);
 }
 
 @Override
 public MessageMap getDefaultMessages() {
     MessageMap messages = new MessageMap();
-    // Add the feature's message defaults here.
+    messages.add("cooldown", "<red>Please wait before using this again.</red>");
     return messages;
 }
 ```
 
-Keeping defaults with the implementation has two advantages: the feature is self-describing, and moving the feature to another host does not require copying an unrelated global config block.
+`FeatureConfigHandler` is a `ConfigView`, so read effective values directly through `getConfigHandler()`:
 
-## Read through the feature configuration handler
+```java
+Boolean enabled = getConfigHandler().get("enabled", Boolean.class);
+```
 
-The context exposes `configHandler()` / `getConfigHandler()`. Treat it as the source for the feature's effective configuration rather than reloading YAML directly from arbitrary code paths.
+Feature config is stored under `features/<feature>/config.yml`. Global settings are available explicitly through the handler's global view methods when a feature genuinely needs them.
 
 ## Reload behavior
 
-A configuration change does not automatically mean every feature can mutate safely in place.
+The default `applyConfiguration()` result is `RECREATE_REQUIRED`. Keep that default unless a feature can apply changed values safely while it is running.
 
-Use `applyConfiguration()` to signal the supported behavior. The default managed implementation returns `RECREATE_REQUIRED`, which is a safe choice for stateful features.
-
-Soft application is appropriate when:
-
-- the change only adjusts thresholds, messages, or other replaceable values;
-- no listener/command topology must change unsafely;
-- the operation can be made atomic from callers' perspective.
-
-Prefer recreation when:
-
-- dependencies change;
-- expensive resources need rebuilding;
-- callbacks capture old state;
-- correctness is easier to guarantee through a fresh feature instance.
+A soft update is a good fit for simple values such as limits or thresholds. Recreation is usually clearer when configuration changes affect listeners, commands, clients, subscriptions, dependency relationships, or other long-lived state.
 
 ## Localization
 
-Paper and Velocity provide platform localization adapters in their feature contexts. Keep user-facing messages in the feature message map/localization system rather than embedding formatted strings throughout listeners and commands.
+Define stable message keys with `MessageMap` and use the platform localization adapter when presenting text to a player or command sender.
 
-Recommended pattern:
+Keep formatting at the presentation boundary. Domain services should return useful results or models rather than preformatted chat strings.
 
-```text
-Feature implementation
-  -> domain result
-  -> presentation/command/listener
-  -> feature localization key
-  -> rendered message
-```
+## Logging
 
-This keeps domain logic independent of language and formatting.
+Each managed feature has its own feature logger. Log lifecycle failures and operational problems with enough context to identify what failed, but avoid turning normal control flow into log noise.
 
-## Configuration design rules
+A useful error should tell the developer which feature failed and what dependency, configuration value, or resource caused the failure. Do not catch a startup exception only to log it and continue with a feature that is not usable.
+
+## Practical rules
 
 - use stable, descriptive keys;
-- provide defaults for every optional setting;
+- provide defaults for optional settings;
 - validate required values during initialization;
-- fail early on configuration that would create unsafe state;
-- do not let multiple features silently own the same key;
-- document behavior, units, ranges, and reload semantics;
-- keep secrets out of committed example files.
+- document units and important ranges;
+- keep secrets out of committed examples;
+- keep one feature responsible for each feature-specific key.
 
-## Example progression
-
-Both platform example suites include a config/messages example before introducing cross-feature composition. That is intentional: understand the lifecycle boundary first, then add dependencies.
+See the [Paper](../../examples/paper/03-config-and-messages/README.md) and [Velocity](../../examples/velocity/03-config-and-messages/README.md) examples.

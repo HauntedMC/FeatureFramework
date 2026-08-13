@@ -1,25 +1,29 @@
-# 07 — Advanced lifecycle and reload choices
+# 07 — Advanced lifecycle and reloads
 
-Use this after you are comfortable with normal feature ownership.
+Use this after the normal ownership model is clear.
 
-## Soft reload or recreate?
+## Soft reload or recreation?
 
-A feature's `applyConfiguration()` communicates whether it can safely absorb a configuration change. The managed default is `RECREATE_REQUIRED`.
+The managed default is `RECREATE_REQUIRED`. Prefer recreation when configuration affects callbacks, dependencies, clients, command structure, or long-lived state. Use a soft update only when the changed values can be replaced safely while the feature stays live.
 
-Prefer recreation when callbacks, dependencies, connections, command topology, or state machines would otherwise retain old state. A clean recreation is usually cheaper than debugging a partially updated live feature.
+## Async work
 
-## Async work on Paper
+Use the feature task manager for owned async/repeating work. An async task is still subject to normal Bukkit thread-safety rules; switch back to a synchronous Paper task before touching APIs that require the primary thread.
 
-Use the feature task manager for owned async work (`runAsync`, `supplyAsync`, async scheduling). The future/task remains associated with feature lifecycle cleanup. Never call unsafe Bukkit APIs from an async continuation merely because the task manager created it.
+## Resources FeatureFramework does not own
 
-## Direct platform resources
+If you register a third-party callback or create a client directly, keep its cleanup handle and release it during feature shutdown.
 
-If FeatureFramework has no adapter for a third-party registration, you may register it directly, but then the feature must explicitly release it in `disable()` (or another lifecycle hook appropriate to that integration).
+## Services
 
-## Service shutdown
+Feature-owned services are withdrawn before `disable()` releases provider state. Consumers should resolve services according to feature lifetime rather than caching implementation objects forever.
 
-Callable feature services are withdrawn before `disable()` releases domain state. Design service consumers around feature/capability lifetime rather than caching implementation objects forever.
+## Test the second lifecycle
 
-## Production test
+A useful production test is:
 
-Exercise `enable -> use -> reload/disable -> verify cleanup -> enable -> use` repeatedly. One successful first boot does not prove lifecycle correctness.
+```text
+enable -> use -> reload/disable -> verify cleanup -> enable -> use
+```
+
+Run it more than once. Leaks often show up on the second cycle.
