@@ -1,0 +1,10 @@
+# Representative feature-local messages. Language variants can override the same stable keys.
+contracts:
+  header: '<gold><bold>Open contracts</bold></gold> <gray>({count})</gray>'
+  entry: '<yellow>{reward}</yellow> <gray>—</gray> <white>{description}</white> <dark_gray>({id})</dark_gray>'
+  empty: '<gray>There are no open contracts.</gray>'
+  posted: '<green>Posted contract <white>{id}</white> for <gold>{reward}</gold>.</green>'
+  claimed: '<green>You claimed contract <white>{id}</white>.</green>'
+  claim-failed: '<red>That contract is no longer available.</red>'
+  invalid: '<red>{reason}</red>'
+  join-notice: '<gold>{count}</gold> <yellow>contracts are waiting. Use <white>/contracts</white>.</yellow>'

@@ -24,7 +24,21 @@ FeatureFramework makes that model explicit:
 - `FeatureCommandModel` and `FeatureOperationMessages` provide the building blocks for a permissioned in-game operations command rather than another global singleton;
 - the shared text toolkit safely normalizes legacy and MiniMessage formats, supports explicit MiniMessage allowlists, sanitizes untrusted tags, autolinks URLs, serializes components, and provides reusable validation patterns.
 
-See [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) for the control-plane and data-integration pattern, and [Text, formatting, and safe player input](docs/toolkits/TEXT-AND-FORMATTING.md) for the text toolkit.
+That makes feature boundaries useful operational boundaries:
+
+| Subsystem | What one feature can safely own | What consumers see |
+|---|---|---|
+| Persistent gameplay domain | DataProvider SQL/ORM, repositories, hot and disk caches, commands, listeners, reconciliation tasks | an async capability with immutable results |
+| Proxy admission or routing | Redis/stream subscription, freshness-bounded snapshot, deterministic policy, connection listener, status command | a synchronous cache-only decision capability |
+| Cross-platform workflow | outbox/consumer, idempotency state, retry task, wire publisher/subscriber | versioned messages across processes; behavior capabilities locally |
+| Third-party integration | client, callback registrations, rate limits, health state, config and messages | a small backend-neutral capability or optional availability |
+
+The two end-to-end examples below put the framework APIs in context, including ownership, consistency, reload, and verification decisions:
+
+- [Paper persistent ContractBoard](examples/paper/11-persistent-contract-board/README.md) — transactional MySQL, async service, hot and JSON caches, command, listener, messages, config, and capability.
+- [Velocity adaptive rollout router](examples/velocity/11-adaptive-rollout-router/README.md) — Redis health subscription, freshness policy, deterministic canary routing, restart cache, status command, messages, config, and capability.
+
+See [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) for the control plane and [Text, formatting, and safe player input](docs/toolkits/TEXT-AND-FORMATTING.md) for the text toolkit.
 
 If your plugin is small and has one responsibility, you may not need this. FeatureFramework becomes useful when the plugin contains several systems that should have clear ownership and lifecycle boundaries.
 
@@ -127,6 +141,8 @@ Call `featureHost.stop()` from `onDisable()`. See the [complete Paper example](e
 | Share APIs between features | [Dependencies, capabilities, and services](docs/concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) |
 | Use config and messages | [Configuration and localization](docs/guides/CONFIGURATION-AND-LOCALIZATION.md) |
 | Operate a large, live feature graph | [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) |
+| See a complete persistent Paper subsystem | [Persistent ContractBoard](examples/paper/11-persistent-contract-board/README.md) |
+| See a complete real-time Velocity subsystem | [Adaptive rollout router](examples/velocity/11-adaptive-rollout-router/README.md) |
 | Safely format, inspect, and serialize text | [Text and formatting](docs/toolkits/TEXT-AND-FORMATTING.md) |
 | Find a toolkit or component | [Toolkit index](docs/reference/TOOLKIT-INDEX.md) |
 | Migrate an existing plugin | [Migration guide](docs/guides/MIGRATING-AN-EXISTING-PLUGIN.md) |

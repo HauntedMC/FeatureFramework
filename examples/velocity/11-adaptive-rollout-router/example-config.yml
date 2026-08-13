@@ -1,0 +1,12 @@
+# Generated as features/AdaptiveRollout/config.yml.
+enabled: true
+messaging:
+  connection: hauntedmc
+  channel: deployments.backend-health
+health:
+  stale-after-seconds: 15
+routing:
+  stable-server: survival-stable
+  canary-server: survival-canary
+  fallback-server: lobby
+  canary-percent: 10

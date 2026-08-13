@@ -75,4 +75,3 @@ are representing this project in public or semi-public spaces.
 
 This Code of Conduct is adapted from the Contributor Covenant, version 3.0:
 https://www.contributor-covenant.org/version/3/0/code_of_conduct/
-c

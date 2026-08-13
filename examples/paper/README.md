@@ -14,8 +14,23 @@ Each directory below is self-contained at the application-source level: all cust
 | 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
 | 9 | [09-dataregistry](09-dataregistry/README.md) | `PaperDataRegistryFeature`, DataRegistry, identity readiness |
 | 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
+| 11 | [11-persistent-contract-board](11-persistent-contract-board/README.md) | SQL-backed subsystem: transactions, two-level cache, async service, command, listener, config/messages, capability |
 
 Every example declares metadata beside the feature with `@FeatureDeclaration`; the bootstrap uses
 `@GenerateFeatureCatalog` and generated `BuiltInFeatures.collection()`. Start with 01 if the framework is new to you.
 
 Paper host lifecycle operations follow Bukkit primary-thread semantics. Async tasks still require normal Bukkit thread-safety discipline; see [Threading](../../docs/THREADING.md).
+
+## For developers evaluating this on a large network
+
+Once you know the feature mental model, [11-persistent-contract-board](11-persistent-contract-board/README.md) shows a single cohesive feature as an application composition root, not a wrapper around one listener:
+
+```text
+SQL source of truth → repository → async domain service → capability
+                              ├── immutable hot snapshot + JSON fallback summary
+                              ├── Brigadier command + localized responses
+                              ├── join listener that never blocks on SQL
+                              └── owned refresh/reconciliation task
+```
+
+Its README follows a claim race through MySQL and back to the Paper thread, documents cache authority and staleness, and explains what recreation replaces.

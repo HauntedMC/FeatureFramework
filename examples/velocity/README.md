@@ -14,6 +14,21 @@ Each directory is self-contained at the application-source level and includes it
 | 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
 | 9 | [09-dataregistry](09-dataregistry/README.md) | `VelocityDataRegistryFeature`, DataRegistry, identity readiness |
 | 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
+| 11 | [11-adaptive-rollout-router](11-adaptive-rollout-router/README.md) | Redis-driven subsystem: health snapshots, restart cache, canary/fallback policy, listener, command, config/messages, capability |
 
 Every example declares metadata beside the feature with `@FeatureDeclaration`; the bootstrap uses
 `@GenerateFeatureCatalog` and generated `BuiltInFeatures.collection()`. Velocity host lifecycle operations run directly on the caller; FeatureFramework does not create a Bukkit-style main thread. See [Threading](../../docs/THREADING.md).
+
+## For developers evaluating this on a large network
+
+Once you know the feature mental model, [11-adaptive-rollout-router](11-adaptive-rollout-router/README.md) demonstrates a latency-sensitive proxy application:
+
+```text
+DataProvider Redis subscription → concurrent freshness-bounded snapshot
+                                      ├── deterministic canary/failover policy
+                                      ├── cache-only ServerPreConnect listener
+                                      ├── reload-safe routing capability
+                                      └── localized operations command + expiry task
+```
+
+Its README makes thread handoff, stale-data policy, subscription ownership, and generation replacement explicit.

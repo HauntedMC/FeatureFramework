@@ -49,9 +49,20 @@ This keeps backend-specific code in one place and lets consumers depend on a con
 
 ## Caches
 
-Both platform resource scopes include a `FeatureCacheManager`. Caches registered there are cleaned up with the feature.
+Both platform resource scopes include a `FeatureCacheManager`. It creates normalized feature-owned cache directories and stops accepting access when the owning scope is quiesced. JSON `FileCacheStore` values support explicit TTLs and corruption-tolerant atomic writes.
 
 Before adding a cache, be clear about its key, invalidation rule, lifetime, and whether stale values are acceptable. Do not use a cache as hidden cross-feature state.
+
+Write the policy down as a small matrix before implementing it:
+
+| Cached value | Authority | Freshness | Miss/failure behavior |
+|---|---|---|---|
+| player-facing list | database | short bounded TTL | async refresh; report unavailable if authority fails |
+| join hint/count | derived projection | longer bounded TTL | omit hint or use documented last-known value |
+| proxy routing health | message snapshot | seconds | fallback or deny according to explicit policy |
+| permission/reward decision | normally not a disk cache | strict | consult authority; never silently trust old data |
+
+Use an in-memory immutable snapshot for hot event paths and a file cache only when restart continuity is useful. A restored file value still needs a domain timestamp/freshness check; the file TTL alone does not prove the upstream observation is current.
 
 ## Persistence code
 
@@ -65,3 +76,5 @@ ProfilesFeature
 ```
 
 If another feature needs profile behavior, expose a `PlayerProfileApi` capability instead of the repository or database handle.
+
+See the [persistent Paper example](../../examples/paper/11-persistent-contract-board/README.md) for authoritative SQL plus hot/disk cache layers, and the [Velocity rollout example](../../examples/velocity/11-adaptive-rollout-router/README.md) for a Redis-maintained read model used synchronously on a connection path.

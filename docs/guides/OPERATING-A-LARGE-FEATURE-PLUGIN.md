@@ -145,3 +145,5 @@ start graph -> exercise feature -> change config -> reload/recreate feature
 ```
 
 This is where feature-scoped ownership pays for itself: correctness is not just whether startup works, but whether production changes leave precisely one active generation of every callback and integration.
+
+For worked examples covering transactions, caching, messaging, freshness, and routing policy, see the [Paper ContractBoard application](../../examples/paper/11-persistent-contract-board/README.md) and the [Velocity adaptive rollout router](../../examples/velocity/11-adaptive-rollout-router/README.md).

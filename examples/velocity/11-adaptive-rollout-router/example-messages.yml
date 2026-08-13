@@ -1,0 +1,6 @@
+rollout:
+  rerouted: '<yellow>Routing you to <white>{server}</white> <gray>({reason})</gray>.</yellow>'
+  unavailable: '<red>No healthy server is currently available for this game mode.</red>'
+  misconfigured: '<red>Rollout target <white>{server}</white> is not registered on this proxy.</red>'
+  status-header: '<gold><bold>Backend health</bold></gold> <gray>({count} snapshots)</gray>'
+  status-entry: '<white>{server}</white><gray>: healthy={healthy}, online={online}, age={age}s</gray>'

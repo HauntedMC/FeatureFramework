@@ -1,0 +1,13 @@
+# Generated as features/ContractBoard/config.yml.
+enabled: true
+database:
+  connection: system_data_rw
+cache:
+  hot-ttl-seconds: 20
+  snapshot-size: 100
+refresh:
+  seconds: 30
+contracts:
+  max-reward: 50000
+join-notice:
+  minimum-open: 3
