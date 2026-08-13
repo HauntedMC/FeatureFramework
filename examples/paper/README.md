@@ -1,15 +1,19 @@
-# Paper (Bukkit-side) examples
+# Paper examples
 
-Follow these in order if FeatureFramework is new to you.
+Each directory below is self-contained at the application-source level: all custom classes referenced by that example are included in the same directory.
 
-| Level | Example | Teaches |
+| Level | Example | What it teaches |
 |---|---|---|
-| 1 | [01-simple-feature](01-simple-feature/README.md) | feature class, definition, host |
-| 2 | [02-owned-resources](02-owned-resources/README.md) | listener/task ownership and cleanup |
-| 3 | [03-config-and-messages](03-config-and-messages/README.md) | feature-scoped defaults and reload policy |
-| 4 | [04-dependencies-and-integrations](04-dependencies-and-integrations/README.md) | required/optional features and external plugins |
-| 5 | [05-capability-provider-consumer](05-capability-provider-consumer/README.md) | reusable cross-feature contracts |
-| 6 | [06-multi-feature-plugin](06-multi-feature-plugin/README.md) | realistic application composition |
-| 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | soft reload vs recreation, async work, cleanup |
+| 1 | [01-simple-feature](01-simple-feature/README.md) | feature class, definition, ready-to-use host |
+| 2 | [02-owned-resources](02-owned-resources/README.md) | listener/task ownership and automatic cleanup |
+| 3 | [03-config-and-messages](03-config-and-messages/README.md) | feature defaults and reload policy |
+| 4 | [04-dependencies-and-integrations](04-dependencies-and-integrations/README.md) | feature dependencies, optional features, external plugins |
+| 5 | [05-capability-provider-consumer](05-capability-provider-consumer/README.md) | publishing and consuming a capability |
+| 6 | [06-multi-feature-plugin](06-multi-feature-plugin/README.md) | realistic multi-feature composition |
+| 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | recreation, async work, manually owned resources |
+| 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
+| 9 | [09-dataregistry](09-dataregistry/README.md) | `PaperDataRegistryFeature`, DataRegistry, identity readiness |
 
-Paper lifecycle changes obey Bukkit primary-thread semantics. Async work still needs normal Bukkit thread-safety discipline. See [Threading](../../docs/THREADING.md).
+Start with 01 if the framework is new to you. Jump directly to a later example when you already understand the earlier concepts.
+
+Paper host lifecycle operations follow Bukkit primary-thread semantics. Async tasks still require normal Bukkit thread-safety discipline; see [Threading](../../docs/THREADING.md).

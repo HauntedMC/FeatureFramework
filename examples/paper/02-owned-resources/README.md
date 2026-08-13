@@ -1,7 +1,18 @@
 # 02 — Feature-owned Paper resources
 
-`ActivityFeature.java` registers a Bukkit listener and a repeating task through `PaperFeatureResources`.
+This example is complete on its own:
 
-Both resources belong to the feature, so the framework unregisters/cancels them when the feature stops. There is no matching manual cleanup in `disable()`.
+- `MyPlugin.java` creates the feature definition and host.
+- `ActivityFeature.java` registers a listener and repeating task through its resource scope.
 
-The same ownership idea applies to feature commands, caches, GUIs, data resources, and published services.
+The important part is what **isn't** in `disable()`: there is no listener unregister and no task cancellation. Because both resources were registered through `PaperFeatureResources`, the framework owns their cleanup.
+
+```text
+MyPlugin
+  -> PaperFeatureHost
+      -> ActivityFeature
+          -> FeatureListenerManager -> JoinListener
+          -> FeatureTaskManager     -> repeating heartbeat
+```
+
+Use the same ownership rule for commands, caches, GUIs, data resources, and published services whenever FeatureFramework supplies a managed adapter.

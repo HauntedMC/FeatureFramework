@@ -1,12 +1,20 @@
 # 04 — Dependencies and integrations
 
-`FeatureDefinitions.java` focuses on declaration-time relationships; the feature implementation classes themselves are omitted because they are not relevant to this example.
+This directory contains the full example graph:
 
-It demonstrates:
+```text
+Profiles ---------> Chat
+DiscordBridge ----> Chat (optional)
+PlaceholderAPI ---> Placeholders (external plugin)
+```
 
-- `requiresFeatures` for a required named feature;
-- `optionallyUsesFeatures` for optional behavior;
-- `requiresPlugins` for an external Paper plugin;
-- `startupOrder` as an ordering hint when there is no actual dependency.
+`FeatureDefinitions.java` is the important file. Relationships are declared where the application is composed rather than hidden inside constructors.
 
-If a consumer needs an interface rather than one particular feature, use a capability instead. That is the next example.
+- `requiresFeatures("Profiles")` means Chat must not run without the named feature and gives the graph a real lifecycle dependency.
+- `optionallyUsesFeatures("DiscordBridge")` records an enhancement relationship without making startup depend on it.
+- `requiresPlugins("PlaceholderAPI")` keeps an external plugin requirement on the feature that needs it.
+- `startupOrder(100)` is only an ordering hint; it should not replace a real dependency declaration.
+
+All four example feature classes are included so there are no unexplained custom references. PlaceholderAPI itself is intentionally external: the point of `requiresPlugins` is to describe a real separately installed plugin.
+
+If Chat needed a reusable API rather than the identity/lifecycle of `Profiles`, a capability would be the better relationship. The next example shows that.

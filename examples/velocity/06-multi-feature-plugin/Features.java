@@ -6,34 +6,33 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 public final class Features {
-    private Features() {
-    }
+    private Features() { }
 
     public static FeatureCollection<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> all() {
-        var directory = simple("ServerDirectory", ServerDirectoryFeature.class, ServerDirectoryFeature::new);
-        var maintenance = simple("Maintenance", MaintenanceFeature.class, MaintenanceFeature::new);
-        var queue = FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
-                        "Queue", "1.0.0", QueueFeature.class, QueueFeature::new)
-                .requiresFeatures("ServerDirectory")
+        var directory = FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
+                        "ServerDirectory", "1.0.0", ServerDirectoryFeature.class, ServerDirectoryFeature::new)
+                .providesCapabilities(ServerDirectoryApi.class)
                 .enabledByDefault()
                 .build();
+
+        var maintenance = FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
+                        "Maintenance", "1.0.0", MaintenanceFeature.class, MaintenanceFeature::new)
+                .enabledByDefault()
+                .build();
+
+        var queue = FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
+                        "Queue", "1.0.0", QueueFeature.class, QueueFeature::new)
+                .requiresCapabilities(ServerDirectoryApi.class)
+                .enabledByDefault()
+                .build();
+
         var commands = FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
                         "NetworkCommands", "1.0.0", NetworkCommandsFeature.class, NetworkCommandsFeature::new)
-                .requiresFeatures("ServerDirectory")
+                .requiresCapabilities(ServerDirectoryApi.class)
                 .optionallyUsesFeatures("Maintenance")
                 .enabledByDefault()
                 .build();
-        return FeatureCollection.of(directory, maintenance, queue, commands);
-    }
 
-    private static FeatureDefinition<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> simple(
-            String name,
-            Class<? extends VelocityFeature<Object, Void>> type,
-            java.util.function.Function<VelocityFeatureContext<Object, Void>, ? extends VelocityFeature<Object, Void>> factory
-    ) {
-        return FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
-                        name, "1.0.0", type, factory)
-                .enabledByDefault()
-                .build();
+        return FeatureCollection.of(directory, maintenance, queue, commands);
     }
 }

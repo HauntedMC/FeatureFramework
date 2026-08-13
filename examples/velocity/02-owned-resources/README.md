@@ -1,7 +1,13 @@
 # 02 — Feature-owned Velocity resources
 
-`OwnedResourcesFeature.java` registers a real Velocity listener and repeating task through the feature resource scope.
+`ProxyPlugin.java` provides the complete host bootstrap. `OwnedResourcesFeature.java` registers a real Velocity listener and a repeating task through its feature resource scope.
 
-The listener and task are automatically removed/cancelled when the feature stops. Use `getContext().proxy()` for native proxy operations that do not need their own managed lifetime.
+```text
+ActivityFeature
+  -> FeatureListenerManager -> PostLoginEvent listener
+  -> FeatureTaskManager     -> 30-second player-count task
+```
 
-If you register a long-lived resource directly through Velocity or a third-party API, keep its cleanup path explicit.
+Both are removed/cancelled when the feature stops. `disable()` therefore does not manually unregister them.
+
+Use native `ProxyServer` APIs for operations that do not create a long-lived owned resource. If you register something long-lived outside the framework managers, keep and execute its cleanup path yourself.

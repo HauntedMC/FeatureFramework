@@ -1,13 +1,23 @@
 # 05 — Capability provider and consumer
 
-Capabilities let a feature depend on a contract instead of a named implementation.
+This directory contains the entire provider/consumer flow:
 
-This example contains the complete framework-specific flow:
+```text
+GreetingProviderFeature
+    provides GreetingApi
+           |
+           v
+GreetingConsumerFeature
+    requires GreetingApi
+```
 
-1. `GreetingApi` defines the contract.
+1. `GreetingApi.java` is the small contract shared by both features.
 2. `Definitions.provider()` declares `providesCapabilities(GreetingApi.class)`.
-3. `GreetingProviderFeature` registers the implementation with `services().registerService(...)`.
+3. `GreetingProviderFeature.initialize()` registers the implementation with `services().registerService(...)`.
 4. `Definitions.consumer()` declares `requiresCapabilities(GreetingApi.class)`.
-5. `GreetingConsumerFeature` resolves it with `requireCapability(...)`.
+5. `GreetingConsumerFeature.initialize()` resolves it with `requireCapability(...)`.
+6. `MyPlugin.java` composes both definitions into the host.
 
-The service is owned by the provider feature and is removed when that feature stops.
+The provider owns the registered service. When the provider stops, the framework removes it before provider state is torn down.
+
+The consumer depends on `GreetingApi`, not `GreetingProviderFeature`. That is the reason to use a capability instead of `requiresFeatures("GreetingProvider")`.

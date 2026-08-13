@@ -1,4 +1,4 @@
-package com.example.proxy;
+package com.example.proxy.status;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
@@ -16,7 +16,7 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
 
 import java.nio.file.Path;
 
-@Plugin(id = "ff-example-simple", name = "FeatureFrameworkSimpleExample", version = "1.0.0")
+@Plugin(id = "ff-example-config", name = "FeatureFrameworkConfigExample", version = "1.0.0")
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
@@ -32,14 +32,13 @@ public final class ProxyPlugin {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
-        var welcome = FeatureDefinition
+        var status = FeatureDefinition
                 .<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
-                        "Welcome", "1.0.0", ProxyWelcomeFeature.class, ProxyWelcomeFeature::new)
+                        "Status", "1.0.0", ConfigurableProxyFeature.class, ConfigurableProxyFeature::new)
                 .enabledByDefault()
                 .build();
-
         featureHost = VelocityFeatureHost.builder(
-                this, proxy, logger, dataDirectory, ProxyPlugin.class, FeatureCollection.of(welcome)
+                this, proxy, logger, dataDirectory, ProxyPlugin.class, FeatureCollection.of(status)
         ).build();
         featureHost.start();
     }

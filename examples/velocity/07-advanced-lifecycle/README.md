@@ -1,25 +1,9 @@
 # 07 — Advanced Velocity lifecycle
 
-Velocity does not use Bukkit's primary-thread lifecycle model. Feature host operations execute on their caller, so coordinate concurrent lifecycle operations and shared state like normal proxy code.
+`NetworkSyncFeature` combines a framework-owned repeating task with a manually owned client.
 
-## Long-running work
+The task is registered through `VelocityFeatureResources`, so it is cancelled by framework cleanup. `ExampleNetworkClient` is created directly, so `disable()` closes it.
 
-Prefer feature-owned scheduling where it fits. If a feature owns an external client, executor, or subscription directly, stop new work and close it during feature shutdown.
+The polling interval is read during initialization. Returning `RECREATE_REQUIRED` makes a config reload build a clean task/client pair instead of trying to alter a live schedule.
 
-## Infrastructure capabilities
-
-A useful pattern is:
-
-```text
-RedisFeature -> provides NetworkBusApi
-QueueFeature -> requires NetworkBusApi
-ModerationFeature -> optionally uses NetworkBusApi
-```
-
-The consumers only know the contract, so changing the Redis client or provider implementation does not require changing them.
-
-## Reload policy
-
-Use a soft config update only when the relevant state can change safely in place. Recreate the feature when subscriptions, network clients, callbacks, or dependencies would otherwise keep old state.
-
-Services are withdrawn as their provider shuts down, so consumers should not retain provider implementation objects beyond the feature lifetime.
+Velocity lifecycle operations execute on their caller. The framework owns resource lifetime, but it does not create a Bukkit-style main thread or remove the need to coordinate your own concurrently accessed domain state.

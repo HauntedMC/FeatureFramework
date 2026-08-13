@@ -1,7 +1,15 @@
 # 04 — Dependencies and integrations
 
-`FeatureDefinitions.java` focuses on the dependency declaration itself; the example feature implementations are omitted.
+The complete graph in this directory is:
 
-`Queue` requires `ServerDirectory` and can optionally use `DiscordBridge`. The same definition API can declare an external plugin with `requiresPlugins(...)` when a feature genuinely depends on one.
+```text
+ServerDirectory ------> Queue
+DiscordBridge --------> Queue (optional)
+luckperms plugin -----> LuckPermsBridge
+```
 
-Use a capability instead when the consumer needs a reusable contract rather than a specific provider feature.
+`FeatureDefinitions.java` declares all three relationship types. The corresponding feature classes and real Velocity bootstrap are included in this directory.
+
+The `luckperms` dependency is intentionally external. `requiresPlugins(...)` is for a separately installed Velocity plugin; it would defeat the example to replace that dependency with a fake local class.
+
+Use a capability when a consumer wants an interface/behavior rather than the lifecycle identity of one named feature.

@@ -1,15 +1,16 @@
 # 06 — Multi-feature Velocity plugin
 
-The example composition contains four features:
+This directory is a complete four-feature proxy application:
 
 ```text
-ServerDirectory
-├──> Queue
-└──> NetworkCommands
+ServerDirectoryFeature
+  provides ServerDirectoryApi
+       ├──> QueueFeature
+       └──> NetworkCommandsFeature
 
-Maintenance --optional--> NetworkCommands
+MaintenanceFeature --optional relationship--> NetworkCommandsFeature
 ```
 
-`Features.java` keeps these relationships in one place and `ProxyPlugin.java` only creates and starts the host.
+Every custom class shown in the graph exists here. `Features.java` is the application map and `ProxyPlugin.java` is a real Velocity bootstrap.
 
-In a larger network plugin, infrastructure such as Redis, Discord, or external HTTP integrations often works well as separate capability providers. Domain features then depend on the contract instead of the implementation.
+The example also shows two different kinds of relationship in one application: consumers require a capability when they need server-directory behavior, while `NetworkCommands` records `Maintenance` as an optional named-feature relationship.

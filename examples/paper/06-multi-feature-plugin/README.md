@@ -1,15 +1,25 @@
 # 06 — Multi-feature Paper plugin
 
-This example shows the shape of a larger application:
+This is a complete example of a small application graph rather than a list of undefined feature names.
 
 ```text
-Profiles
-├──> Chat
-└──> Moderation
+ProfilesFeature
+  provides PlayerProfileApi
+       ├──> ChatFeature
+       └──> ModerationFeature
 
-PlaceholderBridge -> requires PlaceholderAPI
+PlaceholderBridgeFeature
+  requires PlaceholderAPI
+  optionally uses PlayerProfileApi
 ```
 
-`Features.java` keeps the application graph in one place. `MyPlugin.java` stays focused on creating and starting the host.
+`MyPlugin.java` remains tiny. `Features.java` is the composition map. Every feature implementation and `PlayerProfileApi` contract is present in this directory.
 
-The feature classes referenced by the composition example represent normal application features and are intentionally not repeated here. In a real plugin, each feature package can contain its own repositories, services, listeners, commands, handlers, and models.
+Notice that Chat and Moderation require the **capability**, not the provider feature by name. They care about profile behavior, so another provider could replace `ProfilesFeature` without changing the consumers.
+
+This is the intended larger-plugin structure:
+
+- host/bootstrap = application composition;
+- feature = lifecycle boundary;
+- ordinary classes inside a feature = implementation details;
+- capabilities/internal services = explicit cross-feature contracts.

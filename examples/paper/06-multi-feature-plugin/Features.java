@@ -7,37 +7,34 @@ import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import org.bukkit.plugin.Plugin;
 
 public final class Features {
-    private Features() {
-    }
+    private Features() { }
 
     public static FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> all() {
-        var profiles = definition("Profiles", ProfilesFeature.class, ProfilesFeature::new);
+        var profiles = FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
+                        "Profiles", "1.0.0", ProfilesFeature.class, ProfilesFeature::new)
+                .providesCapabilities(PlayerProfileApi.class)
+                .enabledByDefault()
+                .build();
+
         var chat = FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
                         "Chat", "1.0.0", ChatFeature.class, ChatFeature::new)
-                .requiresFeatures("Profiles")
+                .requiresCapabilities(PlayerProfileApi.class)
                 .enabledByDefault()
                 .build();
+
         var moderation = FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
                         "Moderation", "1.0.0", ModerationFeature.class, ModerationFeature::new)
-                .requiresFeatures("Profiles")
+                .requiresCapabilities(PlayerProfileApi.class)
                 .enabledByDefault()
                 .build();
+
         var placeholders = FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
                         "PlaceholderBridge", "1.0.0", PlaceholderBridgeFeature.class, PlaceholderBridgeFeature::new)
                 .requiresPlugins("PlaceholderAPI")
+                .optionallyUsesCapabilities(PlayerProfileApi.class)
                 .enabledByDefault()
                 .build();
-        return FeatureCollection.of(profiles, chat, moderation, placeholders);
-    }
 
-    private static FeatureDefinition<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> definition(
-            String name,
-            Class<? extends PaperFeature<Plugin, Void>> type,
-            java.util.function.Function<PaperFeatureContext<Plugin, Void>, ? extends PaperFeature<Plugin, Void>> factory
-    ) {
-        return FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
-                        name, "1.0.0", type, factory)
-                .enabledByDefault()
-                .build();
+        return FeatureCollection.of(profiles, chat, moderation, placeholders);
     }
 }
