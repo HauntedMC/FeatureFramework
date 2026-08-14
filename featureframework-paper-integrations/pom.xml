@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>nl.hauntedmc.featureframework</groupId><artifactId>featureframework-parent</artifactId><version>${revision}</version></parent>
+    <artifactId>featureframework-paper-integrations</artifactId>
+    <name>FeatureFramework Paper Integrations</name>
+    <description>Optional Paper bindings for HauntedMC and third-party APIs.</description>
+    <dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataprovider</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataregistry</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>nl.hauntedmc.dataprovider</groupId><artifactId>dataprovider-api</artifactId><version>${dataprovider.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>nl.hauntedmc.dataregistry</groupId><artifactId>dataregistry-api</artifactId><version>${dataregistry.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>io.papermc.paper</groupId><artifactId>paper-api</artifactId><version>${paper.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>com.github.retrooper</groupId><artifactId>packetevents-spigot</artifactId><version>${packetevents.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>com.github.retrooper</groupId><artifactId>packetevents-api</artifactId><version>${packetevents.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>me.clip</groupId><artifactId>placeholderapi</artifactId><version>${placeholderapi.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>com.viaversion</groupId><artifactId>viaversion-api</artifactId><version>${viaversion.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>${mockito.version}</version><scope>test</scope></dependency>
+    </dependencies>
+    <build><plugins><plugin><artifactId>maven-jar-plugin</artifactId><configuration><archive><manifestEntries>
+        <Automatic-Module-Name>nl.hauntedmc.featureframework.paper.integrations</Automatic-Module-Name>
+    </manifestEntries></archive></configuration></plugin></plugins></build>
+</project>

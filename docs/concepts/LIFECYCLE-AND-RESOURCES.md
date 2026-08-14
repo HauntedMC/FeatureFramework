@@ -18,8 +18,8 @@ Common owned resources include:
 For example:
 
 ```java
-resources().getListenerManager().registerListener(listener);
-resources().getTaskManager().scheduleRepeatingTask(task, period);
+resources().listeners().registerListener(listener);
+resources().tasks().scheduleRepeatingTask(task, period);
 ```
 
 The direct Paper or Velocity APIs are still available. If you register something directly, however, its cleanup is your responsibility.

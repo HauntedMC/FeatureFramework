@@ -29,7 +29,7 @@ Both platform tracks cover:
 10. an operations/control-plane design for a live, multi-feature network plugin.
 11. an end-to-end subsystem with DataProvider, caching, config, messages, tasks, commands/listeners, and a capability.
 
-Examples 1–7 use the ready-to-use host. Examples 8–9 intentionally use the lower-level host composition because DataProvider and DataRegistry are optional integrations that change the feature resource/context type.
+All examples use the ready-to-use platform facade. Examples 8–9 add DataProvider and DataRegistry through declaration-driven resource contributors.
 
 Example 10 is a control-plane reference: it connects the host's structured lifecycle operations, feature-owned command registration, config/localization reload semantics, DataProvider ownership, and capability boundaries. It complements examples 8–9, where those optional integrations are shown directly.
 

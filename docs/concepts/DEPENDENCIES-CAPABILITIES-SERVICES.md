@@ -34,11 +34,10 @@ The provider declares and registers the capability:
 @FeatureDeclaration(
         name = "Profiles",
         version = "1.0.0",
-        classification = FeatureClassification.CAPABILITY_PROVIDER,
         providesCapabilities = PlayerProfileApi.class)
 
 // Provider initialize()
-getContext().services().registerService(PlayerProfileApi.class, profileService);
+context().services().registerService(PlayerProfileApi.class, profileService);
 ```
 
 A required consumer declares and resolves it:
@@ -47,7 +46,6 @@ A required consumer declares and resolves it:
 @FeatureDeclaration(
         name = "Chat",
         version = "1.0.0",
-        classification = FeatureClassification.CAPABILITY_CONSUMER,
         requiresCapabilities = PlayerProfileApi.class)
 
 // Consumer initialize()
@@ -71,7 +69,7 @@ Internal services work similarly, but are intended for private collaboration ins
         providesInternalServices = ProfileStore.class)
 
 // Provider initialize()
-getContext().services().registerInternalService(ProfileStore.class, profileStore);
+context().services().registerInternalService(ProfileStore.class, profileStore);
 
 @FeatureDeclaration(name = "Chat", version = "1.0.0", requiresInternalServices = ProfileStore.class)
 

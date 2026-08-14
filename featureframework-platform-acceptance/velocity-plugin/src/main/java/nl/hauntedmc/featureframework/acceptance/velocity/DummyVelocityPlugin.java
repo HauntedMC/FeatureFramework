@@ -13,6 +13,7 @@ import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalogListener;
+import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
 import nl.hauntedmc.featureframework.api.service.CapabilityRef;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
@@ -39,7 +40,7 @@ public final class DummyVelocityPlugin {
     private final Path dataDirectory;
     private final AtomicInteger catalogTransitions = new AtomicInteger();
     private final AtomicBoolean observedStopping = new AtomicBoolean();
-    private VelocityFeatureHost host;
+    private VelocityFeatureHost<DummyVelocityPlugin, String> host;
     private AutoCloseable catalogSubscription;
 
     @Inject
@@ -59,7 +60,6 @@ public final class DummyVelocityPlugin {
             host = VelocityFeatureHost.builder(
                             this, proxy, logger, dataDirectory, DummyVelocityPlugin.class, features())
                     .hostName("FeatureFrameworkAcceptanceVelocity")
-                    .version("1.0.0")
                     .capabilityNamespace("acceptance-velocity")
                     .build();
             FeatureCatalogListener listener = snapshot -> {
@@ -95,9 +95,9 @@ public final class DummyVelocityPlugin {
     }
 
     private void verifyReload(CapabilityRef<GreetingApi> reference, long initialGeneration) {
-        VelocityFeatureResources<Void> previousResources = Provider.currentResources;
+        VelocityFeatureResources previousResources = Provider.currentResources;
         try {
-            require(host.reloadFeature("Provider").success(), "Provider graph reload failed");
+            require(host.recreate(FeatureId.of("Provider")).success(), "Provider graph reload failed");
             require(Provider.starts.get() == 2 && Consumer.starts.get() == 2,
                     "Reload did not recreate provider and dependent");
             require("velocity-2".equals(Consumer.lastGreeting),
@@ -118,7 +118,7 @@ public final class DummyVelocityPlugin {
     @Subscribe
     public void onShutdown(ProxyShutdownEvent event) {
         Throwable failure = null;
-        VelocityFeatureResources<Void> resources = Provider.currentResources;
+        VelocityFeatureResources resources = Provider.currentResources;
         try {
             if (host != null) {
                 host.stop();
@@ -137,38 +137,38 @@ public final class DummyVelocityPlugin {
         }
     }
 
-    private static void verifyOwnedResources(VelocityFeatureResources<Void> resources) {
+    private static void verifyOwnedResources(VelocityFeatureResources resources) {
         require(resources != null, "Provider resource scope was not captured");
         require(resources.state() == FeatureResourceState.OPEN, "Provider resource scope is not open");
-        require(resources.getTaskManager().getActiveTaskCount() == 1, "Provider task was not tracked");
-        require(resources.getListenerManager().getRegisteredListenerCount() == 1,
+        require(resources.tasks().getActiveTaskCount() == 1, "Provider task was not tracked");
+        require(resources.listeners().getRegisteredListenerCount() == 1,
                 "Provider listener was not tracked");
-        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 1,
+        require(resources.commands().getRegisteredBrigadierCommandCount() == 1,
                 "Provider command was not tracked");
-        require(resources.getApiManager().getRegisteredServiceCount() == 1,
+        require(resources.capabilities().getRegisteredServiceCount() == 1,
                 "Provider service was not tracked");
     }
 
-    private static void verifyClosedResources(VelocityFeatureResources<Void> resources, String phase) {
+    private static void verifyClosedResources(VelocityFeatureResources resources, String phase) {
         require(resources != null, "Missing resource scope during " + phase);
         require(resources.state() == FeatureResourceState.CLOSED, "Resource scope remained open after " + phase);
-        require(resources.getTaskManager().state() == FeatureResourceState.CLOSED,
+        require(resources.tasks().state() == FeatureResourceState.CLOSED,
                 "Task manager remained open after " + phase);
-        require(resources.getTaskManager().getActiveTaskCount() == 0,
+        require(resources.tasks().getActiveTaskCount() == 0,
                 "Tasks remained registered after " + phase);
-        require(resources.getTaskManager().getInFlightTaskCount() == 0,
+        require(resources.tasks().getInFlightTaskCount() == 0,
                 "Tasks remained in flight after " + phase);
-        require(resources.getListenerManager().state() == FeatureResourceState.CLOSED,
+        require(resources.listeners().state() == FeatureResourceState.CLOSED,
                 "Listener manager remained open after " + phase);
-        require(resources.getListenerManager().getRegisteredListenerCount() == 0,
+        require(resources.listeners().getRegisteredListenerCount() == 0,
                 "Listeners remained registered after " + phase);
-        require(resources.getCommandManager().state() == FeatureResourceState.CLOSED,
+        require(resources.commands().state() == FeatureResourceState.CLOSED,
                 "Command manager remained open after " + phase);
-        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 0,
+        require(resources.commands().getRegisteredBrigadierCommandCount() == 0,
                 "Commands remained registered after " + phase);
-        require(resources.getApiManager().state() == FeatureResourceState.CLOSED,
+        require(resources.capabilities().state() == FeatureResourceState.CLOSED,
                 "Service manager remained open after " + phase);
-        require(resources.getApiManager().getRegisteredServiceCount() == 0,
+        require(resources.capabilities().getRegisteredServiceCount() == 0,
                 "Services remained registered after " + phase);
     }
 
@@ -189,20 +189,20 @@ public final class DummyVelocityPlugin {
         if (!condition) throw new IllegalStateException(message);
     }
 
-    private static FeatureCollection<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> features() {
-        FeatureDefinition<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> consumer =
-                FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
+    private static FeatureCollection<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>> features() {
+        FeatureDefinition<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>> consumer =
+                FeatureDefinition.<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>>builder(
                                 "Consumer", "1.0.0", Consumer.class, Consumer::new)
                         .requiresCapabilities(GreetingApi.class)
                         .enabledByDefault()
                         .build();
-        FeatureDefinition<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>> provider =
-                FeatureDefinition.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder(
+        FeatureDefinition<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>> provider =
+                FeatureDefinition.<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>>builder(
                                 "Provider", "1.0.0", Provider.class, Provider::new)
                         .providesCapabilities(GreetingApi.class)
                         .enabledByDefault()
                         .build();
-        return FeatureCollection.<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>builder()
+        return FeatureCollection.<VelocityFeature<DummyVelocityPlugin>, VelocityFeatureContext<DummyVelocityPlugin>>builder()
                 .feature(consumer)
                 .feature(provider)
                 .build();
@@ -213,33 +213,33 @@ public final class DummyVelocityPlugin {
         String greeting();
     }
 
-    public static final class Provider extends VelocityFeature<Object, Void> {
+    public static final class Provider extends VelocityFeature<DummyVelocityPlugin> {
         private static final AtomicInteger starts = new AtomicInteger();
-        private static volatile VelocityFeatureResources<Void> currentResources;
+        private static volatile VelocityFeatureResources currentResources;
 
-        public Provider(VelocityFeatureContext<Object, Void> context) {
+        public Provider(VelocityFeatureContext<DummyVelocityPlugin> context) {
             super(context);
         }
 
         @Override
         public void initialize() {
             int generation = starts.incrementAndGet();
-            currentResources = getContext().resources();
-            currentResources.getTaskManager().scheduleRepeatingTask(
+            currentResources = context().resources();
+            currentResources.tasks().scheduleRepeatingTask(
                     () -> { }, Duration.ofSeconds(10), Duration.ofSeconds(10));
-            currentResources.getListenerManager().registerListener(new AcceptanceListener());
-            currentResources.getCommandManager().registerBrigadierCommand(new AcceptanceCommand());
-            getContext().services().registerService(GreetingApi.class, () -> "velocity-" + generation);
+            currentResources.listeners().registerListener(new AcceptanceListener());
+            currentResources.commands().registerBrigadierCommand(new AcceptanceCommand());
+            context().services().registerService(GreetingApi.class, () -> "velocity-" + generation);
         }
 
         @Override public void disable() { }
     }
 
-    public static final class Consumer extends VelocityFeature<Object, Void> {
+    public static final class Consumer extends VelocityFeature<DummyVelocityPlugin> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile String lastGreeting;
 
-        public Consumer(VelocityFeatureContext<Object, Void> context) {
+        public Consumer(VelocityFeatureContext<DummyVelocityPlugin> context) {
             super(context);
         }
 

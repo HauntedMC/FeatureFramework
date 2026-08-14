@@ -6,14 +6,14 @@ import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 
 /** Owns the operator command, while the host remains the lifecycle authority. */
 @FeatureDeclaration(name = "FeatureAdmin", version = "1.0.0", enabledByDefault = true)
-public final class FeatureAdminFeature extends PaperFeature<MyPlugin, Void> {
-    public FeatureAdminFeature(PaperFeatureContext<MyPlugin, Void> context) {
+public final class FeatureAdminFeature extends PaperFeature<MyPlugin> {
+    public FeatureAdminFeature(PaperFeatureContext<MyPlugin> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        resources().getCommandManager().registerBrigadierCommand(new FeatureAdminCommand(plugin()));
+        resources().commands().registerBrigadierCommand(new FeatureAdminCommand(plugin()));
     }
 
     @Override

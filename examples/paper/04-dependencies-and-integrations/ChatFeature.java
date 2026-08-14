@@ -8,8 +8,8 @@ import org.bukkit.plugin.Plugin;
 @FeatureDeclaration(
         name = "Chat", version = "1.0.0", enabledByDefault = true,
         requiresFeatures = "Profiles", optionallyUsesFeatures = "DiscordBridge")
-public final class ChatFeature extends PaperFeature<Plugin, Void> {
-    public ChatFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class ChatFeature extends PaperFeature<Plugin> {
+    public ChatFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

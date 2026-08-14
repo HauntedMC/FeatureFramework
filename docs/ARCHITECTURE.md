@@ -7,27 +7,31 @@ catalogs, domain APIs, persistence entities, commands, and concrete behavior. Th
 dependency inversion: shared code defines small contracts and platform modules adapt them to Paper or
 Velocity.
 
-The 1.1 architecture deliberately maximizes shared implementation without pretending Paper and
+The architecture deliberately maximizes shared implementation without pretending Paper and
 Velocity have the same execution model. Common ownership, graph, scope, and composition mechanics live
-once in `shared`; native platform objects and thread requirements remain in their adapters.
+once in `core`; reusable utilities live in `toolkit`; native platform objects and thread requirements
+remain in their adapters.
 
 ## Dependency direction
 
 ```text
-featureframework-api
-        ^
-        |
-featureframework-shared
-        ^          ^
-        |          |
-featureframework-paper   featureframework-velocity
+featureframework-api     featureframework-toolkit
         ^                         ^
-        |                         |
-Paper application        Velocity application
+        +------------+------------+
+                     |
+          featureframework-core
+             ^              ^
+             |              |
+ featureframework-paper  featureframework-velocity
+             ^              ^
+      optional toolkit/integration artifacts
+             ^              ^
+      Paper application  Velocity application
 ```
 
-Dependency-free integration contracts belong in `api`; cross-platform implementation belongs in
-`shared`. A class belongs in a platform module when its contract or implementation requires that
+Dependency-free public contracts belong in `api`; cross-platform orchestration belongs in `core`, and
+optional neutral integration resources live in their own integration modules. A class belongs in a
+platform module when its contract or implementation requires that
 platform. Paper and Velocity modules must not import each other. Source-boundary tests enforce these
 rules and also prevent the shared host façade from reabsorbing low-level graph mechanics.
 
@@ -50,15 +54,16 @@ split into two package-private collaborators:
 Keeping those collaborators package-private avoids adding public API surface merely to improve internal
 maintainability. `FeatureHostComposition` owns the platform-neutral composition algorithm used by both
 platform façades: scope factories, context assembly, host callbacks, reload wiring, and scope clearing.
-`PaperFeatureHostComposition` and `VelocityFeatureHostComposition` only provide native platform
-factories and hooks.
+`PaperFeatureHost` and `VelocityFeatureHost` assemble that neutral composition. Optional behavior is
+installed through typed `FeatureResourceContributor` instances instead of specialized host or feature
+class hierarchies.
 
 ## Lifecycle and execution model
 
 Features implement the neutral `Feature` contract. The construction descriptor
-`nl.hauntedmc.featureframework.loader.FeatureDescriptor<F, C>` contains the implementation class,
+`nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition<F, C>` contains the implementation class,
 constructor, and dependency declarations needed by the host. It is distinct from
-`nl.hauntedmc.featureframework.api.feature.FeatureDescriptor`, which is implementation-free metadata
+`nl.hauntedmc.featureframework.api.feature.FeatureMetadata`, which is implementation-free metadata
 published through the public catalog.
 
 `ManagedFeatureContext`, `PaperFeatureContext`, and `VelocityFeatureContext` carry descriptor,
@@ -118,8 +123,8 @@ rendering, and operation-result mapping.
 `@FeatureDeclaration` and the compile-time `featureframework-processor` remove product-specific manifest
 boilerplate. `@GenerateFeatureCatalog` emits a deterministic, typed `FeatureCollection` without runtime scanning.
 `FeatureDefinition` remains available for advanced dynamic composition. Consumers should use `PaperFeatureHost`,
-`VelocityFeatureHost`, or the corresponding composition type rather than owning a parallel graph or
-scope implementation.
+`VelocityFeatureHost` and attach optional integrations through contributors rather than owning a
+parallel graph or scope implementation.
 
 Consumer-side classes are permitted only as application composition or concrete behavior: plugin
 bootstrap and metadata, feature collections, domain capability contracts/adapters, persistence

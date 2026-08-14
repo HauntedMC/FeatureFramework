@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>nl.hauntedmc.featureframework</groupId><artifactId>featureframework-parent</artifactId><version>${revision}</version></parent>
+    <artifactId>featureframework-paper-toolkit</artifactId>
+    <name>FeatureFramework Paper Toolkit</name>
+    <description>Optional Paper UI and platform utility toolkit.</description>
+    <dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>io.papermc.paper</groupId><artifactId>paper-api</artifactId><version>${paper.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>
+        <dependency><groupId>org.mockito</groupId><artifactId>mockito-core</artifactId><version>${mockito.version}</version><scope>test</scope></dependency>
+    </dependencies>
+    <build><plugins><plugin><artifactId>maven-jar-plugin</artifactId><configuration><archive><manifestEntries>
+        <Automatic-Module-Name>nl.hauntedmc.featureframework.paper.toolkit</Automatic-Module-Name>
+    </manifestEntries></archive></configuration></plugin></plugins></build>
+</project>

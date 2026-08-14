@@ -6,11 +6,14 @@ Start with the [Paper examples](../examples/paper/README.md). Dependency, GitHub
 
 ## Main types
 
-- `PaperFeature<P, D>` — managed Paper feature base.
-- `PaperFeatureContext<P, D>` — plugin, config, localization, logger, resources, capabilities, and services for one feature.
-- `PaperFeatureResources<D>` — owned tasks, commands, listeners, data, caches, GUIs, and services.
-- `PaperFeatureHost` — ready-to-use host for normal plugin composition.
-- `PaperFeatureHostComposition` — lower-level composition when custom data/resources or host policy are needed.
+- `PaperFeature<P>` — managed Paper feature base.
+- `PaperFeatureContext<P>` — plugin, config, localization, logger, resources, capabilities, and services for one feature.
+- `PaperFeatureResources` — owned tasks, commands, listeners, data, caches, GUIs, and services.
+- `PaperFeatureHost` — configurable host façade for normal and integration-rich plugin composition.
+
+Add `featureframework-paper-toolkit` for UI helpers and `featureframework-paper-integrations` for
+DataProvider, DataRegistry, PlaceholderAPI, ViaVersion, and packet adapters. Attach scoped facilities
+with the host builder's `contribute(...)` method.
 
 Paper host lifecycle operations follow Bukkit primary-thread rules. Task scheduling can still be synchronous or asynchronous, so normal Bukkit thread-safety rules still apply. See [Threading](../docs/THREADING.md).
 

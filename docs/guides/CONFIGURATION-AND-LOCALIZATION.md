@@ -8,24 +8,24 @@ Override the default hooks when a feature needs configuration or messages:
 
 ```java
 @Override
-public ConfigMap getDefaultConfig() {
+public ConfigMap defaultConfig() {
     return new ConfigMap()
             .put("enabled", true)
             .put("cooldown-seconds", 10);
 }
 
 @Override
-public MessageMap getDefaultMessages() {
+public MessageMap defaultMessages() {
     MessageMap messages = new MessageMap();
     messages.add("cooldown", "<red>Please wait before using this again.</red>");
     return messages;
 }
 ```
 
-`FeatureConfigHandler` is a `ConfigView`, so read effective values directly through `getConfigHandler()`:
+`FeatureConfigHandler` is a `ConfigView`, so read effective values directly through `config()`:
 
 ```java
-Boolean enabled = getConfigHandler().get("enabled", Boolean.class);
+Boolean enabled = config().get("enabled", Boolean.class);
 ```
 
 Read feature values through `FeatureConfigHandler` rather than opening YAML directly. Global settings are available explicitly through the handler's global view methods when a feature genuinely needs them.

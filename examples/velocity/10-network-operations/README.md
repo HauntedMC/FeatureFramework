@@ -5,7 +5,7 @@ This design example applies the same control-plane pattern to a proxy: a `Featur
 The included `NetworkStatusFeature` is a real managed target: it owns a configurable heartbeat task and requests recreation when that task's interval changes. This makes `softreload` meaningful without pretending a small example contains a network backend.
 
 ```text
-list/info           -> FeatureCommandModel reads the host registry
+list/info           -> FeatureCommandModel reads the host feature catalog
 enable/disable      -> structured lifecycle responses and persisted state
 softreload/reload   -> safe live config application or a fresh feature generation
 reload-all          -> reload host config/localization and reconcile the configured graph
@@ -37,12 +37,12 @@ Model those APIs as capabilities; do not hand the raw messaging or database clie
 A `reloadlocal <feature>` command may deliberately reload only the feature's localization scope:
 
 ```java
-VelocityFeature<Object, Void> feature = plugin.featureHost()
-        .managedHost().registry().getLoadedFeature(featureKey);
-feature.getContext().localization().reloadLocalization();
+VelocityFeature<ProxyPlugin> feature = plugin.featureHost()
+        .findLoaded(FeatureId.of(featureKey)).orElse(null);
+feature.context().localization().reloadLocalization();
 ```
 
-Do not present this as a full config reload. If a setting governs a task, data subscription, client, cache, capability, or concurrent policy, use `softReloadFeature` or `reloadFeature`; use `host.reload()` to reconcile the complete edited graph.
+Do not present this as a full config reload. If a setting governs a task, data subscription, client, cache, capability, or concurrent policy, use `host.softReload(id)` or `host.recreate(id)`; use `host.reloadGraph()` to reconcile the complete edited graph.
 
 Velocity lifecycle operations execute on the caller, so ensure the command path and any asynchronous administration work are coordinated for your plugin's concurrency model. The framework still owns cleanup, but it does not create a Bukkit-style main thread.
 

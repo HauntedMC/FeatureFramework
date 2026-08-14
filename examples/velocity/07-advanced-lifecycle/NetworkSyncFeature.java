@@ -9,21 +9,21 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import java.time.Duration;
 
 @FeatureDeclaration(name = "NetworkSync", version = "1.0.0", enabledByDefault = true)
-public final class NetworkSyncFeature extends VelocityFeature<Object, Void> {
+public final class NetworkSyncFeature extends VelocityFeature<Object> {
     private ExampleNetworkClient client;
 
-    public NetworkSyncFeature(VelocityFeatureContext<Object, Void> context) { super(context); }
+    public NetworkSyncFeature(VelocityFeatureContext<Object> context) { super(context); }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap().put("poll-seconds", 15L);
     }
 
     @Override
     public void initialize() {
         client = new ExampleNetworkClient();
-        long seconds = getConfigHandler().get("poll-seconds", Long.class, 15L);
-        resources().getTaskManager().scheduleRepeatingTask(
+        long seconds = config().get("poll-seconds", Long.class, 15L);
+        resources().tasks().scheduleRepeatingTask(
                 () -> logger().info("Polled " + client.poll()),
                 Duration.ofSeconds(seconds)
         );

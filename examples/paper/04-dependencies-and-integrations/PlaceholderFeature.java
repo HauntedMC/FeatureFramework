@@ -9,8 +9,8 @@ import org.bukkit.plugin.Plugin;
 @FeatureDeclaration(
         name = "Placeholders", version = "1.0.0", startupPhase = FeatureStartupPhase.DEFERRED, enabledByDefault = true,
         requiresPlugins = "PlaceholderAPI")
-public final class PlaceholderFeature extends PaperFeature<Plugin, Void> {
-    public PlaceholderFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class PlaceholderFeature extends PaperFeature<Plugin> {
+    public PlaceholderFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

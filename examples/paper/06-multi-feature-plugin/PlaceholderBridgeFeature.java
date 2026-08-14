@@ -8,8 +8,8 @@ import org.bukkit.plugin.Plugin;
 @FeatureDeclaration(
         name = "PlaceholderBridge", version = "1.0.0", enabledByDefault = true,
         requiresPlugins = "PlaceholderAPI", optionallyUsesCapabilities = PlayerProfileApi.class)
-public final class PlaceholderBridgeFeature extends PaperFeature<Plugin, Void> {
-    public PlaceholderBridgeFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class PlaceholderBridgeFeature extends PaperFeature<Plugin> {
+    public PlaceholderBridgeFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

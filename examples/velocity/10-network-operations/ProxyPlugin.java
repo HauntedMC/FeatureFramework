@@ -10,8 +10,6 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
 import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
-import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
-import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureHost;
 
 import java.nio.file.Path;
@@ -20,14 +18,12 @@ import java.util.Objects;
 @Plugin(id = "ff-example-network-operations", name = "FeatureFrameworkNetworkOperations", version = "1.0.0")
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.networkops.velocity.catalog.BuiltInFeatures",
-        featurePackage = "com.example.networkops.velocity",
-        featureBase = VelocityFeature.class,
-        featureContext = VelocityFeatureContext.class)
+        featurePackage = "com.example.networkops.velocity")
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
     private final Path dataDirectory;
-    private VelocityFeatureHost featureHost;
+    private VelocityFeatureHost<ProxyPlugin, String> featureHost;
 
     @Inject
     public ProxyPlugin(ProxyServer proxy, ComponentLogger logger, @DataDirectory Path dataDirectory) {
@@ -48,7 +44,7 @@ public final class ProxyPlugin {
         if (featureHost != null) featureHost.stop();
     }
 
-    public VelocityFeatureHost featureHost() {
+    public VelocityFeatureHost<ProxyPlugin, String> featureHost() {
         return Objects.requireNonNull(featureHost, "Feature host has not started");
     }
 }

@@ -8,10 +8,10 @@ import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(
         name = "GreetingConsumer", version = "1.0.0", enabledByDefault = true, requiresCapabilities = GreetingApi.class)
-public final class GreetingConsumerFeature extends PaperFeature<Plugin, Void> {
+public final class GreetingConsumerFeature extends PaperFeature<Plugin> {
     private GreetingApi greetings;
 
-    public GreetingConsumerFeature(PaperFeatureContext<Plugin, Void> context) {
+    public GreetingConsumerFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

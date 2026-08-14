@@ -7,10 +7,10 @@ import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(
         name = "Moderation", version = "1.0.0", enabledByDefault = true, requiresCapabilities = PlayerProfileApi.class)
-public final class ModerationFeature extends PaperFeature<Plugin, Void> {
+public final class ModerationFeature extends PaperFeature<Plugin> {
     private PlayerProfileApi profiles;
 
-    public ModerationFeature(PaperFeatureContext<Plugin, Void> context) {
+    public ModerationFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

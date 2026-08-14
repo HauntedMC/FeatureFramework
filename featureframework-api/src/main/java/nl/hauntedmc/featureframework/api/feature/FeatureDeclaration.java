@@ -31,10 +31,7 @@ public @interface FeatureDeclaration {
     /** Whether a newly created configuration enables this feature. */
     boolean enabledByDefault() default false;
 
-    /** Architectural responsibility of this feature. */
-    FeatureClassification classification() default FeatureClassification.INTERNAL;
-
-    /** Independent responsibilities that supplement {@link #classification()}. */
+    /** Explicit responsibilities not derivable from capability declarations. */
     FeatureRole[] roles() default {};
 
     /** Feature names that must be running before this feature. */
@@ -45,6 +42,12 @@ public @interface FeatureDeclaration {
 
     /** Platform plugin identifiers required for this feature to run. */
     String[] requiresPlugins() default {};
+
+    /** Resource-extension types that must be contributed by the host. */
+    Class<?>[] requiresResourceExtensions() default {};
+
+    /** Resource-extension types used when contributed by the host. */
+    Class<?>[] optionallyUsesResourceExtensions() default {};
 
     /** Capabilities that must have a catalog or bootstrap provider. */
     Class<?>[] requiresCapabilities() default {};

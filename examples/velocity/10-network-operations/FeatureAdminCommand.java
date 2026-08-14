@@ -8,11 +8,10 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.velocitypowered.api.command.CommandSource;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.command.FeatureCommandModel;
-import nl.hauntedmc.featureframework.loader.FeatureDescriptor;
 import nl.hauntedmc.featureframework.velocity.command.brigadier.BrigadierCommand;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
-import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.concurrent.CompletableFuture;
@@ -41,13 +40,13 @@ public final class FeatureAdminCommand implements BrigadierCommand {
                 .requires(source -> source.hasPermission("network.features.reload-all"))
                 .executes(context -> reloadAll(context.getSource())));
         root.then(operation("enable", "network.features.enable", (sender, feature) ->
-                send(sender, "Enable", feature, plugin.featureHost().enableFeature(feature).result().name())));
+                send(sender, "Enable", feature, plugin.featureHost().enable(FeatureId.of(feature)).result().name())));
         root.then(operation("disable", "network.features.disable", (sender, feature) ->
-                send(sender, "Disable", feature, plugin.featureHost().disableFeature(feature).result().name())));
+                send(sender, "Disable", feature, plugin.featureHost().disable(FeatureId.of(feature)).result().name())));
         root.then(operation("softreload", "network.features.reload", (sender, feature) ->
-                send(sender, "Soft reload", feature, plugin.featureHost().softReloadFeature(feature).result().name())));
+                send(sender, "Soft reload", feature, plugin.featureHost().softReload(FeatureId.of(feature)).result().name())));
         root.then(operation("reload", "network.features.reload", (sender, feature) ->
-                send(sender, "Reload", feature, plugin.featureHost().reloadFeature(feature).result().name())));
+                send(sender, "Reload", feature, plugin.featureHost().recreate(FeatureId.of(feature)).result().name())));
         root.then(operation("reloadlocal", "network.features.reload-local", this::reloadLocal));
         return root.build();
     }
@@ -73,21 +72,19 @@ public final class FeatureAdminCommand implements BrigadierCommand {
     }
 
     private int reloadAll(CommandSource sender) {
-        send(sender, "Graph reload", "all features", plugin.featureHost().reload().stage().name());
+        send(sender, "Graph reload", "all features", plugin.featureHost().reloadGraph().stage().name());
         return 1;
     }
 
     private void reloadLocal(CommandSource sender, String requestedName) {
-        String key = plugin.featureHost().managedHost().resolveFeatureKey(requestedName);
-        VelocityFeature<Object, Void> feature = key == null
-                ? null
-                : plugin.featureHost().managedHost().registry().getLoadedFeature(key);
+        var id = plugin.featureHost().resolve(requestedName);
+        VelocityFeature<ProxyPlugin> feature = id.flatMap(plugin.featureHost()::findLoaded).orElse(null);
         if (feature == null) {
             send(sender, "Local message reload", requestedName, "NOT_LOADED");
             return;
         }
-        feature.getContext().localization().reloadLocalization();
-        send(sender, "Local message reload", key, "SUCCESS");
+        feature.context().localization().reloadLocalization();
+        send(sender, "Local message reload", id.orElseThrow().value(), "SUCCESS");
     }
 
     private CompletableFuture<Suggestions> suggestFeatures(SuggestionsBuilder builder) {
@@ -95,11 +92,8 @@ public final class FeatureAdminCommand implements BrigadierCommand {
         return builder.buildFuture();
     }
 
-    private FeatureCommandModel<VelocityFeature<Object, Void>,
-            FeatureDescriptor<VelocityFeature<Object, Void>, VelocityFeatureContext<Object, Void>>> model() {
-        return new FeatureCommandModel<>(
-                plugin.featureHost().managedHost().registry(),
-                plugin.featureHost().managedHost()::resolveFeatureKey);
+    private FeatureCommandModel model() {
+        return new FeatureCommandModel(plugin.featureHost().features());
     }
 
     private static void send(CommandSource sender, String operation, String feature, String result) {

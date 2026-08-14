@@ -6,122 +6,230 @@ import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
+import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
-import nl.hauntedmc.featureframework.host.FeatureHost;
+import nl.hauntedmc.featureframework.host.FeatureHostComposition;
+import nl.hauntedmc.featureframework.lifecycle.CleanupSequence;
 import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResponse;
 import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
-import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
+import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
+import nl.hauntedmc.featureframework.paper.command.sync.CommandSync;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureOperationExecutor;
+import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResources;
 import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResourcesFactory;
 import nl.hauntedmc.featureframework.paper.localization.PaperLocalization;
+import nl.hauntedmc.featureframework.paper.localization.PaperMessageDecorator;
+import nl.hauntedmc.featureframework.paper.log.FeatureLogger;
+import nl.hauntedmc.featureframework.resource.FeatureResourceContributor;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
+import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
+import nl.hauntedmc.featureframework.service.Registration;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Function;
 
-/** Ready-to-use Paper composition root for one or many managed features. */
-public final class PaperFeatureHost implements FeatureFrameworkApi<String>, AutoCloseable {
-    private final FeatureHost<String, PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> delegate;
+/** Complete, dependency-clean Paper composition root. */
+public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrameworkApi<V>, AutoCloseable {
+    private final FeatureRuntime<FeatureId, DefaultCapabilityRegistry> runtime;
+    private final FeatureHostComposition<V, PaperFeature<P>, PaperFeatureContext<P>,
+            FeatureConfigHandler, PaperLocalization, FeatureLogger, PaperFeatureResources> composition;
+    private final DefaultFeatureConfiguration configuration;
+    private final ConfigService files;
+    private final PaperLocalization localization;
+    private final List<Registration> bootstrapRegistrations;
 
-    private PaperFeatureHost(Builder builder) {
-        Plugin plugin = Objects.requireNonNull(builder.plugin, "plugin");
-        FrameworkLogger logger = FrameworkLogger.from(plugin.getLogger());
+    private PaperFeatureHost(Builder<P, V> builder) {
+        FrameworkLogger frameworkLogger = FrameworkLogger.from(builder.plugin.getLogger());
         DefaultCapabilityRegistry capabilities = new DefaultCapabilityRegistry(
                 builder.apiRoot.getPackageName(), builder.apiRoot.getClassLoader());
-        FeatureRuntime<FeatureId, DefaultCapabilityRegistry> runtime =
-                new FeatureRuntime<>(builder.hostName, capabilities);
-        ConfigService configService = new ConfigService(
-                plugin.getDataFolder().toPath(), logger, plugin.getClass().getClassLoader());
-        DefaultFeatureConfiguration configuration = new DefaultFeatureConfiguration(configService, logger);
-        PaperLocalization localization = new PaperLocalization(plugin, configService, player -> Language.EN);
-        BrigadierDispatcher dispatcher = new BrigadierDispatcher(plugin, logger);
+        runtime = new FeatureRuntime<>(builder.hostName, capabilities);
+        runtime.lifecycle().bindExecutor(new PaperFeatureOperationExecutor(builder.plugin));
+        files = new ConfigService(builder.plugin.getDataFolder().toPath(), frameworkLogger,
+                builder.plugin.getClass().getClassLoader());
+        configuration = new DefaultFeatureConfiguration(
+                files, frameworkLogger, builder.mismatchPolicy, builder.globalDefaults);
+        localization = new PaperLocalization(
+                builder.plugin, files, builder.languageResolver, builder.messageDecorator);
+        BrigadierDispatcher dispatcher = new BrigadierDispatcher(builder.plugin, frameworkLogger);
         dispatcher.resolveDispatcher();
-        PaperFeatureResourcesFactory<Void> resources = PaperFeatureResourcesFactory.withoutDataProvider(
-                plugin, plugin.getDataFolder().toPath(), dispatcher, () -> true, logger);
-        delegate = PaperFeatureHostComposition.builder(
-                        plugin,
-                        builder.version,
-                        builder.capabilityNamespace,
-                        runtime,
-                        configuration,
-                        localization,
-                        resources::create,
-                        builder.features,
-                        logger)
-                .hostName(builder.hostName)
-                .build()
-                .host();
+        PaperFeatureResourcesFactory resources = new PaperFeatureResourcesFactory(
+                builder.plugin,
+                builder.plugin.getDataFolder().toPath(),
+                dispatcher,
+                () -> configuration.getGlobalSetting(builder.overwriteCommandConflictsKey, Boolean.class, true),
+                frameworkLogger,
+                builder.contributors
+        );
+        bootstrapRegistrations = registerBootstrap(capabilities, builder.bootstrapCapabilities);
+        composition = new FeatureHostComposition<>(
+                builder.hostName,
+                builder.version,
+                builder.capabilityNamespace,
+                runtime,
+                configuration,
+                builder.features,
+                configuration::openFeatureConfig,
+                localization::openFeature,
+                name -> new FeatureLogger(builder.plugin.getLogger(), name),
+                definition -> resources.create(definition, capabilities, runtime.internalServices()),
+                (definition, config, messages, logger, scope) -> new PaperFeatureContext<>(
+                        builder.plugin, definition, config, messages, scope, logger,
+                        capabilities, runtime.internalServices(), files),
+                name -> builder.plugin.getServer().getPluginManager().isPluginEnabled(name),
+                () -> CommandSync.apply(builder.plugin),
+                localization::reloadLocalization,
+                builder.afterHostResourcesReload,
+                frameworkLogger
+        );
     }
 
-    public static Builder builder(
-            Plugin plugin,
+    public static <P extends Plugin, V> Builder<P, V> builder(
+            P plugin,
+            V version,
             Class<?> apiRoot,
-            FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features
+            FeatureCollection<PaperFeature<P>, PaperFeatureContext<P>> features
     ) {
-        return new Builder(plugin, apiRoot, features);
+        return new Builder<>(plugin, version, apiRoot, features);
     }
 
-    public void start() { delegate.start(); }
-    public void stop() { delegate.stop(); }
-    public boolean isLoaded(String featureName) { return delegate.isLoaded(featureName); }
-    public FeatureEnableResponse enableFeature(String featureName) { return delegate.enableFeature(featureName); }
-    public FeatureDisableResponse disableFeature(String featureName) { return delegate.disableFeature(featureName); }
-    public FeatureReloadResponse reloadFeature(String featureName) { return delegate.reloadFeature(featureName); }
-    public FeatureGraphReloadResult reload() { return delegate.reload(); }
-    public FeatureSoftReloadResponse softReloadFeature(String featureName) {
-        return delegate.softReloadFeature(featureName);
+    /** Builds a String-versioned host using the version already declared by the Paper plugin. */
+    public static <P extends Plugin> Builder<P, String> builder(
+            P plugin,
+            Class<?> apiRoot,
+            FeatureCollection<PaperFeature<P>, PaperFeatureContext<P>> features
+    ) {
+        return builder(plugin, plugin.getPluginMeta().getVersion(), apiRoot, features);
     }
-    public FeatureHost<String, PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> managedHost() {
-        return delegate;
-    }
-    @Override public String version() { return delegate.version(); }
-    @Override public RuntimeState state() { return delegate.state(); }
-    @Override public CompletionStage<Void> whenReady() { return delegate.whenReady(); }
-    @Override public CapabilityRegistry capabilities() { return delegate.capabilities(); }
-    @Override public FeatureCatalog features() { return delegate.features(); }
-    @Override public void close() { stop(); }
 
-    /** Builder whose defaults are derived from Paper plugin metadata. */
-    public static final class Builder {
-        private final Plugin plugin;
+    public void start() { composition.start(); }
+    public void stop() { composition.stop(); }
+    public boolean isLoaded(FeatureId id) { return composition.isLoaded(id); }
+    public FeatureEnableResponse enable(FeatureId id) { return composition.enable(id); }
+    public FeatureDisableResponse disable(FeatureId id) { return composition.disable(id); }
+    public FeatureReloadResponse recreate(FeatureId id) { return composition.recreate(id); }
+    public FeatureSoftReloadResponse softReload(FeatureId id) { return composition.softReload(id); }
+    public FeatureGraphReloadResult reloadGraph() { return composition.reloadGraph(); }
+    public Optional<FeatureId> resolve(String name) { return composition.resolve(name); }
+    public Optional<PaperFeature<P>> findLoaded(FeatureId id) { return composition.findLoaded(id); }
+    public List<PaperFeature<P>> loadedFeatures() { return composition.loadedFeatures(); }
+    public DefaultFeatureConfiguration configuration() { return configuration; }
+    public InternalServiceRegistry<FeatureId> internalServices() { return runtime.internalServices(); }
+    public ConfigService files() { return files; }
+    public PaperLocalization localization() { return localization; }
+    public PaperLocalization localization(FeatureId id) { return composition.localization(id.value()); }
+    @Override public V version() { return composition.version(); }
+    @Override public RuntimeState state() { return composition.state(); }
+    @Override public CompletionStage<Void> whenReady() { return composition.whenReady(); }
+    @Override public CapabilityRegistry capabilities() { return composition.capabilities(); }
+    @Override public FeatureCatalog features() { return composition.features(); }
+
+    @Override
+    public void close() {
+        List<Runnable> cleanup = new ArrayList<>();
+        cleanup.add(composition::stop);
+        for (int index = bootstrapRegistrations.size() - 1; index >= 0; index--) {
+            Registration registration = bootstrapRegistrations.get(index);
+            cleanup.add(registration::close);
+        }
+        CleanupSequence.run(cleanup.toArray(Runnable[]::new));
+    }
+
+    private static List<Registration> registerBootstrap(
+            DefaultCapabilityRegistry registry,
+            List<BootstrapCapability<?>> capabilities
+    ) {
+        List<Registration> registrations = new ArrayList<>();
+        for (BootstrapCapability<?> capability : capabilities) {
+            registrations.add(registerBootstrap(registry, capability));
+        }
+        return List.copyOf(registrations);
+    }
+
+    private static <T> Registration registerBootstrap(
+            DefaultCapabilityRegistry registry,
+            BootstrapCapability<T> capability
+    ) {
+        return registry.register(FeatureId.of("core"), capability.type(), capability.value());
+    }
+
+    private record BootstrapCapability<T>(Class<T> type, T value) { }
+
+    /** Builder for product policy and optional resource contributors. */
+    public static final class Builder<P extends Plugin, V> {
+        private final P plugin;
+        private final V version;
         private final Class<?> apiRoot;
-        private final FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features;
+        private final FeatureCollection<PaperFeature<P>, PaperFeatureContext<P>> features;
         private String hostName;
-        private String version;
         private String capabilityNamespace;
+        private FeatureConfigHandler.TypeMismatchPolicy mismatchPolicy = FeatureConfigHandler.TypeMismatchPolicy.REJECT;
+        private Map<String, Object> globalDefaults = Map.of();
+        private Function<Player, Language> languageResolver = player -> Language.EN;
+        private PaperMessageDecorator messageDecorator = PaperMessageDecorator.identity();
+        private String overwriteCommandConflictsKey = "commands.overwrite-conflicts";
+        private Runnable afterHostResourcesReload = () -> { };
+        private final List<FeatureResourceContributor<PaperFeatureResources>> contributors = new ArrayList<>();
+        private final List<BootstrapCapability<?>> bootstrapCapabilities = new ArrayList<>();
 
-        private Builder(
-                Plugin plugin,
-                Class<?> apiRoot,
-                FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features
-        ) {
+        private Builder(P plugin, V version, Class<?> apiRoot,
+                        FeatureCollection<PaperFeature<P>, PaperFeatureContext<P>> features) {
             this.plugin = Objects.requireNonNull(plugin, "plugin");
+            this.version = Objects.requireNonNull(version, "version");
             this.apiRoot = Objects.requireNonNull(apiRoot, "apiRoot");
             this.features = Objects.requireNonNull(features, "features");
             hostName = plugin.getPluginMeta().getName();
-            version = plugin.getPluginMeta().getVersion();
-            capabilityNamespace = plugin.getPluginMeta().getName().toLowerCase(java.util.Locale.ROOT);
+            capabilityNamespace = hostName.toLowerCase(Locale.ROOT);
         }
 
-        public Builder hostName(String value) { hostName = requireText(value, "hostName"); return this; }
-        public Builder version(String value) { version = requireText(value, "version"); return this; }
-        public Builder capabilityNamespace(String value) {
-            capabilityNamespace = requireText(value, "capabilityNamespace");
-            return this;
+        public Builder<P, V> hostName(String value) { hostName = text(value, "hostName"); return this; }
+        public Builder<P, V> capabilityNamespace(String value) {
+            capabilityNamespace = text(value, "capabilityNamespace"); return this;
         }
-        public PaperFeatureHost build() { return new PaperFeatureHost(this); }
+        public Builder<P, V> mismatchPolicy(FeatureConfigHandler.TypeMismatchPolicy value) {
+            mismatchPolicy = Objects.requireNonNull(value, "mismatchPolicy"); return this;
+        }
+        public Builder<P, V> globalDefaults(Map<String, Object> value) {
+            globalDefaults = Map.copyOf(value); return this;
+        }
+        public Builder<P, V> languageResolver(Function<Player, Language> value) {
+            languageResolver = Objects.requireNonNull(value, "languageResolver"); return this;
+        }
+        public Builder<P, V> messageDecorator(PaperMessageDecorator value) {
+            messageDecorator = Objects.requireNonNull(value, "messageDecorator"); return this;
+        }
+        public Builder<P, V> overwriteCommandConflictsKey(String value) {
+            overwriteCommandConflictsKey = text(value, "overwriteCommandConflictsKey"); return this;
+        }
+        public Builder<P, V> afterHostResourcesReload(Runnable value) {
+            afterHostResourcesReload = Objects.requireNonNull(value, "afterHostResourcesReload"); return this;
+        }
+        public Builder<P, V> contribute(FeatureResourceContributor<PaperFeatureResources> value) {
+            contributors.add(Objects.requireNonNull(value, "contributor")); return this;
+        }
+        public <T> Builder<P, V> bootstrapCapability(Class<T> type, T value) {
+            bootstrapCapabilities.add(new BootstrapCapability<>(type, type.cast(value))); return this;
+        }
+        public PaperFeatureHost<P, V> build() { return new PaperFeatureHost<>(this); }
     }
 
-    private static String requireText(String value, String field) {
-        String clean = Objects.requireNonNull(value, field).trim();
-        if (clean.isEmpty()) throw new IllegalArgumentException(field + " must not be blank");
-        return clean;
+    private static String text(String value, String field) {
+        String normalized = Objects.requireNonNull(value, field).trim();
+        if (normalized.isEmpty()) throw new IllegalArgumentException(field + " must not be blank");
+        return normalized;
     }
 }

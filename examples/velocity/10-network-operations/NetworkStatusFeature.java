@@ -10,20 +10,20 @@ import java.time.Duration;
 
 /** A simple operational target whose task must be recreated after its cadence changes. */
 @FeatureDeclaration(name = "NetworkStatus", version = "1.0.0", enabledByDefault = true)
-public final class NetworkStatusFeature extends VelocityFeature<ProxyPlugin, Void> {
-    public NetworkStatusFeature(VelocityFeatureContext<ProxyPlugin, Void> context) {
+public final class NetworkStatusFeature extends VelocityFeature<ProxyPlugin> {
+    public NetworkStatusFeature(VelocityFeatureContext<ProxyPlugin> context) {
         super(context);
     }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap().put("heartbeat-seconds", 30L);
     }
 
     @Override
     public void initialize() {
-        long seconds = getConfigHandler().get("heartbeat-seconds", Long.class, 30L);
-        resources().getTaskManager().scheduleRepeatingTask(
+        long seconds = config().get("heartbeat-seconds", Long.class, 30L);
+        resources().tasks().scheduleRepeatingTask(
                 () -> logger().info("Network status heartbeat"), Duration.ofSeconds(seconds));
     }
 

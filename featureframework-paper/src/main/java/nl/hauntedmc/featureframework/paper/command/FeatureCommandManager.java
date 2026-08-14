@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.paper.command;
 
+import nl.hauntedmc.featureframework.command.CommandLabelOwnership;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierCommand;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierDispatcher;
@@ -59,8 +60,9 @@ public class FeatureCommandManager {
         }
         List<String> aliases = sanitizeAliases(command.aliases(), name);
         List<String> labels = commandLabels(name, aliases);
-        String collision = ownership.claim(command, labels);
-        if (collision != null) {
+        CommandLabelOwnership.ClaimResult labelClaim = ownership.tryClaim(command, labels);
+        if (!labelClaim.claimed()) {
+            String collision = labelClaim.blockingLabel();
             logger.warn("[Brigadier] Root label '" + collision
                     + "' is already owned by another framework feature; skipping /" + name + ".");
             return;

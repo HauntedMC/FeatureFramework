@@ -9,24 +9,24 @@ import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(name = "RemoteSync", version = "1.0.0", enabledByDefault = true)
-public final class RemoteSyncFeature extends PaperFeature<Plugin, Void> {
+public final class RemoteSyncFeature extends PaperFeature<Plugin> {
     private ExampleRemoteClient client;
 
-    public RemoteSyncFeature(PaperFeatureContext<Plugin, Void> context) {
+    public RemoteSyncFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap().put("refresh-seconds", 30L);
     }
 
     @Override
     public void initialize() {
         client = new ExampleRemoteClient();
-        long seconds = getConfigHandler().get("refresh-seconds", Long.class, 30L);
+        long seconds = config().get("refresh-seconds", Long.class, 30L);
 
-        resources().getTaskManager().scheduleRepeatingTask(
+        resources().tasks().scheduleRepeatingTask(
                 () -> logger().info("Fetched " + client.fetchSnapshot()),
                 BukkitTime.seconds(seconds)
         );

@@ -2,8 +2,6 @@ package com.example.networkops.paper;
 
 import com.example.networkops.paper.catalog.BuiltInFeatures;
 import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
-import nl.hauntedmc.featureframework.paper.host.PaperFeature;
-import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureHost;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -11,11 +9,9 @@ import java.util.Objects;
 
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.networkops.paper.catalog.BuiltInFeatures",
-        featurePackage = "com.example.networkops.paper",
-        featureBase = PaperFeature.class,
-        featureContext = PaperFeatureContext.class)
+        featurePackage = "com.example.networkops.paper")
 public final class MyPlugin extends JavaPlugin {
-    private PaperFeatureHost featureHost;
+    private PaperFeatureHost<MyPlugin, String> featureHost;
 
     @Override
     public void onEnable() {
@@ -28,7 +24,7 @@ public final class MyPlugin extends JavaPlugin {
         if (featureHost != null) featureHost.stop();
     }
 
-    public PaperFeatureHost featureHost() {
+    public PaperFeatureHost<MyPlugin, String> featureHost() {
         return Objects.requireNonNull(featureHost, "Feature host has not started");
     }
 }

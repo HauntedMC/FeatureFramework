@@ -30,7 +30,7 @@ the clean worktrees, and rerun it.
 Push the FeatureFramework release:
 
 ```bash
-git push origin HEAD && git push origin v2.0.0
+git push origin HEAD && git push origin vX.Y.Z
 ```
 
 Substitute the created version. Pushing the tag starts FeatureFramework's GitHub release workflow.

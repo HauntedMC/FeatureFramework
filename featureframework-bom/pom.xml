@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>nl.hauntedmc.featureframework</groupId><artifactId>featureframework-parent</artifactId><version>${revision}</version></parent>
+    <artifactId>featureframework-bom</artifactId>
+    <packaging>pom</packaging>
+    <name>FeatureFramework BOM</name>
+    <dependencyManagement><dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-api</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-toolkit</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-core</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataprovider</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataregistry</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-data-audit</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper-toolkit</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper-integrations</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-velocity</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-velocity-integrations</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-processor</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-testkit</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-mockito-testkit</artifactId><version>${project.version}</version></dependency>
+    </dependencies></dependencyManagement>
+</project>

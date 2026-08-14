@@ -5,64 +5,45 @@ import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.host.ManagedFeatureContext;
-import nl.hauntedmc.featureframework.loader.FeatureDescriptor;
+import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
+import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.velocity.lifecycle.VelocityFeatureResources;
 import nl.hauntedmc.featureframework.velocity.localization.VelocityLocalization;
 import nl.hauntedmc.featureframework.velocity.log.FeatureLogger;
 
 import java.util.Objects;
-import java.util.function.Supplier;
 
 /** Standard context received by features hosted in a Velocity plugin. */
-public final class VelocityFeatureContext<P, D>
-        extends ManagedFeatureContext<P, VelocityFeatureResources<D>, FeatureLogger, VelocityLocalization> {
+public final class VelocityFeatureContext<P>
+        extends ManagedFeatureContext<P, VelocityFeatureResources, FeatureLogger, VelocityLocalization> {
     private final ProxyServer proxy;
-    private final Supplier<?> dataRegistry;
+    private final ConfigService files;
 
     public VelocityFeatureContext(
             P plugin,
-            FeatureDescriptor<?, ?> descriptor,
+            ResolvedFeatureDefinition<?, ?> definition,
             FeatureConfigHandler config,
             VelocityLocalization localization,
-            VelocityFeatureResources<D> resources,
-            FeatureLogger logger,
-            CapabilityRegistry capabilities,
-            InternalServiceRegistry<FeatureId> internalServices
-    ) {
-        this(plugin, descriptor, config, localization, resources, logger, capabilities,
-                internalServices, null, unavailableDataRegistry());
-    }
-
-    public VelocityFeatureContext(
-            P plugin,
-            FeatureDescriptor<?, ?> descriptor,
-            FeatureConfigHandler config,
-            VelocityLocalization localization,
-            VelocityFeatureResources<D> resources,
+            VelocityFeatureResources resources,
             FeatureLogger logger,
             CapabilityRegistry capabilities,
             InternalServiceRegistry<FeatureId> internalServices,
             ProxyServer proxy,
-            Supplier<?> dataRegistry
+            ConfigService files
     ) {
-        super(plugin, descriptor, config, localization, resources, logger,
-                capabilities, internalServices, resources.getApiManager());
-        this.proxy = proxy;
-        this.dataRegistry = Objects.requireNonNull(dataRegistry, "dataRegistry");
+        super(plugin, definition, config, localization, resources, logger,
+                capabilities, internalServices, resources.capabilities());
+        this.proxy = Objects.requireNonNull(proxy, "proxy");
+        this.files = Objects.requireNonNull(files, "files");
+        definition.requiredResourceExtensions().forEach(type -> {
+            if (!resources.extensions().contains(type)) {
+                throw new IllegalStateException("Required resource extension is unavailable for "
+                        + definition.featureName() + ": " + type.getName());
+            }
+        });
     }
 
-    public ProxyServer proxy() {
-        return Objects.requireNonNull(proxy, "No ProxyServer was configured for this Velocity host");
-    }
-
-    Object dataRegistryService() {
-        return Objects.requireNonNull(dataRegistry.get(), "dataRegistry returned null");
-    }
-
-    private static Supplier<?> unavailableDataRegistry() {
-        return () -> {
-            throw new IllegalStateException("No DataRegistry supplier was configured for this Velocity host");
-        };
-    }
+    public ProxyServer proxy() { return proxy; }
+    public ConfigService files() { return files; }
 }

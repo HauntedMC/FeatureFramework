@@ -1,20 +1,21 @@
 package com.example.dataproxy;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
-import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
+import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderResources;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 @FeatureDeclaration(
-        name = "NetworkStorage", version = "1.0.0", enabledByDefault = true, requiresPlugins = "dataprovider")
-public final class NetworkStorageFeature extends VelocityFeature<ProxyPlugin, FeatureDataManager> {
-    public NetworkStorageFeature(VelocityFeatureContext<ProxyPlugin, FeatureDataManager> context) {
+        name = "NetworkStorage", version = "1.0.0", enabledByDefault = true,
+        requiresPlugins = "dataprovider", requiresResourceExtensions = DataProviderResources.class)
+public final class NetworkStorageFeature extends VelocityFeature<ProxyPlugin> {
+    public NetworkStorageFeature(VelocityFeatureContext<ProxyPlugin> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        FeatureDataManager data = resources().getDataManager();
+        DataProviderResources data = resources().extensions().require(DataProviderResources.KEY);
 
         data.registerRedisMessagingProvider("network", "hauntedmc")
                 .orElseThrow(() -> new IllegalStateException(
@@ -25,6 +26,6 @@ public final class NetworkStorageFeature extends VelocityFeature<ProxyPlugin, Fe
 
     @Override
     public void disable() {
-        // FeatureDataManager is cleaned up by VelocityFeatureResources.
+        // DataProviderResources is cleaned up by VelocityFeatureResources.
     }
 }

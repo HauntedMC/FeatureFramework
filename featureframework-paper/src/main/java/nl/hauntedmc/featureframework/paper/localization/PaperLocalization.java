@@ -2,7 +2,6 @@ package nl.hauntedmc.featureframework.paper.localization;
 
 import nl.hauntedmc.featureframework.localization.ComponentLocalization;
 import nl.hauntedmc.featureframework.localization.LocalizationStore;
-import nl.hauntedmc.featureframework.paper.integration.placeholder.PlaceholderAPIHook;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
@@ -16,11 +15,21 @@ import java.util.function.Function;
 public final class PaperLocalization extends ComponentLocalization {
     private final Plugin plugin;
     private final Function<Player, Language> playerLanguageResolver;
+    private final PaperMessageDecorator decorator;
 
     public PaperLocalization(
             Plugin plugin,
             ConfigService configService,
             Function<Player, Language> playerLanguageResolver
+    ) {
+        this(plugin, configService, playerLanguageResolver, PaperMessageDecorator.identity());
+    }
+
+    public PaperLocalization(
+            Plugin plugin,
+            ConfigService configService,
+            Function<Player, Language> playerLanguageResolver,
+            PaperMessageDecorator decorator
     ) {
         this(
                 Objects.requireNonNull(plugin, "plugin"),
@@ -29,28 +38,31 @@ public final class PaperLocalization extends ComponentLocalization {
                         configService,
                         FrameworkLogger.from(plugin.getLogger())
                 ),
-                playerLanguageResolver
+                playerLanguageResolver,
+                decorator
         );
     }
 
     private PaperLocalization(
             Plugin plugin,
             LocalizationStore store,
-            Function<Player, Language> playerLanguageResolver
+            Function<Player, Language> playerLanguageResolver,
+            PaperMessageDecorator decorator
     ) {
         super(
                 store,
                 FrameworkLogger.from(plugin.getLogger()),
                 Player.class,
                 audience -> playerLanguageResolver.apply((Player) audience),
-                (message, audience) -> PlaceholderAPIHook.applyPlaceholders(message, (Player) audience),
+                (message, audience) -> decorator.decorate(message, (Player) audience),
                 false
         );
         this.plugin = plugin;
         this.playerLanguageResolver = Objects.requireNonNull(playerLanguageResolver, "playerLanguageResolver");
+        this.decorator = Objects.requireNonNull(decorator, "decorator");
     }
 
     public PaperLocalization openFeature(String featureName) {
-        return new PaperLocalization(plugin, store().openFeature(featureName), playerLanguageResolver);
+        return new PaperLocalization(plugin, store().openFeature(featureName), playerLanguageResolver, decorator);
     }
 }

@@ -6,11 +6,13 @@ Start with the [Velocity examples](../examples/velocity/README.md). Dependency, 
 
 ## Main types
 
-- `VelocityFeature<P, D>` — managed Velocity feature base.
-- `VelocityFeatureContext<P, D>` — plugin, `ProxyServer`, config, localization, logger, resources, capabilities, and services for one feature.
-- `VelocityFeatureResources<D>` — owned tasks, commands, listeners, data, caches, and services.
-- `VelocityFeatureHost` — ready-to-use host for normal proxy composition.
-- `VelocityFeatureHostComposition` — lower-level composition when custom data/resources or host policy are needed.
+- `VelocityFeature<P>` — managed Velocity feature base.
+- `VelocityFeatureContext<P>` — plugin, `ProxyServer`, config, localization, logger, resources, capabilities, and services for one feature.
+- `VelocityFeatureResources` — owned tasks, commands, listeners, data, caches, and services.
+- `VelocityFeatureHost` — configurable host façade for normal and integration-rich proxy composition.
+
+Add `featureframework-velocity-integrations` for DataProvider and DataRegistry adapters, then attach
+their scoped contributors with the host builder's `contribute(...)` method.
 
 Velocity host lifecycle operations execute directly on the caller; FeatureFramework does not add a Bukkit-style main thread. See [Threading](../docs/THREADING.md).
 

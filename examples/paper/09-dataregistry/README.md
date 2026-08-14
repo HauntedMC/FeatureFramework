@@ -1,15 +1,15 @@
 # 09 — Paper with DataRegistry
 
-This self-contained example shows how a feature consumes DataRegistry through FeatureFramework's typed `PaperDataRegistryFeature` base.
+This self-contained example shows how a normal Paper feature consumes the typed DataRegistry resource extension.
 
-The ready-to-use `PaperFeatureHost` does not configure a DataRegistry supplier, so this example uses `PaperFeatureHostComposition` and calls `.dataRegistryPlugin("DataRegistry")`.
+The bootstrap attaches `PaperDataRegistryContributor`, using `PaperDataRegistryPluginDiscovery` to resolve the plugin.
 
 ## Files
 
 - `MyPlugin.java` — builds a normal custom Paper host without DataProvider, then enables DataRegistry plugin discovery.
-- `IdentityFeature.java` — extends `PaperDataRegistryFeature`, registers a join listener, and waits for a player's DataRegistry identity before using it.
+- `IdentityFeature.java` — implements `PaperDataRegistryAccess`, registers a join listener, and waits for a player's DataRegistry identity before using it.
 
-## Why use `PaperDataRegistryFeature`?
+## Why use `PaperDataRegistryAccess`?
 
 It provides the DataRegistry-aware feature context needed by `PaperDataRegistryIdentityGate`:
 
@@ -24,6 +24,6 @@ That matters on Paper: waiting for persistence must not block the primary thread
 
 ## Plugin discovery
 
-`.dataRegistryPlugin("DataRegistry")` asks FeatureFramework to find that Bukkit plugin and requires its instance to implement `DataRegistryApiProvider`. If your application already owns a `DataRegistryApi`, use `.dataRegistry(() -> yourRegistry)` instead.
+`PaperDataRegistryPluginDiscovery.supplier(...)` finds the Bukkit plugin and requires its instance to implement `DataRegistryApiProvider`. If the application already owns a registry, pass its supplier directly to the contributor.
 
 The feature also declares `requiresPlugins = "DataRegistry"`, so its external dependency is visible beside the implementation rather than hidden in `initialize()`.

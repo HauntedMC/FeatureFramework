@@ -36,13 +36,13 @@ Declarations can also specify a readable `FeatureStartupPhase` when there is no 
 
 ### Feature implementation
 
-Use `PaperFeature<P, D>` on Paper and `VelocityFeature<P, D>` on Velocity.
+Use `PaperFeature<P>` on Paper and `VelocityFeature<P>` on Velocity.
 
 The important lifecycle methods are:
 
 - `initialize()` — create feature state and register resources;
 - `disable()` — release state that FeatureFramework does not already own;
-- `getDefaultConfig()` and `getDefaultMessages()` — optional feature defaults;
+- `defaultConfig()` and `defaultMessages()` — optional feature defaults;
 - `applyConfiguration()` — decide whether a config change can be applied live or needs recreation.
 
 ### Feature context

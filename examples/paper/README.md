@@ -11,8 +11,8 @@ Each directory below is self-contained at the application-source level: all cust
 | 5 | [05-capability-provider-consumer](05-capability-provider-consumer/README.md) | publishing and consuming a capability |
 | 6 | [06-multi-feature-plugin](06-multi-feature-plugin/README.md) | realistic multi-feature composition |
 | 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | recreation, async work, manually owned resources |
-| 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
-| 9 | [09-dataregistry](09-dataregistry/README.md) | `PaperDataRegistryFeature`, DataRegistry, identity readiness |
+| 8 | [08-dataprovider](08-dataprovider/README.md) | `DataProviderResources` and a host resource contributor |
+| 9 | [09-dataregistry](09-dataregistry/README.md) | `PaperDataRegistryAccess`, DataRegistry, identity readiness |
 | 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
 | 11 | [11-persistent-contract-board](11-persistent-contract-board/README.md) | SQL-backed subsystem: transactions, two-level cache, async service, command, listener, config/messages, capability |
 

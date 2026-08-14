@@ -2,16 +2,15 @@ package com.example.rollouts;
 
 import nl.hauntedmc.dataprovider.database.messaging.MessagingDataAccess;
 import nl.hauntedmc.dataprovider.database.messaging.api.Subscription;
-import nl.hauntedmc.featureframework.api.feature.FeatureClassification;
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
-import nl.hauntedmc.featureframework.integration.dataprovider.FeatureDataManager;
+import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderResources;
 import nl.hauntedmc.featureframework.toolkit.io.cache.CacheType;
 import nl.hauntedmc.featureframework.toolkit.io.cache.FileCacheStore;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
-import nl.hauntedmc.featureframework.velocity.host.VelocityDataProviderFeature;
+import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 import java.time.Duration;
@@ -21,24 +20,24 @@ import java.util.concurrent.TimeUnit;
         name = "AdaptiveRollout",
         version = "1.0.0",
         enabledByDefault = false,
-        classification = FeatureClassification.CAPABILITY_PROVIDER,
         roles = FeatureRole.OPERATOR_FACING,
         providesCapabilities = RolloutRoutingApi.class,
-        requiresPlugins = "dataprovider"
+        requiresPlugins = "dataprovider",
+        requiresResourceExtensions = DataProviderResources.class
 )
-public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<RolloutProxyPlugin> {
+public final class AdaptiveRolloutFeature extends VelocityFeature<RolloutProxyPlugin> {
     private Subscription healthSubscription;
 
     public AdaptiveRolloutFeature(
-            VelocityFeatureContext<RolloutProxyPlugin, FeatureDataManager> context
+            VelocityFeatureContext<RolloutProxyPlugin> context
     ) {
         super(context);
     }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap()
-                .put("messaging.connection", FeatureDataManager.DEFAULT_REDIS_MESSAGING_CONNECTION)
+                .put("messaging.connection", DataProviderResources.DEFAULT_REDIS_MESSAGING_CONNECTION)
                 .put("messaging.channel", "deployments.backend-health")
                 .put("health.stale-after-seconds", 15L)
                 .put("routing.stable-server", "survival-stable")
@@ -48,7 +47,7 @@ public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<Ro
     }
 
     @Override
-    public MessageMap getDefaultMessages() {
+    public MessageMap defaultMessages() {
         MessageMap messages = new MessageMap();
         messages.add("rollout.rerouted", "<yellow>Routing you to <white>{server}</white> <gray>({reason})</gray>.</yellow>");
         messages.add("rollout.unavailable", "<red>No healthy server is currently available for this game mode.</red>");
@@ -60,13 +59,13 @@ public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<Ro
 
     @Override
     public void initialize() {
-        long staleSeconds = getConfigHandler().get("health.stale-after-seconds", Long.class, 15L);
+        long staleSeconds = config().get("health.stale-after-seconds", Long.class, 15L);
         if (staleSeconds < 2L) {
             throw new IllegalArgumentException("health.stale-after-seconds must be at least 2");
         }
         Duration staleAfter = Duration.ofSeconds(staleSeconds);
-        FileCacheStore disk = (FileCacheStore) resources().getCacheManager()
-                .getCacheDirectory(getFeatureName(), "backend-health")
+        FileCacheStore disk = (FileCacheStore) resources().caches()
+                .getCacheDirectory(name(), "backend-health")
                 .getStore("last-known", CacheType.JSON);
         BackendHealthStore health = new BackendHealthStore(disk, staleAfter);
         RolloutPolicy policy = new RolloutPolicy(
@@ -74,13 +73,13 @@ public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<Ro
                 text("routing.stable-server"),
                 text("routing.canary-server"),
                 text("routing.fallback-server"),
-                getConfigHandler().get("routing.canary-percent", Integer.class, 10)
+                config().get("routing.canary-percent", Integer.class, 10)
         );
 
-        String connection = getConfigHandler().get(
+        String connection = config().get(
                 "messaging.connection", String.class,
-                FeatureDataManager.DEFAULT_REDIS_MESSAGING_CONNECTION);
-        MessagingDataAccess bus = resources().getDataManager()
+                DataProviderResources.DEFAULT_REDIS_MESSAGING_CONNECTION);
+        MessagingDataAccess bus = resources().extensions().require(DataProviderResources.KEY)
                 .registerRedisMessagingDataAccess("rollout-health", connection)
                 .orElseThrow(() -> new IllegalStateException(
                         "AdaptiveRollout requires Redis messaging connection '" + connection + "'"));
@@ -92,10 +91,10 @@ public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<Ro
                 health::ingest
         );
 
-        resources().getApiManager().registerService(RolloutRoutingApi.class, policy);
-        resources().getListenerManager().registerListener(new RolloutListener(this, policy));
-        resources().getCommandManager().registerBrigadierCommand(new RolloutCommand(this, policy));
-        resources().getTaskManager().scheduleRepeatingTask(
+        resources().capabilities().registerService(RolloutRoutingApi.class, policy);
+        resources().listeners().registerListener(new RolloutListener(this, policy));
+        resources().commands().registerBrigadierCommand(new RolloutCommand(this, policy));
+        resources().tasks().scheduleRepeatingTask(
                 health::removeExpired,
                 staleAfter.multipliedBy(2)
         );
@@ -124,7 +123,7 @@ public final class AdaptiveRolloutFeature extends VelocityDataProviderFeature<Ro
     }
 
     private String text(String key) {
-        String value = getConfigHandler().get(key, String.class);
+        String value = config().get(key, String.class);
         if (value == null || value.isBlank()) throw new IllegalArgumentException(key + " must not be blank");
         return value.trim();
     }

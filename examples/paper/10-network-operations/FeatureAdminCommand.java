@@ -8,13 +8,11 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.command.FeatureCommandModel;
-import nl.hauntedmc.featureframework.loader.FeatureDescriptor;
 import nl.hauntedmc.featureframework.paper.command.brigadier.BrigadierCommand;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
-import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
 
 /** A compact control-plane command. Add your own audit log and confirmation policy in production. */
@@ -40,13 +38,13 @@ public final class FeatureAdminCommand implements BrigadierCommand {
                 .requires(source -> source.getSender().hasPermission("network.features.reload-all"))
                 .executes(context -> reloadAll(context.getSource().getSender())));
         root.then(operation("enable", "network.features.enable", (sender, feature) ->
-                send(sender, "Enable", feature, plugin.featureHost().enableFeature(feature).result().name())));
+                send(sender, "Enable", feature, plugin.featureHost().enable(FeatureId.of(feature)).result().name())));
         root.then(operation("disable", "network.features.disable", (sender, feature) ->
-                send(sender, "Disable", feature, plugin.featureHost().disableFeature(feature).result().name())));
+                send(sender, "Disable", feature, plugin.featureHost().disable(FeatureId.of(feature)).result().name())));
         root.then(operation("softreload", "network.features.reload", (sender, feature) ->
-                send(sender, "Soft reload", feature, plugin.featureHost().softReloadFeature(feature).result().name())));
+                send(sender, "Soft reload", feature, plugin.featureHost().softReload(FeatureId.of(feature)).result().name())));
         root.then(operation("reload", "network.features.reload", (sender, feature) ->
-                send(sender, "Reload", feature, plugin.featureHost().reloadFeature(feature).result().name())));
+                send(sender, "Reload", feature, plugin.featureHost().recreate(FeatureId.of(feature)).result().name())));
         root.then(operation("reloadlocal", "network.features.reload-local", this::reloadLocal));
         return root.build();
     }
@@ -73,21 +71,19 @@ public final class FeatureAdminCommand implements BrigadierCommand {
     }
 
     private int reloadAll(CommandSender sender) {
-        send(sender, "Graph reload", "all features", plugin.featureHost().reload().stage().name());
+        send(sender, "Graph reload", "all features", plugin.featureHost().reloadGraph().stage().name());
         return 1;
     }
 
     private void reloadLocal(CommandSender sender, String requestedName) {
-        String key = plugin.featureHost().managedHost().resolveFeatureKey(requestedName);
-        PaperFeature<Plugin, Void> feature = key == null
-                ? null
-                : plugin.featureHost().managedHost().registry().getLoadedFeature(key);
+        var id = plugin.featureHost().resolve(requestedName);
+        PaperFeature<MyPlugin> feature = id.flatMap(plugin.featureHost()::findLoaded).orElse(null);
         if (feature == null) {
             send(sender, "Local message reload", requestedName, "NOT_LOADED");
             return;
         }
-        feature.getContext().localization().reloadLocalization();
-        send(sender, "Local message reload", key, "SUCCESS");
+        feature.context().localization().reloadLocalization();
+        send(sender, "Local message reload", id.orElseThrow().value(), "SUCCESS");
     }
 
     private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestFeatures(
@@ -96,11 +92,8 @@ public final class FeatureAdminCommand implements BrigadierCommand {
         return builder.buildFuture();
     }
 
-    private FeatureCommandModel<PaperFeature<Plugin, Void>,
-            FeatureDescriptor<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>> model() {
-        return new FeatureCommandModel<>(
-                plugin.featureHost().managedHost().registry(),
-                plugin.featureHost().managedHost()::resolveFeatureKey);
+    private FeatureCommandModel model() {
+        return new FeatureCommandModel(plugin.featureHost().features());
     }
 
     private static void send(CommandSender sender, String operation, String feature, String result) {

@@ -6,8 +6,8 @@ import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(name = "Profiles", version = "1.0.0", enabledByDefault = true)
-public final class ProfilesFeature extends PaperFeature<Plugin, Void> {
-    public ProfilesFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class ProfilesFeature extends PaperFeature<Plugin> {
+    public ProfilesFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

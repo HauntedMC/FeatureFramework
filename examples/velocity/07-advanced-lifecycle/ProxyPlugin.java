@@ -19,14 +19,12 @@ import java.nio.file.Path;
 @Plugin(id = "ff-example-lifecycle", name = "FeatureFrameworkLifecycleExample", version = "1.0.0")
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.proxy.lifecycle.catalog.BuiltInFeatures",
-        featurePackage = "com.example.proxy.lifecycle",
-        featureBase = VelocityFeature.class,
-        featureContext = VelocityFeatureContext.class)
+        featurePackage = "com.example.proxy.lifecycle")
 public final class ProxyPlugin {
     private final ProxyServer proxy;
     private final ComponentLogger logger;
     private final Path dataDirectory;
-    private VelocityFeatureHost featureHost;
+    private VelocityFeatureHost<ProxyPlugin, String> featureHost;
 
     @Inject
     public ProxyPlugin(ProxyServer proxy, ComponentLogger logger, @DataDirectory Path dataDirectory) {

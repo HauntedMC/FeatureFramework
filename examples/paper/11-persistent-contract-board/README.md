@@ -73,11 +73,11 @@ A future version could apply `join-notice.minimum-open` live, but mixed partial-
 
 ## Messages are presentation contracts
 
-The feature declares defaults in `getDefaultMessages()` and uses placeholders at the command/listener boundary. See [example-messages.yml](example-messages.yml). Repository and service code return results and models, never formatted chat text, which keeps domain tests independent from Adventure and makes localization changes safe.
+The feature declares defaults in `defaultMessages()` and uses placeholders at the command/listener boundary. See [example-messages.yml](example-messages.yml). Repository and service code return results and models, never formatted chat text, which keeps domain tests independent from Adventure and makes localization changes safe.
 
 ## DataProvider ownership
 
-`NetworkPlugin` uses `PaperFeatureResourcesFactory.withDataProvider(...)`, so every feature generation receives a different `FeatureDataManager`. `ContractBoardFeature` asks its manager for `MYSQL/system_data_rw` and never stores the global `DataProviderAPI`.
+`NetworkPlugin` uses `PaperFeatureResourcesFactory.withDataProvider(...)`, so every feature generation receives a different `DataProviderResources`. `ContractBoardFeature` asks its manager for `MYSQL/system_data_rw` and never stores the global `DataProviderAPI`.
 
 FeatureFramework therefore owns the infrastructure lifetime:
 
@@ -101,7 +101,7 @@ Consumers should keep a `CapabilityRef<ContractBoardApi>` and resolve it for eac
 3. [`ContractRepository.java`](ContractRepository.java) — real SQL and the atomic claim rule.
 4. [`ContractSnapshotCache.java`](ContractSnapshotCache.java) — hot versus last-known-good data.
 5. [`ContractCommand.java`](ContractCommand.java) and [`ContractJoinListener.java`](ContractJoinListener.java) — platform adapters.
-6. [`NetworkPlugin.java`](NetworkPlugin.java) — DataProvider-enabled host composition.
+6. [`NetworkPlugin.java`](NetworkPlugin.java) — platform facade with a DataProvider contributor.
 
 ## What production code would add
 

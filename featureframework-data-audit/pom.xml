@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+    <parent><groupId>nl.hauntedmc.featureframework</groupId><artifactId>featureframework-parent</artifactId><version>${revision}</version></parent>
+    <artifactId>featureframework-data-audit</artifactId>
+    <name>FeatureFramework Data Audit</name>
+    <description>Platform-neutral ORM audit support backed by DataProvider and DataRegistry.</description>
+    <dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataprovider</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataregistry</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>nl.hauntedmc.dataprovider</groupId><artifactId>dataprovider-api</artifactId><version>${dataprovider.version}</version><scope>provided</scope></dependency>
+        <dependency><groupId>org.hibernate.orm</groupId><artifactId>hibernate-core</artifactId><version>${hibernate.version}</version><scope>provided</scope></dependency>
+    </dependencies>
+    <build><plugins><plugin><artifactId>maven-jar-plugin</artifactId><configuration><archive><manifestEntries>
+        <Automatic-Module-Name>nl.hauntedmc.featureframework.data.audit</Automatic-Module-Name>
+    </manifestEntries></archive></configuration></plugin></plugins></build>
+</project>

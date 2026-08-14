@@ -7,7 +7,7 @@ Commands and listeners let the platform call into a feature, so they should norm
 Register listeners through the feature listener manager when possible. Paper's `FeatureListenerManager` supports normal Bukkit listeners and programmatic event registration; Velocity has an equivalent owned listener manager.
 
 ```java
-resources().getListenerManager().registerListener(new JoinListener());
+resources().listeners().registerListener(new JoinListener());
 ```
 
 The framework unregisters managed listeners when the feature stops. This prevents duplicate registrations after recreation and avoids callback code reaching state that has already been torn down.

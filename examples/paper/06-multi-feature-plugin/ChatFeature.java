@@ -7,10 +7,10 @@ import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(
         name = "Chat", version = "1.0.0", enabledByDefault = true, requiresCapabilities = PlayerProfileApi.class)
-public final class ChatFeature extends PaperFeature<Plugin, Void> {
+public final class ChatFeature extends PaperFeature<Plugin> {
     private PlayerProfileApi profiles;
 
-    public ChatFeature(PaperFeatureContext<Plugin, Void> context) {
+    public ChatFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 

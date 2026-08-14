@@ -10,11 +10,9 @@ The Paper or Velocity entry point should build and start the host, not wire ever
 ```java
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.catalog.BuiltInFeatures",
-        featurePackage = "com.example.features",
-        featureBase = PaperFeature.class,
-        featureContext = PaperFeatureContext.class)
+        featurePackage = "com.example.features")
 public final class MyPlugin extends JavaPlugin {
-    private PaperFeatureHost featureHost;
+    private PaperFeatureHost<MyPlugin, String> featureHost;
 
     @Override
     public void onEnable() {
@@ -39,7 +37,7 @@ The declaration is next to the feature implementation, which keeps reviews local
         version = "1.0.0",
         requiresCapabilities = PlayerProfileApi.class,
         enabledByDefault = true)
-public final class ChatFeature extends PaperFeature<Plugin, Void> {
+public final class ChatFeature extends PaperFeature<Plugin> {
     // ...
 }
 ```

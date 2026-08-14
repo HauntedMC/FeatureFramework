@@ -86,8 +86,8 @@ Platform APIs are `provided`, so your application controls the Paper or Velocity
 A feature is a normal managed class:
 
 ```java
-public final class WelcomeFeature extends PaperFeature<Plugin, Void> {
-    public WelcomeFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class WelcomeFeature extends PaperFeature<MyPlugin> {
+    public WelcomeFeature(PaperFeatureContext<MyPlugin> context) {
         super(context);
     }
 
@@ -107,9 +107,7 @@ Declare it and start the host from your plugin bootstrap:
 ```java
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.myplugin.catalog.BuiltInFeatures",
-        featurePackage = "com.example.myplugin.features",
-        featureBase = PaperFeature.class,
-        featureContext = PaperFeatureContext.class
+        featurePackage = "com.example.myplugin.features"
 )
 public final class MyPlugin extends JavaPlugin {
     @Override public void onEnable() {
@@ -119,8 +117,8 @@ public final class MyPlugin extends JavaPlugin {
 }
 
 @FeatureDeclaration(name = "Welcome", version = "1.0.0", enabledByDefault = true)
-public final class WelcomeFeature extends PaperFeature<MyPlugin, Void> {
-    public WelcomeFeature(PaperFeatureContext<MyPlugin, Void> context) { super(context); }
+public final class WelcomeFeature extends PaperFeature<MyPlugin> {
+    public WelcomeFeature(PaperFeatureContext<MyPlugin> context) { super(context); }
 }
 ```
 
@@ -151,10 +149,15 @@ The full documentation index is in [`docs/README.md`](docs/README.md).
 
 ## Modules
 
-- `featureframework-api` — stable public runtime and capability contracts.
-- `featureframework-shared` — feature model, host/runtime, lifecycle, dependency loading, services, config/localization, and shared toolkits.
-- `featureframework-paper` — Paper host and platform adapters.
-- `featureframework-velocity` — Velocity host and platform adapters.
+- `featureframework-bom` — one import for aligned framework artifact versions.
+- `featureframework-api` — stable public runtime, feature metadata, and capability contracts.
+- `featureframework-toolkit` — platform-neutral configuration, localization, cache, HTTP, text, and token utilities.
+- `featureframework-core` — feature model, host/runtime, lifecycle, dependency loading, services, and resource ownership.
+- `featureframework-dataprovider` and `featureframework-dataregistry` — neutral optional integration contracts and resource extensions.
+- `featureframework-paper` and `featureframework-velocity` — dependency-clean platform hosts and native lifecycle adapters.
+- `featureframework-paper-toolkit` — optional Paper UI, inventory, sound, persistence, and registry helpers.
+- `featureframework-data-audit` — optional platform-neutral ORM audit support using DataProvider and DataRegistry.
+- `featureframework-paper-integrations` and `featureframework-velocity-integrations` — optional third-party adapters and resource contributors.
 - `featureframework-testkit` and `featureframework-mockito-testkit` — reusable test support.
 
 The shared modules do not depend on Paper or Velocity, and the two platform modules do not depend on each other. Architecture tests enforce those boundaries.

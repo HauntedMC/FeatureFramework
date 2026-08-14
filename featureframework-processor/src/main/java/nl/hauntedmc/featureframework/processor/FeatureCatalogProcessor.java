@@ -63,7 +63,9 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             if (config == null || !generatedCatalogs.add(config.generatedClassName())) continue;
             List<Entry> entries = entries(roundEnvironment, config);
             boolean valid = validate(entries, config);
-            valid &= declaredConcreteFeatures(roundEnvironment, config);
+            if (!entries.isEmpty()) {
+                valid &= declaredConcreteFeatures(roundEnvironment, config, entries.getFirst().element().getSuperclass());
+            }
             if (!valid) continue;
             try {
                 generate(host, config, entries);
@@ -78,15 +80,13 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         Map<String, Object> values = values(host, CATALOG);
         String generatedName = text(values, "generatedClassName", host);
         String featurePackage = text(values, "featurePackage", host);
-        TypeMirror base = type(values, "featureBase", host);
-        TypeMirror context = type(values, "featureContext", host);
         List<TypeMirror> bootstrap = types(values, "bootstrapCapabilities");
-        if (generatedName == null || featurePackage == null || base == null || context == null) return null;
+        if (generatedName == null || featurePackage == null) return null;
         if (!generatedName.contains(".")) {
             error(host, "generatedClassName must be fully qualified");
             return null;
         }
-        return new Config(generatedName, featurePackage, base, context, Set.copyOf(bootstrap));
+        return new Config(generatedName, featurePackage, Set.copyOf(bootstrap));
     }
 
     private List<Entry> entries(RoundEnvironment environment, Config config) {
@@ -96,7 +96,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             Map<String, Object> values = values(type, DECLARATION);
             String name = text(values, "name", type);
             String version = text(values, "version", type);
-            TypeMirror constructorContext = constructorContext(type, config.contextType());
+            TypeMirror constructorContext = constructorContext(type);
             if (name == null || version == null || constructorContext == null) continue;
             entries.add(new Entry(
                     type,
@@ -104,11 +104,12 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     version,
                     FeatureStartupPhase.valueOf(enumName(values, "startupPhase")),
                     bool(values, "enabledByDefault"),
-                    enumName(values, "classification"),
                     enumNames(values, "roles"),
                     texts(values, "requiresFeatures"),
                     texts(values, "optionallyUsesFeatures"),
                     texts(values, "requiresPlugins"),
+                    types(values, "requiresResourceExtensions"),
+                    types(values, "optionallyUsesResourceExtensions"),
                     types(values, "requiresCapabilities"),
                     types(values, "optionallyUsesCapabilities"),
                     types(values, "providesCapabilities"),
@@ -121,37 +122,34 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         return entries;
     }
 
-    private boolean declaredConcreteFeatures(RoundEnvironment environment, Config config) {
+    private boolean declaredConcreteFeatures(RoundEnvironment environment, Config config, TypeMirror baseType) {
         boolean valid = true;
         for (Element root : environment.getRootElements()) {
             if (!(root instanceof TypeElement type)
                     || type.getKind() != ElementKind.CLASS
                     || type.getModifiers().contains(Modifier.ABSTRACT)
                     || !inPackage(type, config.featurePackage())
-                    || !types().isAssignable(types().erasure(type.asType()), types().erasure(config.baseType()))) {
+                    || !types().isAssignable(types().erasure(type.asType()), types().erasure(baseType))) {
                 continue;
             }
             if (!hasAnnotation(type, DECLARATION)) {
                 valid &= invalid(type, "Concrete feature " + type.getQualifiedName() + " extending "
-                        + config.baseType() + " must declare @FeatureDeclaration");
+                        + baseType + " must declare @FeatureDeclaration");
             }
         }
         return valid;
     }
 
-    private TypeMirror constructorContext(TypeElement type, TypeMirror expectedContext) {
+    private TypeMirror constructorContext(TypeElement type) {
         List<ExecutableElement> matching = new ArrayList<>();
         for (Element enclosed : type.getEnclosedElements()) {
             if (enclosed.getKind() != ElementKind.CONSTRUCTOR) continue;
             ExecutableElement constructor = (ExecutableElement) enclosed;
             if (!constructor.getModifiers().contains(Modifier.PUBLIC) || constructor.getParameters().size() != 1) continue;
-            TypeMirror parameter = constructor.getParameters().getFirst().asType();
-            if (types().isSameType(types().erasure(parameter), types().erasure(expectedContext))) {
-                matching.add(constructor);
-            }
+            matching.add(constructor);
         }
         if (matching.size() != 1) {
-            error(type, "Feature must declare exactly one public constructor accepting " + expectedContext);
+            error(type, "Feature must declare exactly one public single-argument constructor");
             return null;
         }
         return matching.getFirst().getParameters().getFirst().asType();
@@ -167,11 +165,15 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         Map<String, Entry> implementations = new LinkedHashMap<>();
         Map<String, Entry> capabilities = new LinkedHashMap<>();
         Map<String, Entry> internalServices = new LinkedHashMap<>();
+        TypeMirror baseType = entries.getFirst().element().getSuperclass();
+        TypeMirror contextType = entries.getFirst().constructorContext();
         for (Entry entry : entries) {
             valid &= SEMVER.matcher(entry.version()).matches() || invalid(entry.element(), "version must be semantic X.Y.Z");
             valid &= !entry.name().isBlank() || invalid(entry.element(), "name must not be blank");
-            valid &= types().isAssignable(types().erasure(entry.element().asType()), types().erasure(config.baseType()))
-                    || invalid(entry.element(), "Feature does not extend " + config.baseType());
+            valid &= types().isSameType(types().erasure(entry.element().getSuperclass()), types().erasure(baseType))
+                    || invalid(entry.element(), "All generated features must share the same declared base type " + baseType);
+            valid &= types().isSameType(types().erasure(entry.constructorContext()), types().erasure(contextType))
+                    || invalid(entry.element(), "All generated features must use the same constructor context " + contextType);
             valid &= unique(names, entry.name(), entry, "feature name");
             valid &= unique(implementations, entry.element().getQualifiedName().toString(), entry, "implementation type");
             valid &= uniqueProviders(capabilities, entry.providesCapabilities(), entry, "capability");
@@ -180,7 +182,11 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             valid &= disjoint(entry.element(), entry.optionalCapabilities(), entry.providesCapabilities(), "optional", "provided capability");
             valid &= disjoint(entry.element(), entry.requiresInternalServices(), entry.providesInternalServices(), "required", "provided internal service");
             valid &= disjoint(entry.element(), entry.optionalInternalServices(), entry.providesInternalServices(), "optional", "provided internal service");
-            valid &= classification(entry);
+            valid &= disjoint(entry.element(), entry.requiredResourceExtensions(), entry.optionalResourceExtensions(),
+                    "required", "optional resource extension");
+            if (entry.roles().contains("EXTENSION_PROVIDER") && entry.providesCapabilities().isEmpty()) {
+                valid &= invalid(entry.element(), "Extension providers must declare a provided capability");
+            }
         }
         for (Entry entry : entries) {
             valid &= references(entries, entry, entry.requiredFeatures(), "required feature");
@@ -189,26 +195,6 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             valid &= providers(entry, entry.requiresInternalServices(), internalServices, Set.of(), "internal service");
         }
         return valid;
-    }
-
-    private boolean classification(Entry entry) {
-        boolean providesCapabilities = !entry.providesCapabilities().isEmpty();
-        boolean consumesCapabilities = !entry.requiresCapabilities().isEmpty() || !entry.optionalCapabilities().isEmpty();
-        return switch (entry.classification()) {
-            case "CAPABILITY_PROVIDER", "EXTENSION_PROVIDER" -> !providesCapabilities
-                    ? invalid(entry.element(), entry.classification() + " features must declare a provided capability")
-                    : true;
-            case "CAPABILITY_CONSUMER" -> {
-                if (!consumesCapabilities) yield invalid(entry.element(), "Capability consumers must declare a consumed capability");
-                yield providesCapabilities
-                        ? invalid(entry.element(), "Capability consumers cannot declare provided capabilities")
-                        : true;
-            }
-            case "INTERNAL" -> providesCapabilities
-                    ? invalid(entry.element(), "Internal features cannot declare provided capabilities")
-                    : true;
-            default -> invalid(entry.element(), "Unknown feature classification: " + entry.classification());
-        };
     }
 
     private boolean references(Collection<Entry> entries, Entry owner, List<String> references, String kind) {
@@ -290,13 +276,15 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             writer.write("    private static nl.hauntedmc.featureframework.host.FeatureDefinition<" + featureType + ", "
                     + contextType + "> feature(String name, String version, Class<? extends " + featureType + "> type, "
                     + "java.util.function.Function<" + contextType + ", ? extends " + featureType + "> constructor, "
-                    + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase startupPhase, nl.hauntedmc.featureframework.api.feature.FeatureClassification classification, "
+                    + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase startupPhase, "
                     + "boolean enabledByDefault, nl.hauntedmc.featureframework.api.feature.FeatureRole[] roles, String[] requiredFeatures, "
-                    + "String[] optionalFeatures, String[] plugins, Class<?>[] requiredCapabilities, Class<?>[] optionalCapabilities, "
+                    + "String[] optionalFeatures, String[] plugins, Class<?>[] requiredResources, Class<?>[] optionalResources, "
+                    + "Class<?>[] requiredCapabilities, Class<?>[] optionalCapabilities, "
                     + "Class<?>[] providedCapabilities, Class<?>[] requiredServices, Class<?>[] optionalServices, Class<?>[] providedServices) {\n");
             writer.write("        var builder = nl.hauntedmc.featureframework.host.FeatureDefinition.<" + featureType + ", "
-                    + contextType + ">builder(name, version, type, constructor).startupPhase(startupPhase).classification(classification)"
+                    + contextType + ">builder(name, version, type, constructor).startupPhase(startupPhase)"
                     + ".roles(roles).requiresFeatures(requiredFeatures).optionallyUsesFeatures(optionalFeatures).requiresPlugins(plugins)"
+                    + ".requiresResourceExtensions(requiredResources).optionallyUsesResourceExtensions(optionalResources)"
                     + ".requiresCapabilities(requiredCapabilities).optionallyUsesCapabilities(optionalCapabilities).providesCapabilities(providedCapabilities)"
                     + ".requiresInternalServices(requiredServices).optionallyUsesInternalServices(optionalServices).providesInternalServices(providedServices);\n");
             writer.write("        if (enabledByDefault) builder.enabledByDefault();\n        return builder.build();\n    }\n}\n");
@@ -307,9 +295,9 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         return "feature(" + quote(entry.name()) + ", " + quote(entry.version()) + ", " + entry.element().getQualifiedName()
                 + ".class, " + entry.element().getQualifiedName() + "::new, "
                 + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase." + entry.startupPhase() + ", "
-                + "nl.hauntedmc.featureframework.api.feature.FeatureClassification." + entry.classification() + ", "
                 + entry.enabledByDefault() + ", " + enumArray("FeatureRole", entry.roles()) + ", " + stringArray(entry.requiredFeatures())
                 + ", " + stringArray(entry.optionalFeatures()) + ", " + stringArray(entry.plugins()) + ", "
+                + typeArray(entry.requiredResourceExtensions()) + ", " + typeArray(entry.optionalResourceExtensions()) + ", "
                 + typeArray(entry.requiresCapabilities()) + ", " + typeArray(entry.optionalCapabilities()) + ", "
                 + typeArray(entry.providesCapabilities()) + ", " + typeArray(entry.requiresInternalServices()) + ", "
                 + typeArray(entry.optionalInternalServices()) + ", " + typeArray(entry.providesInternalServices()) + ")";
@@ -395,12 +383,14 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
     private Types types() { return processingEnv.getTypeUtils(); }
     private String quote(String value) { return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""; }
 
-    private record Config(String generatedClassName, String featurePackage, TypeMirror baseType,
-                          TypeMirror contextType, Set<TypeMirror> bootstrapCapabilities) {}
+    private record Config(String generatedClassName, String featurePackage,
+                          Set<TypeMirror> bootstrapCapabilities) {}
 
     private record Entry(TypeElement element, String name, String version, FeatureStartupPhase startupPhase, boolean enabledByDefault,
-                         String classification, List<String> roles, List<String> requiredFeatures,
-                         List<String> optionalFeatures, List<String> plugins, List<TypeMirror> requiresCapabilities,
+                         List<String> roles, List<String> requiredFeatures,
+                         List<String> optionalFeatures, List<String> plugins,
+                         List<TypeMirror> requiredResourceExtensions, List<TypeMirror> optionalResourceExtensions,
+                         List<TypeMirror> requiresCapabilities,
                          List<TypeMirror> optionalCapabilities, List<TypeMirror> providesCapabilities,
                          List<TypeMirror> requiresInternalServices, List<TypeMirror> optionalInternalServices,
                          List<TypeMirror> providesInternalServices, TypeMirror constructorContext) {}

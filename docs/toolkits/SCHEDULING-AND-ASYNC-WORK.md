@@ -9,7 +9,7 @@ Scheduled work should be owned by the feature that created it and still follow t
 Use the task manager for work that should disappear when the feature stops:
 
 ```java
-resources().getTaskManager().scheduleRepeatingTask(
+resources().tasks().scheduleRepeatingTask(
         this::refresh,
         BukkitTime.seconds(30)
 );

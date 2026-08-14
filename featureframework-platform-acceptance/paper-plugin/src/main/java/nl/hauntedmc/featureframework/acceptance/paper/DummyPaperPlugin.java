@@ -4,6 +4,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalogListener;
+import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
 import nl.hauntedmc.featureframework.api.service.CapabilityRef;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
@@ -19,7 +20,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -30,7 +30,7 @@ import java.util.logging.Level;
 public final class DummyPaperPlugin extends JavaPlugin {
     private final AtomicInteger catalogTransitions = new AtomicInteger();
     private final AtomicBoolean observedStopping = new AtomicBoolean();
-    private PaperFeatureHost host;
+    private PaperFeatureHost<DummyPaperPlugin, String> host;
     private AutoCloseable catalogSubscription;
 
     @Override
@@ -70,10 +70,10 @@ public final class DummyPaperPlugin extends JavaPlugin {
     }
 
     private void verifyReload(CapabilityRef<GreetingApi> reference, long initialGeneration) {
-        PaperFeatureResources<Void> previousResources = Provider.currentResources;
+        PaperFeatureResources previousResources = Provider.currentResources;
         try {
             require(!Bukkit.isPrimaryThread(), "Reload caller was expected to be asynchronous");
-            require(host.reloadFeature("Provider").success(), "Provider graph reload failed");
+            require(host.recreate(FeatureId.of("Provider")).success(), "Provider graph reload failed");
             require(Provider.starts.get() == 2 && Consumer.starts.get() == 2,
                     "Reload did not recreate provider and dependent");
             require("paper-2".equals(Consumer.lastGreeting),
@@ -94,7 +94,7 @@ public final class DummyPaperPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         Throwable failure = null;
-        PaperFeatureResources<Void> resources = Provider.currentResources;
+        PaperFeatureResources resources = Provider.currentResources;
         try {
             if (host != null) {
                 host.stop();
@@ -110,38 +110,38 @@ public final class DummyPaperPlugin extends JavaPlugin {
         else fail(failure);
     }
 
-    private static void verifyOwnedResources(PaperFeatureResources<Void> resources) {
+    private static void verifyOwnedResources(PaperFeatureResources resources) {
         require(resources != null, "Provider resource scope was not captured");
         require(resources.state() == FeatureResourceState.OPEN, "Provider resource scope is not open");
-        require(resources.getTaskManager().getActiveTaskCount() == 1, "Provider task was not tracked");
-        require(resources.getListenerManager().getRegisteredListenerCount() >= 2,
-                "Provider listeners were not tracked");
-        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 1,
+        require(resources.tasks().getActiveTaskCount() == 1, "Provider task was not tracked");
+        require(resources.listeners().getRegisteredListenerCount() == 1,
+                "Provider listener was not tracked");
+        require(resources.commands().getRegisteredBrigadierCommandCount() == 1,
                 "Provider command was not tracked");
-        require(resources.getApiManager().getRegisteredServiceCount() == 1,
+        require(resources.capabilities().getRegisteredServiceCount() == 1,
                 "Provider service was not tracked");
     }
 
-    private static void verifyClosedResources(PaperFeatureResources<Void> resources, String phase) {
+    private static void verifyClosedResources(PaperFeatureResources resources, String phase) {
         require(resources != null, "Missing resource scope during " + phase);
         require(resources.state() == FeatureResourceState.CLOSED, "Resource scope remained open after " + phase);
-        require(resources.getTaskManager().state() == FeatureResourceState.CLOSED,
+        require(resources.tasks().state() == FeatureResourceState.CLOSED,
                 "Task manager remained open after " + phase);
-        require(resources.getTaskManager().getActiveTaskCount() == 0,
+        require(resources.tasks().getActiveTaskCount() == 0,
                 "Tasks remained registered after " + phase);
-        require(resources.getTaskManager().getInFlightTaskCount() == 0,
+        require(resources.tasks().getInFlightTaskCount() == 0,
                 "Tasks remained in flight after " + phase);
-        require(resources.getListenerManager().state() == FeatureResourceState.CLOSED,
+        require(resources.listeners().state() == FeatureResourceState.CLOSED,
                 "Listener manager remained open after " + phase);
-        require(resources.getListenerManager().getRegisteredListenerCount() == 0,
+        require(resources.listeners().getRegisteredListenerCount() == 0,
                 "Listeners remained registered after " + phase);
-        require(resources.getCommandManager().state() == FeatureResourceState.CLOSED,
+        require(resources.commands().state() == FeatureResourceState.CLOSED,
                 "Command manager remained open after " + phase);
-        require(resources.getCommandManager().getRegisteredBrigadierCommandCount() == 0,
+        require(resources.commands().getRegisteredBrigadierCommandCount() == 0,
                 "Commands remained registered after " + phase);
-        require(resources.getApiManager().state() == FeatureResourceState.CLOSED,
+        require(resources.capabilities().state() == FeatureResourceState.CLOSED,
                 "Service manager remained open after " + phase);
-        require(resources.getApiManager().getRegisteredServiceCount() == 0,
+        require(resources.capabilities().getRegisteredServiceCount() == 0,
                 "Services remained registered after " + phase);
     }
 
@@ -166,20 +166,20 @@ public final class DummyPaperPlugin extends JavaPlugin {
         require(Bukkit.isPrimaryThread(), phase + " did not run on Paper's primary thread");
     }
 
-    private static FeatureCollection<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> features() {
-        FeatureDefinition<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> consumer =
-                FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
+    private static FeatureCollection<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>> features() {
+        FeatureDefinition<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>> consumer =
+                FeatureDefinition.<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>>builder(
                                 "Consumer", "1.0.0", Consumer.class, Consumer::new)
                         .requiresCapabilities(GreetingApi.class)
                         .enabledByDefault()
                         .build();
-        FeatureDefinition<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>> provider =
-                FeatureDefinition.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder(
+        FeatureDefinition<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>> provider =
+                FeatureDefinition.<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>>builder(
                                 "Provider", "1.0.0", Provider.class, Provider::new)
                         .providesCapabilities(GreetingApi.class)
                         .enabledByDefault()
                         .build();
-        return FeatureCollection.<PaperFeature<Plugin, Void>, PaperFeatureContext<Plugin, Void>>builder()
+        return FeatureCollection.<PaperFeature<DummyPaperPlugin>, PaperFeatureContext<DummyPaperPlugin>>builder()
                 .feature(consumer)
                 .feature(provider)
                 .build();
@@ -187,32 +187,32 @@ public final class DummyPaperPlugin extends JavaPlugin {
 
     public interface GreetingApi { String greeting(); }
 
-    public static final class Provider extends PaperFeature<Plugin, Void> {
+    public static final class Provider extends PaperFeature<DummyPaperPlugin> {
         private static final AtomicInteger starts = new AtomicInteger();
-        private static volatile PaperFeatureResources<Void> currentResources;
+        private static volatile PaperFeatureResources currentResources;
 
-        public Provider(PaperFeatureContext<Plugin, Void> context) { super(context); }
+        public Provider(PaperFeatureContext<DummyPaperPlugin> context) { super(context); }
 
         @Override
         public void initialize() {
             requirePrimaryThread("Provider initialize");
             int generation = starts.incrementAndGet();
-            currentResources = getContext().resources();
-            currentResources.getTaskManager().scheduleRepeatingTask(
+            currentResources = context().resources();
+            currentResources.tasks().scheduleRepeatingTask(
                     () -> { }, BukkitTime.ticks(200L), BukkitTime.ticks(200L));
-            currentResources.getListenerManager().registerListener(new AcceptanceListener());
-            currentResources.getCommandManager().registerBrigadierCommand(new AcceptanceCommand());
-            getContext().services().registerService(GreetingApi.class, () -> "paper-" + generation);
+            currentResources.listeners().registerListener(new AcceptanceListener());
+            currentResources.commands().registerBrigadierCommand(new AcceptanceCommand());
+            context().services().registerService(GreetingApi.class, () -> "paper-" + generation);
         }
 
         @Override public void disable() { requirePrimaryThread("Provider disable"); }
     }
 
-    public static final class Consumer extends PaperFeature<Plugin, Void> {
+    public static final class Consumer extends PaperFeature<DummyPaperPlugin> {
         private static final AtomicInteger starts = new AtomicInteger();
         private static volatile String lastGreeting;
 
-        public Consumer(PaperFeatureContext<Plugin, Void> context) { super(context); }
+        public Consumer(PaperFeatureContext<DummyPaperPlugin> context) { super(context); }
 
         @Override
         public void initialize() {

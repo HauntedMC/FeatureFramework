@@ -7,7 +7,7 @@ import java.util.Set;
 
 /** Point-in-time public view of one feature and its lifecycle state. */
 public record FeatureSnapshot(
-        FeatureDescriptor descriptor,
+        FeatureMetadata metadata,
         boolean configuredEnabled,
         FeatureState state,
         Optional<String> failure,
@@ -19,7 +19,7 @@ public record FeatureSnapshot(
         Instant observedAt
 ) {
     public FeatureSnapshot {
-        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(metadata, "metadata");
         state = Objects.requireNonNull(state, "state");
         failure = failure == null ? Optional.empty() : failure.filter(value -> !value.isBlank());
         failureDetail = failureDetail == null ? Optional.empty() : failureDetail;
@@ -32,7 +32,7 @@ public record FeatureSnapshot(
 
     /** Creates a snapshot from the typed failure projection used by framework hosts. */
     public FeatureSnapshot(
-            FeatureDescriptor descriptor,
+            FeatureMetadata metadata,
             boolean configuredEnabled,
             FeatureState state,
             Optional<FeatureFailure> failureDetail,
@@ -43,7 +43,7 @@ public record FeatureSnapshot(
             Instant observedAt
     ) {
         this(
-                descriptor,
+                metadata,
                 configuredEnabled,
                 state,
                 failureDetail == null ? Optional.empty() : failureDetail.flatMap(FeatureFailure::message),

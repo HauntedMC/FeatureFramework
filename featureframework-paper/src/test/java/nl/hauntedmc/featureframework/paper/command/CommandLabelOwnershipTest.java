@@ -1,11 +1,13 @@
 package nl.hauntedmc.featureframework.paper.command;
 
+import nl.hauntedmc.featureframework.command.CommandLabelOwnership;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CommandLabelOwnershipTest {
 
@@ -15,8 +17,10 @@ class CommandLabelOwnershipTest {
         Object first = new Object();
         Object second = new Object();
 
-        assertNull(ownership.claim(first, List.of("demo", "alias")));
-        assertEquals("ALIAS", ownership.claim(second, List.of("other", "ALIAS")));
+        assertTrue(ownership.tryClaim(first, List.of("demo", "alias")).claimed());
+        CommandLabelOwnership.ClaimResult collision = ownership.tryClaim(second, List.of("other", "ALIAS"));
+        assertFalse(collision.claimed());
+        assertEquals("ALIAS", collision.blockingLabel());
     }
 
     @Test
@@ -25,11 +29,11 @@ class CommandLabelOwnershipTest {
         Object first = new Object();
         Object second = new Object();
 
-        assertNull(ownership.claim(first, List.of("demo")));
+        assertTrue(ownership.tryClaim(first, List.of("demo")).claimed());
         ownership.release(second, List.of("demo"));
-        assertEquals("demo", ownership.claim(second, List.of("demo")));
+        assertEquals("demo", ownership.tryClaim(second, List.of("demo")).blockingLabel());
 
         ownership.release(first, List.of("demo"));
-        assertNull(ownership.claim(second, List.of("demo")));
+        assertTrue(ownership.tryClaim(second, List.of("demo")).claimed());
     }
 }

@@ -1,19 +1,20 @@
 # 08 — Velocity with DataProvider
 
-This self-contained example gives each managed Velocity feature its own lifecycle-owned `FeatureDataManager`.
+This self-contained example gives each managed Velocity feature its own lifecycle-owned `DataProviderResources`.
 
-The normal `VelocityFeatureHost` intentionally uses no data manager, so DataProvider integration uses `VelocityFeatureHostComposition` plus `VelocityFeatureResourcesFactory.withDataProvider(...)`.
+The normal `VelocityFeatureHost` receives DataProvider integration by attaching a
+`VelocityDataProviderContributor`.
 
 ## Files
 
-- `ProxyPlugin.java` — builds the custom runtime/config/localization/resource composition.
-- `NetworkStorageFeature.java` — obtains its `FeatureDataManager` and registers a Redis messaging provider.
+- `ProxyPlugin.java` — configures the host façade and attaches the contributor.
+- `NetworkStorageFeature.java` — obtains its `DataProviderResources` and registers a Redis messaging provider.
 
 ## DataProvider discovery
 
-`VelocityFeatureResourcesFactory.withDataProvider(...)` resolves the plugin with id `dataprovider`. Its plugin instance must implement `DataProviderApiSupplier`.
+`VelocityDataProviderApiResolver` resolves the plugin with id `dataprovider`. Its plugin instance must expose the DataProvider API expected by the resolver.
 
-Each feature receives a separate `FeatureDataManager` bound to its feature name. The manager lazily creates its DataProvider scope and owns registered database/messaging/ORM resources until the feature stops.
+Each feature receives a separate `DataProviderResources` bound to its feature name. The manager lazily creates its DataProvider scope and owns registered database/messaging/ORM resources until the feature stops.
 
 ## Why Redis in this example?
 

@@ -10,14 +10,14 @@ An admin command can itself be a normal `FeatureAdmin` feature. Register its Bri
 
 ```java
 @FeatureDeclaration(name = "FeatureAdmin", version = "1.0.0", enabledByDefault = true)
-public final class FeatureAdminFeature extends PaperFeature<MyPlugin, Void> {
-    public FeatureAdminFeature(PaperFeatureContext<MyPlugin, Void> context) {
+public final class FeatureAdminFeature extends PaperFeature<MyPlugin> {
+    public FeatureAdminFeature(PaperFeatureContext<MyPlugin> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        resources().getCommandManager().registerBrigadierCommand(
+        resources().commands().registerBrigadierCommand(
                 new FeatureAdminCommand(plugin()));
     }
 
@@ -30,11 +30,12 @@ Keep the command as a thin platform adapter. It should authorize, parse, suggest
 ```java
 var host = plugin.featureHost();
 
-host.enableFeature(featureName);      // persists enabled state and starts when prerequisites are already healthy
-host.disableFeature(featureName);     // also stops loaded dependents when necessary
-host.softReloadFeature(featureName);  // lets the feature apply config or asks the host to recreate it
-host.reloadFeature(featureName);      // recreates the feature and its affected dependents
-host.reload();                        // reloads host files and reconciles the complete configured graph
+FeatureId id = FeatureId.of(featureName);
+host.enable(id);       // persists enabled state and starts when prerequisites are already healthy
+host.disable(id);      // also stops loaded dependents when necessary
+host.softReload(id);   // lets the feature apply config or asks the host to recreate it
+host.recreate(id);     // recreates the feature and its affected dependents
+host.reloadGraph();    // reloads host files and reconciles the complete configured graph
 ```
 
 Use `FeatureCommandModel` for read-only `list`, `info`, and completion data rather than hand-maintaining a parallel registry. Use `FeatureOperationMessages` to translate the structured operation responses into your localization keys and placeholders. The framework provides the model and result taxonomy; your command owns permissions, audit logging, rate limits, confirmation policy, and message wording.
@@ -54,10 +55,10 @@ Avoid naming a raw file read `reload` in an operator-facing command. Reloading a
 For example, a per-feature message refresh can be intentionally narrow:
 
 ```java
-String key = host.managedHost().resolveFeatureKey(requestedName);
-PaperFeature<Plugin, Void> feature = host.managedHost().registry().getLoadedFeature(key);
+FeatureId key = host.resolve(requestedName).orElse(null);
+PaperFeature<MyPlugin> feature = key == null ? null : host.findLoaded(key).orElse(null);
 if (feature != null) {
-    feature.getContext().localization().reloadLocalization();
+    feature.context().localization().reloadLocalization();
 }
 ```
 
@@ -100,11 +101,13 @@ The important boundary is the capability (`PlayerIdentityApi`, `NetworkEventsApi
 
 ## DataProvider and DataRegistry in a production feature
 
-Use a custom host composition when the feature needs DataProvider or DataRegistry. The framework creates a `FeatureDataManager` per feature scope, so a feature's database connections, typed data access, Redis messaging provider, and ORM contexts end with that feature generation.
+Attach the DataProvider and DataRegistry contributors to the standard host when features need them.
+The framework creates a `DataProviderResources` per feature scope, so a feature's database connections,
+typed data access, Redis messaging provider, and ORM contexts end with that feature generation.
 
 ```text
 initialize CapacityFeature
-  -> resources().getDataManager().registerRedisMessagingProvider(...)
+  -> resources().extensions().require(DataProviderResources.KEY).registerRedisMessagingProvider(...)
   -> build snapshot publisher/subscriber from the feature-owned provider
   -> expose CapacityApi only after the subscription is ready
 

@@ -11,8 +11,8 @@ Each directory is self-contained at the application-source level and includes it
 | 5 | [05-capability-provider-consumer](05-capability-provider-consumer/README.md) | publishing/consuming a capability |
 | 6 | [06-multi-feature-plugin](06-multi-feature-plugin/README.md) | larger proxy composition |
 | 7 | [07-advanced-lifecycle](07-advanced-lifecycle/README.md) | concurrency, recreation, manually owned clients |
-| 8 | [08-dataprovider](08-dataprovider/README.md) | `FeatureDataManager`, DataProvider, custom host composition |
-| 9 | [09-dataregistry](09-dataregistry/README.md) | `VelocityDataRegistryFeature`, DataRegistry, identity readiness |
+| 8 | [08-dataprovider](08-dataprovider/README.md) | `DataProviderResources` and a host resource contributor |
+| 9 | [09-dataregistry](09-dataregistry/README.md) | `VelocityDataRegistryAccess`, DataRegistry, identity readiness |
 | 10 | [10-network-operations](10-network-operations/README.md) | control-plane command, lifecycle operations, production feature graph |
 | 11 | [11-adaptive-rollout-router](11-adaptive-rollout-router/README.md) | Redis-driven subsystem: health snapshots, restart cache, canary/fallback policy, listener, command, config/messages, capability |
 

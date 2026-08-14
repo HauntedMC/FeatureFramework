@@ -122,7 +122,7 @@ final class ContractCommand implements BrigadierCommand {
 
     private void onMain(Runnable action) {
         try {
-            feature.resources().getTaskManager().scheduleOneTimeTask(action);
+            feature.resources().tasks().scheduleOneTimeTask(action);
         } catch (IllegalStateException ignored) {
             // A completion from the old generation is intentionally dropped during reload/disable.
         }

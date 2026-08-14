@@ -4,11 +4,12 @@ Data clients and caches should have a clear owner just like listeners and tasks.
 
 ## DataProvider integration
 
-The ready-to-use `PaperFeatureHost` and `VelocityFeatureHost` deliberately use `Void` as their data-manager type. If features need DataProvider, use the platform host-composition API with `PaperFeatureResourcesFactory.withDataProvider(...)` or `VelocityFeatureResourcesFactory.withDataProvider(...)`.
+Add the platform integration artifact and attach `PaperDataProviderContributor` or
+`VelocityDataProviderContributor` with the host builder's `contribute(...)` method.
 
-Those factories create one `FeatureDataManager` for each feature scope. The manager is bound to the feature name and participates in lifecycle quiescing/cleanup automatically.
+Those factories create one `DataProviderResources` for each feature scope. The manager is bound to the feature name and participates in lifecycle quiescing/cleanup automatically.
 
-`FeatureDataManager` can own:
+`DataProviderResources` can own:
 
 - database providers/connections;
 - typed `DataAccess` instances;
@@ -21,15 +22,19 @@ See the complete [Paper DataProvider example](../../examples/paper/08-dataprovid
 
 ## DataRegistry integration
 
-DataRegistry is separate from the feature data manager. Custom host composition can supply it with:
+DataRegistry is a separate typed resource extension. Attach it with:
 
 ```java
-.dataRegistry(() -> registryApi)
+.contribute(PaperDataRegistryContributor.create(() -> registryApi))
 ```
 
-or discover the platform plugin with `.dataRegistryPlugin(...)`.
+Use the corresponding Velocity contributor on Velocity; both also provide `optional(...)` for an
+optional host-plugin dependency.
 
-Features that need player identity/readiness behavior can extend `PaperDataRegistryFeature` or `VelocityDataRegistryFeature`. These bases expose the typed registry and integrate with the platform-specific DataRegistry readiness gates.
+Features remain on the normal platform base and implement `PaperDataRegistryAccess` or
+`VelocityDataRegistryAccess` when they need the convenience accessors/readiness context. Declare
+`DataRegistryResources.class` in `requiresResourceExtensions` so missing host wiring fails at the
+feature boundary.
 
 See the [Paper DataRegistry example](../../examples/paper/09-dataregistry/README.md) and [Velocity DataRegistry example](../../examples/velocity/09-dataregistry/README.md).
 

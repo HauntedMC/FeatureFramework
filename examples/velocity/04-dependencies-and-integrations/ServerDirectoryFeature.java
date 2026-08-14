@@ -5,8 +5,8 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 @FeatureDeclaration(name = "ServerDirectory", version = "1.0.0", enabledByDefault = true)
-public final class ServerDirectoryFeature extends VelocityFeature<Object, Void> {
-    public ServerDirectoryFeature(VelocityFeatureContext<Object, Void> context) { super(context); }
+public final class ServerDirectoryFeature extends VelocityFeature<Object> {
+    public ServerDirectoryFeature(VelocityFeatureContext<Object> context) { super(context); }
     @Override public void initialize() { logger().info("Server directory ready"); }
     @Override public void disable() { }
 }

@@ -18,18 +18,18 @@ removing duplicated framework infrastructure from an application module.
 - reusable platform adapters for Paper or Velocity;
 - DataProvider resource assembly and optional DataRegistry discovery/gate plumbing.
 
-Concrete features should extend `PaperDataProviderFeature` or `VelocityDataProviderFeature` directly
-when they use the standard data integration. Use `PaperFeature` or `VelocityFeature` for features
-without that dependency. Do not recreate a local base-feature, context, host, lifecycle tracker, or
-manager hierarchy.
+Concrete features always extend `PaperFeature` or `VelocityFeature` directly. Install DataProvider,
+DataRegistry, UI, or third-party behavior through host resource contributors and declare required
+resource-extension types in `@FeatureDeclaration`. Do not recreate a local base-feature, context,
+host, lifecycle tracker, or manager hierarchy.
 
 ## Descriptor terminology
 
 FeatureFramework exposes two intentionally different descriptor types for distinct responsibilities:
 
-- `nl.hauntedmc.featureframework.loader.FeatureDescriptor<F, C>` is the host construction descriptor.
+- `nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition<F, C>` is the host construction descriptor.
   It contains the concrete feature type, constructor, and required/optional/plugin dependencies.
-- `nl.hauntedmc.featureframework.api.feature.FeatureDescriptor` is implementation-free public catalog
+- `nl.hauntedmc.featureframework.api.feature.FeatureMetadata` is implementation-free public catalog
   metadata. It is safe to expose to consumers of `FeatureFrameworkApi`.
 
 Use `@FeatureDeclaration` on each concrete feature and `@GenerateFeatureCatalog` on the bootstrap. The
@@ -42,7 +42,7 @@ advanced option for inventories that are genuinely dynamic.
 2. Declare each concrete feature with `@FeatureDeclaration` and add `@GenerateFeatureCatalog` to the bootstrap.
    Configure `featureframework-processor` explicitly in the compiler's annotation processor path.
 3. Replace application-owned feature loading and lifecycle managers with `PaperFeatureHost`,
-   `VelocityFeatureHost`, or a platform host composition.
+   or `VelocityFeatureHost`.
 4. Migrate concrete features to the framework platform base and receive dependencies through their
    typed context rather than static application lookups.
 5. Register tasks, listeners, commands, services, caches, and data connections through the scoped
@@ -84,5 +84,5 @@ The acceptance profile compiles and boots independent Paper and Velocity plugins
 runtimes and verifies graph reload plus feature-owned task/listener/command/service cleanup. It does not
 require Docker or an external database.
 
-FeatureFramework 2.x intentionally removes legacy accessors. Migrate feature code to `plugin()`,
+This release intentionally removes obsolete framework accessors. Migrate feature code to `plugin()`,
 `logger()`, `resources()`, and `localization()`.

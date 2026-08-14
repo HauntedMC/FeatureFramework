@@ -8,20 +8,20 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 @FeatureDeclaration(name = "Status", version = "1.0.0", enabledByDefault = true)
-public final class ConfigurableProxyFeature extends VelocityFeature<Object, Void> {
-    public ConfigurableProxyFeature(VelocityFeatureContext<Object, Void> context) {
+public final class ConfigurableProxyFeature extends VelocityFeature<Object> {
+    public ConfigurableProxyFeature(VelocityFeatureContext<Object> context) {
         super(context);
     }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap()
                 .put("announce-switches", true)
                 .put("sample-interval-seconds", 30);
     }
 
     @Override
-    public MessageMap getDefaultMessages() {
+    public MessageMap defaultMessages() {
         MessageMap messages = new MessageMap();
         messages.add("server-switch", "<gray>Connecting you to <white>{server}</white>...</gray>");
         return messages;
@@ -29,7 +29,7 @@ public final class ConfigurableProxyFeature extends VelocityFeature<Object, Void
 
     @Override
     public void initialize() {
-        Boolean announceSwitches = getConfigHandler().get("announce-switches", Boolean.class);
+        Boolean announceSwitches = config().get("announce-switches", Boolean.class);
         logger().info("Announce server switches: " + announceSwitches);
     }
 

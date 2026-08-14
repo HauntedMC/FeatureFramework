@@ -18,10 +18,10 @@ final class ContractJoinListener implements Listener {
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         int open = service.lastKnownOpenCount();
-        int minimum = feature.getConfigHandler().get("join-notice.minimum-open", Integer.class, 3);
+        int minimum = feature.config().get("join-notice.minimum-open", Integer.class, 3);
         if (open < minimum) return;
 
-        feature.resources().getTaskManager().scheduleDelayedTask(() -> {
+        feature.resources().tasks().scheduleDelayedTask(() -> {
             if (!event.getPlayer().isOnline()) return;
             event.getPlayer().sendMessage(feature.localization().getMessage("contracts.join-notice")
                     .with("count", open).forAudience(event.getPlayer()).build());

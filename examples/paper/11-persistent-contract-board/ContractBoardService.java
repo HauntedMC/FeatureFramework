@@ -95,7 +95,7 @@ final class ContractBoardService implements ContractBoardApi {
 
     private <T> CompletableFuture<T> submit(java.util.function.Supplier<T> work) {
         if (closed.get()) return CompletableFuture.failedFuture(new IllegalStateException("ContractBoard is stopping"));
-        return feature.resources().getTaskManager().supplyAsync(() -> {
+        return feature.resources().tasks().supplyAsync(() -> {
             if (closed.get()) throw new IllegalStateException("ContractBoard is stopping");
             return work.get();
         });

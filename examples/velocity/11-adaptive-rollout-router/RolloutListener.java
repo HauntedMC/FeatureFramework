@@ -30,7 +30,7 @@ final class RolloutListener {
 
         String target = decision.target().orElseThrow();
         if (target.equalsIgnoreCase(requested)) return;
-        RegisteredServer replacement = feature.getContext().proxy().getServer(target).orElse(null);
+        RegisteredServer replacement = feature.context().proxy().getServer(target).orElse(null);
         if (replacement == null) {
             event.setResult(ServerPreConnectEvent.ServerResult.denied());
             event.getPlayer().sendMessage(feature.localization().getMessage("rollout.misconfigured")

@@ -5,14 +5,14 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 @FeatureDeclaration(name = "Welcome", version = "1.0.0", enabledByDefault = true)
-public final class ProxyWelcomeFeature extends VelocityFeature<Object, Void> {
-    public ProxyWelcomeFeature(VelocityFeatureContext<Object, Void> context) {
+public final class ProxyWelcomeFeature extends VelocityFeature<Object> {
+    public ProxyWelcomeFeature(VelocityFeatureContext<Object> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        logger().info("Proxy welcome enabled on " + getContext().proxy().getVersion());
+        logger().info("Proxy welcome enabled on " + context().proxy().getVersion());
     }
 
     @Override

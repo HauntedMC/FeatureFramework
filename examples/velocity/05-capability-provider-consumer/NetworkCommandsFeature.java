@@ -7,10 +7,10 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 @FeatureDeclaration(
         name = "NetworkCommands", version = "1.0.0", enabledByDefault = true, requiresCapabilities = NetworkPlayerApi.class)
-public final class NetworkCommandsFeature extends VelocityFeature<Object, Void> {
+public final class NetworkCommandsFeature extends VelocityFeature<Object> {
     private NetworkPlayerApi players;
 
-    public NetworkCommandsFeature(VelocityFeatureContext<Object, Void> context) {
+    public NetworkCommandsFeature(VelocityFeatureContext<Object> context) {
         super(context);
     }
 

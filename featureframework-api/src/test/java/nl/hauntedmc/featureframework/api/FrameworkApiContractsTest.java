@@ -1,7 +1,7 @@
 package nl.hauntedmc.featureframework.api;
 
 import nl.hauntedmc.featureframework.api.feature.*;
-import nl.hauntedmc.featureframework.api.model.ServerId;
+import nl.hauntedmc.featureframework.api.network.ServerId;
 import nl.hauntedmc.featureframework.api.service.CapabilityUnavailableException;
 import org.junit.jupiter.api.Test;
 
@@ -16,32 +16,31 @@ class FrameworkApiContractsTest {
     @Test
     void validatesIdentifiersAndMetadata() {
         FeatureId id = FeatureId.of(" Queue ");
-        FeatureDescriptor descriptor = new FeatureDescriptor(
+        FeatureMetadata metadata = new FeatureMetadata(
                 id,
                 "Queue",
                 "1.0.0",
-                FeatureClassification.CAPABILITY_PROVIDER,
                 Set.of(),
                 Set.of("example.QueueApi"),
                 Set.of(FeatureRole.CAPABILITY_PROVIDER)
         );
 
         assertEquals("queue", id.value());
-        assertEquals("Queue", descriptor.displayName());
+        assertEquals("Queue", metadata.displayName());
         assertThrows(IllegalArgumentException.class, () -> FeatureId.of("bad id"));
-        assertThrows(IllegalArgumentException.class, () -> new FeatureDescriptor(
-                id, " ", "1", FeatureClassification.INTERNAL, Set.of(), Set.of(), Set.of()
+        assertThrows(IllegalArgumentException.class, () -> new FeatureMetadata(
+                id, " ", "1", Set.of(), Set.of(), Set.of()
         ));
     }
 
     @Test
     void providesBothHumanAndTypedFailureProjections() {
-        FeatureDescriptor descriptor = new FeatureDescriptor(
+        FeatureMetadata metadata = new FeatureMetadata(
                 FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of()
         );
         FeatureFailure failure = new FeatureFailure("STARTUP", "initialize", Optional.of("boom"));
         FeatureSnapshot snapshot = new FeatureSnapshot(
-                descriptor,
+                metadata,
                 true,
                 FeatureState.FAILED,
                 Optional.of(failure),
@@ -55,7 +54,7 @@ class FrameworkApiContractsTest {
         assertEquals(Optional.of("boom"), snapshot.failure());
         assertEquals(Optional.of(failure), snapshot.failureDetail());
         assertThrows(IllegalArgumentException.class, () -> new FeatureSnapshot(
-                descriptor, true, FeatureState.ACTIVE, Optional.empty(), Set.of(),
+                metadata, true, FeatureState.ACTIVE, Optional.empty(), Set.of(),
                 Instant.EPOCH, Optional.empty(), -1, Instant.EPOCH
         ));
     }

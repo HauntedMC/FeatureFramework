@@ -9,11 +9,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 @GenerateFeatureCatalog(
         generatedClassName = "com.example.myplugin.catalog.BuiltInFeatures",
-        featurePackage = "com.example.myplugin",
-        featureBase = PaperFeature.class,
-        featureContext = PaperFeatureContext.class)
+        featurePackage = "com.example.myplugin")
 public final class MyPlugin extends JavaPlugin {
-    private PaperFeatureHost featureHost;
+    private PaperFeatureHost<MyPlugin, String> featureHost;
 
     @Override
     public void onEnable() {

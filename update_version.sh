@@ -9,9 +9,16 @@ readonly MODULES=(
   featureframework-testkit
   featureframework-mockito-testkit
   featureframework-api
-  featureframework-shared
+  featureframework-toolkit
+  featureframework-core
+  featureframework-dataprovider
+  featureframework-dataregistry
   featureframework-paper
+  featureframework-paper-toolkit
+  featureframework-paper-integrations
   featureframework-velocity
+  featureframework-velocity-integrations
+  featureframework-bom
 )
 
 die() {

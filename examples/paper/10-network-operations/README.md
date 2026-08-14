@@ -6,7 +6,7 @@ The included `NetworkStatusFeature` is a small managed target for the command. I
 
 ```text
 /features list | info <feature>
-  -> FeatureCommandModel reads the authoritative registry
+  -> FeatureCommandModel reads the authoritative feature catalog
 
 /features enable | disable | softreload | reload <feature>
   -> PaperFeatureHost returns a structured operation response
@@ -28,12 +28,12 @@ Use a separate permission for every mutation, log actor/request/result/affected 
 Expose a narrow `reloadlocal <feature>` only for files that are safe to reread without changing runtime state, commonly feature localization:
 
 ```java
-PaperFeature<Plugin, Void> feature = plugin.featureHost()
-        .managedHost().registry().getLoadedFeature(featureKey);
-feature.getContext().localization().reloadLocalization();
+PaperFeature<MyPlugin> feature = plugin.featureHost()
+        .findLoaded(FeatureId.of(featureKey)).orElse(null);
+feature.context().localization().reloadLocalization();
 ```
 
-If the changed value affects a scheduled task, listener policy, remote client, data subscription, cache, or capability, call `softReloadFeature` or `reloadFeature` instead. A feature can return `RECREATE_REQUIRED` from `applyConfiguration()` to make the safe choice explicit.
+If the changed value affects a scheduled task, listener policy, remote client, data subscription, cache, or capability, call `host.softReload(id)` or `host.recreate(id)` instead. A feature can return `RECREATE_REQUIRED` from `applyConfiguration()` to make the safe choice explicit.
 
 ## A realistic graph to combine with examples 08 and 09
 

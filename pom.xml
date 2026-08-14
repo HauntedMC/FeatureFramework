@@ -59,13 +59,21 @@
     </distributionManagement>
 
     <modules>
+        <module>featureframework-bom</module>
         <module>featureframework-testkit</module>
         <module>featureframework-mockito-testkit</module>
         <module>featureframework-api</module>
+        <module>featureframework-toolkit</module>
         <module>featureframework-processor</module>
-        <module>featureframework-shared</module>
+        <module>featureframework-core</module>
+        <module>featureframework-dataprovider</module>
+        <module>featureframework-dataregistry</module>
+        <module>featureframework-data-audit</module>
         <module>featureframework-paper</module>
+        <module>featureframework-paper-toolkit</module>
+        <module>featureframework-paper-integrations</module>
         <module>featureframework-velocity</module>
+        <module>featureframework-velocity-integrations</module>
     </modules>
 
     <properties>

@@ -9,20 +9,20 @@ import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(name = "Welcome", version = "1.0.0", enabledByDefault = true)
-public final class ConfigurableWelcomeFeature extends PaperFeature<Plugin, Void> {
-    public ConfigurableWelcomeFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class ConfigurableWelcomeFeature extends PaperFeature<Plugin> {
+    public ConfigurableWelcomeFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 
     @Override
-    public ConfigMap getDefaultConfig() {
+    public ConfigMap defaultConfig() {
         return new ConfigMap()
                 .put("enabled-on-join", true)
                 .put("delay-ticks", 10L);
     }
 
     @Override
-    public MessageMap getDefaultMessages() {
+    public MessageMap defaultMessages() {
         MessageMap messages = new MessageMap();
         messages.add("welcome", "<green>Welcome to the server!</green>");
         return messages;
@@ -30,7 +30,7 @@ public final class ConfigurableWelcomeFeature extends PaperFeature<Plugin, Void>
 
     @Override
     public void initialize() {
-        Boolean enabled = getConfigHandler().get("enabled-on-join", Boolean.class);
+        Boolean enabled = config().get("enabled-on-join", Boolean.class);
         logger().info("Join welcome enabled: " + enabled);
     }
 

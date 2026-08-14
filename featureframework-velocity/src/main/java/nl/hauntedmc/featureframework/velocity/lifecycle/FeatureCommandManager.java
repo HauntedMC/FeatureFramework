@@ -4,8 +4,8 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.CommandMeta;
 import com.velocitypowered.api.command.CommandSource;
+import nl.hauntedmc.featureframework.command.CommandLabelOwnership;
 import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
-import nl.hauntedmc.featureframework.velocity.command.CommandOwnershipRegistry;
 import nl.hauntedmc.featureframework.velocity.command.CommandRegistrationException;
 import nl.hauntedmc.featureframework.velocity.command.brigadier.BrigadierCommand;
 import org.slf4j.Logger;
@@ -16,18 +16,18 @@ import java.util.*;
 public class FeatureCommandManager {
     private final Object plugin;
     private final CommandManager commandManager;
-    private final CommandOwnershipRegistry ownershipRegistry;
+    private final CommandLabelOwnership ownershipRegistry;
     private final Logger logger;
     private final Map<String, BrigadierCommand> commands = new LinkedHashMap<>();
     private final Map<String, CommandMeta> metas = new LinkedHashMap<>();
-    private final Map<String, CommandOwnershipRegistry.Registration> ownership = new LinkedHashMap<>();
+    private final Map<String, CommandLabelOwnership.Claim> ownership = new LinkedHashMap<>();
     private String featureName;
     private FeatureResourceState state = FeatureResourceState.OPEN;
 
     public FeatureCommandManager(
             Object plugin,
             CommandManager commandManager,
-            CommandOwnershipRegistry ownershipRegistry,
+            CommandLabelOwnership ownershipRegistry,
             Logger logger,
             String featureName
     ) {
@@ -59,7 +59,17 @@ public class FeatureCommandManager {
                     + "' attempted to register Brigadier command '" + name + "' twice");
         }
         List<String> aliases = sanitizeAliases(command.aliases(), name);
-        CommandOwnershipRegistry.Registration claim = ownershipRegistry.claim(featureName, name, aliases);
+        CommandOwner owner = new CommandOwner(featureName, name);
+        List<String> labels = new ArrayList<>(aliases.size() + 1);
+        labels.add(name);
+        labels.addAll(aliases);
+        CommandLabelOwnership.ClaimResult claimResult = ownershipRegistry.tryClaim(owner, labels);
+        if (!claimResult.claimed()) {
+            throw new CommandRegistrationException("Command alias '" + claimResult.blockingLabel()
+                    + "' for feature '" + featureName + "' command '" + name
+                    + "' is already owned by " + claimResult.blockingOwner());
+        }
+        CommandLabelOwnership.Claim claim = claimResult.claim();
         try {
             LiteralCommandNode<CommandSource> node = command.buildTree();
             var velocityCommand = new com.velocitypowered.api.command.BrigadierCommand(node);
@@ -94,7 +104,7 @@ public class FeatureCommandManager {
         }
         commands.remove(commandName);
         metas.remove(commandName);
-        CommandOwnershipRegistry.Registration claim = ownership.remove(commandName);
+        CommandLabelOwnership.Claim claim = ownership.remove(commandName);
         if (claim != null) claim.close();
         logger.info("[Brigadier] Unregistered /{}", commandName);
     }
@@ -145,4 +155,6 @@ public class FeatureCommandManager {
 
     @SuppressWarnings("unchecked")
     private static <E extends Throwable> void throwUnchecked(Throwable failure) throws E { throw (E) failure; }
+
+    private record CommandOwner(String featureName, String commandName) { }
 }

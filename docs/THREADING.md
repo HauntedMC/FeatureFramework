@@ -46,4 +46,4 @@ The platform adapters remain responsible only for native scheduling, timing unit
 
 ## Platform boundary
 
-Code in `featureframework-shared` must not import Bukkit, Paper or Velocity APIs. Platform modules translate shared policy into their native APIs. Platform-specific facilities such as Paper inventories, command registry takeover, PlaceholderAPI and Velocity proxy/event APIs remain in their platform modules.
+Code in `featureframework-core` must not import Bukkit, Paper or Velocity APIs. Platform modules translate shared policy into their native APIs. Optional facilities such as Paper inventories, PlaceholderAPI, DataProvider, and DataRegistry remain in dedicated toolkit or integration artifacts.

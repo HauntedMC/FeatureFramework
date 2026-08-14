@@ -15,12 +15,6 @@ public @interface GenerateFeatureCatalog {
     /** Root package containing this host's concrete feature declarations. */
     String featurePackage();
 
-    /** Common framework feature base type. */
-    Class<?> featureBase();
-
-    /** Context type accepted by every feature constructor. */
-    Class<?> featureContext();
-
     /** Capabilities made available by the bootstrap before features start. */
     Class<?>[] bootstrapCapabilities() default {};
 }

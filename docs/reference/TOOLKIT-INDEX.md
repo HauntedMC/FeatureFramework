@@ -4,7 +4,7 @@ Use this page when you know what you want to build but are not sure which Featur
 
 ## Shared feature/runtime APIs
 
-`featureframework-api` and `featureframework-shared` contain the platform-neutral model:
+`featureframework-api`, `featureframework-core`, and `featureframework-toolkit` contain the platform-neutral model:
 
 - `host` — `FeatureDefinition`, `FeatureCollection`, managed contexts, host composition;
 - `feature` — feature contracts and lifecycle-aware base classes;
@@ -33,12 +33,12 @@ Use the [text and formatting guide](../toolkits/TEXT-AND-FORMATTING.md) for trus
 
 Useful areas in `featureframework-paper` include:
 
-- `paper.host` — `PaperFeature`, context, host, and custom host composition;
+- `paper.host` — `PaperFeature`, context, and the configurable `PaperFeatureHost` façade;
 - `paper.lifecycle` — owned tasks, listeners, and feature resource scope;
 - `paper.command` — feature-owned commands and Brigadier integration;
 - `paper.localization` and `paper.log` — platform message/logging adapters;
-- `paper.ui` — inventory/menu UI support;
-- packet, registry, time/clock, preview, and toast helpers.
+- `paper.ui` — inventory/menu UI support from `featureframework-paper-toolkit`;
+- optional packet, PlaceholderAPI, ViaVersion, DataProvider, and DataRegistry adapters from `featureframework-paper-integrations`.
 
 `PaperFeatureResources` is the main entry point for feature-owned tasks, commands, listeners, data, caches, GUIs, and services.
 
@@ -46,11 +46,11 @@ Useful areas in `featureframework-paper` include:
 
 Useful areas in `featureframework-velocity` include:
 
-- `velocity.host` — `VelocityFeature`, context, host, and custom host composition;
+- `velocity.host` — `VelocityFeature`, context, and the configurable `VelocityFeatureHost` façade;
 - lifecycle/resource managers for tasks, listeners, commands, data, caches, and services;
 - command/Brigadier adapters;
 - localization and feature logging;
-- connection/network utilities.
+- connection/network utilities and optional DataProvider/DataRegistry contributors from `featureframework-velocity-integrations`.
 
 Use `VelocityFeatureContext.proxy()` when you need the native `ProxyServer`.
 

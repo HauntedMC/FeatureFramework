@@ -79,7 +79,7 @@ All settings return `RECREATE_REQUIRED` on soft reload. Recreation swaps the Red
 
 ## DataProvider lifecycle
 
-`RolloutProxyPlugin` uses `VelocityFeatureResourcesFactory.withDataProvider(...)`. The feature asks its `FeatureDataManager` for one Redis messaging access and keeps the returned `Subscription` as its only manually closed handle.
+`RolloutProxyPlugin` uses `VelocityFeatureResourcesFactory.withDataProvider(...)`. The feature asks its `DataProviderResources` for one Redis messaging access and keeps the returned `Subscription` as its only manually closed handle.
 
 Shutdown order matters:
 
@@ -103,7 +103,7 @@ The public contract contains immutable values and domain behavior. Transport and
 3. [`RolloutPolicy.java`](RolloutPolicy.java) — deterministic, testable selection logic.
 4. [`RolloutListener.java`](RolloutListener.java) — synchronous cache-only Velocity adapter.
 5. [`BackendHealthMessage.java`](BackendHealthMessage.java) — the wire boundary.
-6. [`RolloutProxyPlugin.java`](RolloutProxyPlugin.java) — DataProvider-enabled host composition.
+6. [`RolloutProxyPlugin.java`](RolloutProxyPlugin.java) — platform facade with a DataProvider contributor.
 
 ## What production code would add
 

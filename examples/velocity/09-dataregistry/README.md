@@ -1,8 +1,8 @@
 # 09 — Velocity with DataRegistry
 
-This self-contained example uses FeatureFramework's `VelocityDataRegistryFeature` base and DataRegistry readiness gate.
+This self-contained example uses `VelocityDataRegistryAccess` and the DataRegistry readiness gate.
 
-`VelocityFeatureHost` does not configure DataRegistry by default, so the bootstrap uses `VelocityFeatureHostComposition` and `.dataRegistryPlugin("dataregistry")`.
+The bootstrap attaches `VelocityDataRegistryContributor`, using plugin discovery for `dataregistry`.
 
 ## Files
 
@@ -11,12 +11,12 @@ This self-contained example uses FeatureFramework's `VelocityDataRegistryFeature
 
 ## DataRegistry discovery
 
-On Velocity, `.dataRegistryPlugin("dataregistry")` resolves the plugin container by id. Its instance must implement `DataRegistryApiProvider`.
+On Velocity, `VelocityDataRegistryPluginDiscovery` resolves the plugin container by id. Its instance must implement `DataRegistryApiProvider`.
 
-If you already have a `DataRegistryApi` reference, configure `.dataRegistry(() -> registry)` instead.
+If you already have a `DataRegistryApi` reference, pass its supplier directly to the contributor.
 
 ## Readiness
 
 DataRegistry-backed identity can be asynchronous. `VelocityDataRegistryIdentityGate.runWhenReady(...)` waits without blocking and schedules the continuation through the feature's owned task manager. Before running the action, the gate resolves the connected player again by UUID.
 
-`VelocityDataRegistryFeature` also exposes `playerReferences()`, a shared `PlayerReferenceResolver` for immutable player-reference lookups during the current feature generation.
+`VelocityDataRegistryAccess` also exposes `playerReferences()`, a shared `PlayerReferenceResolver` for immutable player-reference lookups during the current feature generation.

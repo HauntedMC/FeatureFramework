@@ -10,15 +10,15 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 
 @FeatureDeclaration(name = "Activity", version = "1.0.0", enabledByDefault = true)
-public final class ActivityFeature extends PaperFeature<Plugin, Void> {
-    public ActivityFeature(PaperFeatureContext<Plugin, Void> context) {
+public final class ActivityFeature extends PaperFeature<Plugin> {
+    public ActivityFeature(PaperFeatureContext<Plugin> context) {
         super(context);
     }
 
     @Override
     public void initialize() {
-        resources().getListenerManager().registerListener(new JoinListener());
-        resources().getTaskManager().scheduleRepeatingTask(
+        resources().listeners().registerListener(new JoinListener());
+        resources().tasks().scheduleRepeatingTask(
                 () -> logger().info("Activity heartbeat"),
                 BukkitTime.seconds(30)
         );
