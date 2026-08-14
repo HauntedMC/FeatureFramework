@@ -24,15 +24,6 @@ FeatureFramework makes that model explicit:
 - `FeatureCommandModel` and `FeatureOperationMessages` provide the building blocks for a permissioned in-game operations command rather than another global singleton;
 - the shared text toolkit safely normalizes legacy and MiniMessage formats, supports explicit MiniMessage allowlists, sanitizes untrusted tags, autolinks URLs, serializes components, and provides reusable validation patterns.
 
-That makes feature boundaries useful operational boundaries:
-
-| Subsystem | What one feature can safely own | What consumers see |
-|---|---|---|
-| Persistent gameplay domain | DataProvider SQL/ORM, repositories, hot and disk caches, commands, listeners, reconciliation tasks | an async capability with immutable results |
-| Proxy admission or routing | Redis/stream subscription, freshness-bounded snapshot, deterministic policy, connection listener, status command | a synchronous cache-only decision capability |
-| Cross-platform workflow | outbox/consumer, idempotency state, retry task, wire publisher/subscriber | versioned messages across processes; behavior capabilities locally |
-| Third-party integration | client, callback registrations, rate limits, health state, config and messages | a small backend-neutral capability or optional availability |
-
 The two end-to-end examples below put the framework APIs in context, including ownership, consistency, reload, and verification decisions:
 
 - [Paper persistent ContractBoard](examples/paper/11-persistent-contract-board/README.md) — transactional MySQL, async service, hot and JSON caches, command, listener, messages, config, and capability.
