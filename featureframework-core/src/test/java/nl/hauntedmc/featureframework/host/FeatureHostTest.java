@@ -9,6 +9,9 @@ import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.localization.LocalizationStore;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
+import nl.hauntedmc.featureframework.operation.reset.FeatureResetRuntimeOutcome;
+import nl.hauntedmc.featureframework.operation.reset.MessageResetScope;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
@@ -18,12 +21,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FeatureHostTest {
@@ -79,6 +85,9 @@ class FeatureHostTest {
                 host.features().find(FeatureId.of("Consumer")).orElseThrow().metadata().roles());
         assertTrue(host.features().snapshot().stream()
                 .allMatch(snapshot -> snapshot.state() == FeatureState.ACTIVE));
+        var missingPreview = host.previewFileReset(FeatureId.of("Missing"), FeatureFileResetRequest.config());
+        assertFalse(missingPreview.valid());
+        assertTrue(missingPreview.feature().isBlank());
         assertEquals("hello-1", host.capabilities().reference(GreetingApi.class).require().greeting());
         long firstGeneration = host.capabilities().reference(GreetingApi.class).generation().orElseThrow();
 
@@ -95,6 +104,30 @@ class FeatureHostTest {
         assertEquals(3, ProviderFeature.starts.get());
         assertEquals(3, ConsumerFeature.starts.get());
         assertEquals("hello-3", host.capabilities().reference(GreetingApi.class).require().greeting());
+
+        configuration.openFeatureConfig("Provider").put("obsolete", "remove-me");
+        var configReset = host.resetFiles(FeatureId.of("Provider"), FeatureFileResetRequest.config());
+        assertTrue(configReset.success());
+        assertEquals(FeatureResetRuntimeOutcome.ACTIVE, configReset.runtimeOutcome());
+        assertTrue(configReset.affectedDependents().contains("Consumer"));
+        assertNull(configuration.openFeatureConfig("Provider").get("obsolete"));
+        assertTrue(configuration.isFeatureEnabled("Provider"));
+        assertEquals(4, ProviderFeature.starts.get());
+        assertEquals(4, ConsumerFeature.starts.get());
+
+        Path providerDirectory = temporaryDirectory.resolve("features/Provider");
+        try {
+            Files.writeString(providerDirectory.resolve("messages_EN.yml"), "custom: english\n");
+            Files.writeString(providerDirectory.resolve("messages_old-LANG.yml"), "custom: stale\n");
+        } catch (java.io.IOException failure) {
+            throw new AssertionError(failure);
+        }
+        var messagesReset = host.resetFiles(FeatureId.of("Provider"), FeatureFileResetRequest.messages(
+                MessageResetScope.MAIN_AND_OVERRIDES));
+        assertTrue(messagesReset.success());
+        assertEquals(2, messagesReset.deletedOverrides().size());
+        assertTrue(Files.notExists(providerDirectory.resolve("messages_EN.yml")));
+        assertTrue(Files.notExists(providerDirectory.resolve("messages_old-LANG.yml")));
 
         host.stop();
 

@@ -7,12 +7,16 @@ import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.FeatureConfigurationRoot;
 import nl.hauntedmc.featureframework.feature.LifecycleFeature;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
+import nl.hauntedmc.featureframework.localization.FeatureLocalization;
 import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResponse;
 import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetPreview;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
@@ -90,6 +94,21 @@ public final class FeatureHostComposition<
     public FeatureReloadResponse recreate(FeatureId id) { return host.recreate(id); }
     public FeatureSoftReloadResponse softReload(FeatureId id) { return host.softReload(id); }
     public FeatureGraphReloadResult reloadGraph() { return host.reloadGraph(); }
+    public FeatureFileResetPreview previewFileReset(FeatureId id, FeatureFileResetRequest request) {
+        return host.previewFileReset(id, request);
+    }
+    public FeatureFileResetResponse resetFiles(FeatureId id, FeatureFileResetRequest request) {
+        return host.resetFiles(id, request);
+    }
+    public boolean reloadFeatureLocalization(FeatureId id) {
+        return host.reloadFeatureLocalization(id, name -> {
+            Object value = scopes.localization(name);
+            if (!(value instanceof FeatureLocalization featureLocalization)) {
+                throw new IllegalStateException("Feature localization does not implement FeatureLocalization");
+            }
+            featureLocalization.reloadLocalization();
+        });
+    }
     public Optional<FeatureId> resolve(String name) { return host.resolve(name); }
     public Optional<F> findLoaded(FeatureId id) { return host.findLoaded(id); }
     public List<F> loadedFeatures() { return host.loadedFeatures(); }

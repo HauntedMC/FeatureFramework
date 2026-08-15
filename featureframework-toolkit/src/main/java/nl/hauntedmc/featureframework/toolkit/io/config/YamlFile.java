@@ -11,6 +11,8 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import java.util.Objects;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
@@ -68,6 +70,23 @@ public final class YamlFile {
         }
     }
 
+    /**
+     * Replaces this file with a valid empty YAML document, even when the latest on-disk document
+     * could not be loaded. This is intentionally separate from normal mutation: callers use it
+     * only for explicit recovery operations where discarding the invalid document is the goal.
+     */
+    public void replaceWithEmptyDocument() {
+        lock.writeLock().lock();
+        try {
+            CommentedConfigurationNode candidate = CommentedConfigurationNode.root();
+            saveCandidate(candidate, true);
+            root = candidate;
+            loadFailure = null;
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
     Object getRaw(String absolutePath) {
         lock.readLock().lock();
         try {
@@ -100,13 +119,13 @@ public final class YamlFile {
 
     void commitCandidateUnsafe(CommentedConfigurationNode candidate) {
         Objects.requireNonNull(candidate, "candidate");
-        saveCandidate(candidate);
+        saveCandidate(candidate, false);
         root = candidate;
     }
 
-    private void saveCandidate(CommentedConfigurationNode candidate) {
+    private void saveCandidate(CommentedConfigurationNode candidate, boolean allowInvalidReplacement) {
         ConfigLoadException currentFailure = loadFailure;
-        if (currentFailure != null) {
+        if (currentFailure != null && !allowInvalidReplacement) {
             throw new ConfigPersistenceException(path,
                     "save while the latest disk version is invalid for", currentFailure);
         }
@@ -115,6 +134,7 @@ public final class YamlFile {
             Files.createDirectories(path.getParent());
             temporary = Files.createTempFile(path.getParent(), "." + path.getFileName(), ".tmp");
             loaderFor(temporary).save(candidate);
+            preservePosixPermissions(path, temporary);
             try {
                 Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             } catch (AtomicMoveNotSupportedException ignored) {
@@ -131,6 +151,16 @@ public final class YamlFile {
                             cleanupFailure);
                 }
             }
+        }
+    }
+
+    private static void preservePosixPermissions(Path source, Path target) {
+        if (Files.notExists(source)) return;
+        try {
+            Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(source);
+            Files.setPosixFilePermissions(target, permissions);
+        } catch (IOException | UnsupportedOperationException ignored) {
+            // Non-POSIX filesystems keep their native permission behavior.
         }
     }
 

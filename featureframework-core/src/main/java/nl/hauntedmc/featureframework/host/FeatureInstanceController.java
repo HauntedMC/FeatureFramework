@@ -14,6 +14,10 @@ import nl.hauntedmc.featureframework.loader.FeatureRegistry;
 import nl.hauntedmc.featureframework.loader.FeatureStartupCoordinator;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResult;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
+import nl.hauntedmc.featureframework.config.FeatureStoragePaths;
+import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
+import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
@@ -41,6 +45,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     private final FrameworkLogger logger;
     private final FeatureRegistry<F, ResolvedFeatureDefinition<F, C>> registry;
     private final Set<String> preparationFailures = new LinkedHashSet<>();
+    private final Map<String, FeatureDefaults> defaults = new LinkedHashMap<>();
     private final FeatureDependencyManager dependencyManager;
 
     FeatureInstanceController(
@@ -70,26 +75,53 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
 
     void prepareFeatureStorage() {
         for (ResolvedFeatureDefinition<F, C> descriptor : registry.getAvailableFeatures().values()) {
-            C context = null;
-            try {
-                context = contextFactory.apply(descriptor);
-                F feature = descriptor.create(context);
-                context.prepare(feature);
-            } catch (Throwable failure) {
-                preparationFailures.add(descriptor.registryName());
-                runtime.mutableFeatureCatalog().fail(FeatureId.of(descriptor.registryName()), "preparation", failure);
-                logger.error("Failed to prepare feature '" + descriptor.registryName() + "'.", failure);
-            } finally {
-                if (context != null) {
-                    try {
-                        context.cleanup();
-                    } catch (Throwable cleanupFailure) {
-                        logger.warn("Failed to clean preparation scope for '"
-                                + descriptor.registryName() + "'.", cleanupFailure);
-                    }
+            prepareFeatureStorage(descriptor.registryName());
+        }
+    }
+
+    boolean prepareFeatureStorage(String featureName) {
+        String key = inventory.resolveFeatureKey(featureName);
+        ResolvedFeatureDefinition<F, C> descriptor = key == null ? null : registry.getAvailableFeature(key);
+        if (descriptor == null) return false;
+        C context = null;
+        try {
+            context = contextFactory.apply(descriptor);
+            F feature = descriptor.create(context);
+            captureDefaults(key, feature);
+            context.prepare(feature);
+            preparationFailures.remove(key);
+            inventory.clearStorageFailure(key);
+            if (!registry.isFeatureLoaded(key)) {
+                runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
+            }
+            return true;
+        } catch (Throwable failure) {
+            preparationFailures.add(key);
+            runtime.mutableFeatureCatalog().fail(FeatureId.of(key), "preparation", failure);
+            logger.error("Failed to prepare feature '" + key + "'.", failure);
+            return false;
+        } finally {
+            if (context != null) {
+                try {
+                    context.cleanup();
+                } catch (Throwable cleanupFailure) {
+                    logger.warn("Failed to clean preparation scope for '" + key + "'.", cleanupFailure);
                 }
             }
         }
+    }
+
+    boolean regenerateDefaults(String featureName, FeatureFileResetRequest request) {
+        String key = inventory.resolveFeatureKey(featureName);
+        FeatureDefaults values = key == null ? null : defaults.get(key);
+        if (values == null) return false;
+        if (request instanceof FeatureFileResetRequest.Config) {
+            configuration.injectFeatureDefaults(key, copyConfig(values.config()));
+        } else {
+            var target = configuration.files().view(FeatureStoragePaths.messagesPath(key), false);
+            target.batch(batch -> values.messages().getMessages().forEach(batch::put));
+        }
+        return true;
     }
 
     boolean loadFeature(String featureName) {
@@ -153,7 +185,8 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
 
     private boolean loadFeature(String featureName, SnapshotState reloadState) {
         String key = inventory.resolveFeatureKey(featureName);
-        if (key == null || registry.isFeatureLoaded(key) || preparationFailures.contains(key)) return false;
+        if (key == null || registry.isFeatureLoaded(key) || preparationFailures.contains(key)
+                || inventory.hasStorageFailure(key)) return false;
         ResolvedFeatureDefinition<F, C> descriptor = registry.getAvailableFeature(key);
         if (descriptor == null) return false;
 
@@ -166,7 +199,10 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
                 reloadState,
                 () -> contextFactory.apply(descriptor),
                 descriptor::create,
-                feature -> feature.context().prepare(feature),
+                feature -> {
+                    captureDefaults(key, feature);
+                    feature.context().prepare(feature);
+                },
                 LifecycleFeature::initialize,
                 feature -> feature.context().activateServices(),
                 feature -> registry.registerLoadedFeature(key, feature),
@@ -186,7 +222,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         );
     }
 
-    private List<String> buildReloadOrder(String root) {
+    List<String> buildReloadOrder(String root) {
         Set<String> affected = FeatureGraphLifecycle.dependentClosure(
                 root, dependencyManager::getDependentFeatures, registry::isFeatureLoaded);
         List<String> order = inventory.loadOrder(registry.getAvailableFeatures().keySet()).loadOrder().stream()
@@ -198,7 +234,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         return order;
     }
 
-    private Map<String, Optional<SnapshotState>> captureReloadStates(List<String> reloadOrder) {
+    Map<String, Optional<SnapshotState>> captureReloadStates(List<String> reloadOrder) {
         Map<String, Optional<SnapshotState>> states = new LinkedHashMap<>();
         for (String key : reloadOrder) {
             F feature = registry.getLoadedFeature(key);
@@ -208,7 +244,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         return states;
     }
 
-    private Throwable stopReloadGraph(List<String> order) {
+    Throwable stopReloadGraph(List<String> order) {
         return FeatureGraphLifecycle.stopReverse(order, key -> {
             Throwable failure = stopAndRemove(key);
             completeDisable(key, failure, "reload-shutdown");
@@ -216,7 +252,46 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         });
     }
 
-    private boolean startReloadGraph(List<String> order, Map<String, Optional<SnapshotState>> states) {
+    boolean startReloadGraph(List<String> order, Map<String, Optional<SnapshotState>> states) {
         return FeatureGraphLifecycle.start(order, key -> loadFeature(key, states.get(key).orElse(null)));
     }
+
+    private void captureDefaults(String key, F feature) {
+        ConfigMap config = copyConfig(feature.defaultConfig());
+        MessageMap messages = new MessageMap();
+        MessageMap sourceMessages = feature.defaultMessages();
+        if (sourceMessages != null) sourceMessages.getMessages().forEach(messages::add);
+        defaults.put(key, new FeatureDefaults(config, messages));
+    }
+
+    private static ConfigMap copyConfig(ConfigMap source) {
+        ConfigMap copy = new ConfigMap();
+        if (source != null) source.forEach((key, value) -> copy.put(key, copyValue(value)));
+        return copy;
+    }
+
+    private static Object copyValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<Object, Object> copy = new LinkedHashMap<>();
+            map.forEach((key, entryValue) -> copy.put(key, copyValue(entryValue)));
+            return copy;
+        }
+        if (value instanceof List<?> list) return list.stream().map(FeatureInstanceController::copyValue).toList();
+        if (value instanceof Set<?> set) {
+            Set<Object> copy = new LinkedHashSet<>();
+            set.forEach(entry -> copy.add(copyValue(entry)));
+            return copy;
+        }
+        if (value != null && value.getClass().isArray()) {
+            int length = java.lang.reflect.Array.getLength(value);
+            Object copy = java.lang.reflect.Array.newInstance(value.getClass().componentType(), length);
+            for (int index = 0; index < length; index++) {
+                java.lang.reflect.Array.set(copy, index, copyValue(java.lang.reflect.Array.get(value, index)));
+            }
+            return copy;
+        }
+        return value;
+    }
+
+    private record FeatureDefaults(ConfigMap config, MessageMap messages) { }
 }

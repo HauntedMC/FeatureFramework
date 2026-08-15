@@ -94,4 +94,44 @@ class ConfigServiceTest {
                 () -> service.open("config.yml", false));
         assertTrue(failure.getMessage().contains("regular file"));
     }
+
+    @Test
+    void explicitReplacementRecoversInvalidYamlThatCouldNotEnterTheCache() throws Exception {
+        Path path = tempDir.resolve("broken.yml");
+        Files.writeString(path, "key: [unterminated");
+        ConfigService service = new ConfigService(tempDir, mock(Logger.class), null);
+
+        assertThrows(ConfigLoadException.class, () -> service.open("broken.yml", false));
+        service.replaceWithEmptyDocument("broken.yml");
+
+        YamlFile recovered = service.open("broken.yml", false);
+        new ConfigView(recovered, "").put("healthy", true);
+        assertTrue(Files.readString(path).contains("healthy: true"));
+    }
+
+    @Test
+    void explicitReplacementRecoversAHandleWhoseLatestReloadFailed() throws Exception {
+        Path path = tempDir.resolve("cached-broken.yml");
+        ConfigService service = new ConfigService(tempDir, mock(Logger.class), null);
+        YamlFile cached = service.open("cached-broken.yml", false);
+        Files.writeString(path, "key: [unterminated");
+        assertThrows(ConfigLoadException.class, cached::reload);
+
+        service.replaceWithEmptyDocument("cached-broken.yml");
+
+        assertSame(cached, service.open("cached-broken.yml", false));
+        new ConfigView(cached, "").put("healthy", true);
+        assertTrue(Files.readString(path).contains("healthy: true"));
+    }
+
+    @Test
+    void deletingOptionalFileEvictsItsCachedHandle() throws Exception {
+        ConfigService service = new ConfigService(tempDir, mock(Logger.class), null);
+        YamlFile original = service.open("optional.yml", false);
+        service.deleteOptional("optional.yml");
+        assertFalse(service.exists("optional.yml"));
+
+        YamlFile recreated = service.open("optional.yml", false);
+        assertNotSame(original, recreated);
+    }
 }

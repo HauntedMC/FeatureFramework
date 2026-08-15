@@ -4,6 +4,8 @@ import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResponse;
 import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureResetRuntimeOutcome;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,6 +57,30 @@ public final class FeatureOperationMessages {
             case NOT_LOADED -> message("command.reload.not_loaded", feature);
             case FAILED -> message("command.reload.failed", feature);
         };
+    }
+
+    public static Message reset(String feature, FeatureFileResetResponse response) {
+        String resolved = response.feature().isBlank() ? feature : response.feature();
+        Map<String, String> placeholders = new LinkedHashMap<>();
+        placeholders.put("feature", resolved);
+        placeholders.put("backup", response.backupId().orElse("-"));
+        placeholders.put("dependents", String.join(", ", response.affectedDependents()));
+        placeholders.put("overrides", Integer.toString(response.deletedOverrides().size()));
+        String key = switch (response.result()) {
+            case SUCCESS -> response.runtimeOutcome() == FeatureResetRuntimeOutcome.INACTIVE
+                    ? "command.reset.success_inactive"
+                    : response.runtimeOutcome() == FeatureResetRuntimeOutcome.DISABLED
+                            ? "command.reset.success_disabled" : "command.reset.success";
+            case NOT_FOUND -> "command.reset.not_found";
+            case HOST_UNAVAILABLE -> "command.reset.host_unavailable";
+            case UNSAFE_TARGET -> "command.reset.unsafe_target";
+            case QUIESCE_FAILED -> "command.reset.quiesce_failed";
+            case BACKUP_FAILED -> "command.reset.backup_failed";
+            case REGENERATION_FAILED -> "command.reset.regeneration_failed";
+            case RESTART_FAILED -> "command.reset.restart_failed";
+            case ROLLBACK_FAILED -> "command.reset.rollback_failed";
+        };
+        return new Message(key, placeholders);
     }
 
     private static Message message(String key, String feature) {

@@ -16,8 +16,15 @@ import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloader;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetPreview;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResult;
+import nl.hauntedmc.featureframework.operation.reset.FeatureResetRollbackOutcome;
+import nl.hauntedmc.featureframework.operation.reset.FeatureResetRuntimeOutcome;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
+import nl.hauntedmc.featureframework.feature.stateful.SnapshotState;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.util.ArrayList;
@@ -25,9 +32,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Consumer;
 
 /**
  * Complete platform-neutral host for a collection of managed features.
@@ -51,6 +61,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     private final FrameworkLogger logger;
     private final FeatureInventory<F, C> inventory;
     private final FeatureInstanceController<F, C> controller;
+    private final FeatureFileResetStorage resetStorage;
     private boolean startAttempted;
 
     private FeatureHost(Builder<V, F, C> builder) {
@@ -69,6 +80,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
                 ? configuration::reloadConfig
                 : builder.reloadHostResources;
         logger = Objects.requireNonNull(builder.logger, "logger");
+        resetStorage = new FeatureFileResetStorage(configuration.files(), logger);
         inventory = new FeatureInventory<>(
                 capabilityNamespace, runtime, configuration, collection, pluginAvailable, logger);
         controller = new FeatureInstanceController<>(inventory, runtime, configuration, contextFactory, logger);
@@ -96,6 +108,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
         startAttempted = true;
         runtime.markStarting();
         try {
+            resetStorage.recoverIncompleteTransactions();
             inventory.discover(hostName);
             controller.prepareFeatureStorage();
             initializeFeatures();
@@ -173,6 +186,234 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     /** Reloads host configuration and transactionally reconciles every configured feature. */
     public FeatureGraphReloadResult reloadGraph() {
         return runtime.lifecycle().callExclusive(this::reloadLocked);
+    }
+
+    public FeatureFileResetPreview previewFileReset(FeatureId id, FeatureFileResetRequest request) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(request, "request");
+        return runtime.lifecycle().callExclusive(() -> previewFileResetLocked(id.value(), request));
+    }
+
+    private FeatureFileResetPreview previewFileResetLocked(String requested, FeatureFileResetRequest request) {
+        String key = inventory.resolveFeatureKey(requested);
+        if (key == null) {
+            return new FeatureFileResetPreview(false, "", request, List.of(), false, false, Set.of(),
+                    "Feature not found");
+        }
+        try {
+            boolean loaded = inventory.registry().isFeatureLoaded(key);
+            Set<String> dependents = loaded
+                    ? new java.util.LinkedHashSet<>(controller.buildReloadOrder(key))
+                    : Set.of();
+            if (loaded) dependents.remove(key);
+            boolean enabled = runtime.mutableFeatureCatalog().find(FeatureId.of(key))
+                    .map(snapshot -> snapshot.configuredEnabled()).orElse(inventory.enabledDefault(key));
+            return new FeatureFileResetPreview(true, key, request, resetStorage.targets(key, request),
+                    enabled, loaded, dependents, "");
+        } catch (Throwable failure) {
+            return new FeatureFileResetPreview(false, key, request, List.of(), false, false, Set.of(),
+                    failure.getMessage());
+        }
+    }
+
+    public FeatureFileResetResponse resetFiles(FeatureId id, FeatureFileResetRequest request) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(request, "request");
+        return runtime.lifecycle().callExclusive(() -> resetFilesLocked(id.value(), request));
+    }
+
+    boolean reloadFeatureLocalization(FeatureId id, Consumer<String> reload) {
+        Objects.requireNonNull(id, "id");
+        Objects.requireNonNull(reload, "reload");
+        return runtime.lifecycle().callExclusive(() -> {
+            String key = inventory.resolveFeatureKey(id.value());
+            if (key == null) return false;
+            reload.accept(key);
+            return true;
+        });
+    }
+
+    private FeatureFileResetResponse resetFilesLocked(String requested, FeatureFileResetRequest request) {
+        if (runtime.state() != RuntimeState.READY && runtime.state() != RuntimeState.DEGRADED) {
+            return resetResponse(FeatureFileResetResult.HOST_UNAVAILABLE, requested, request, false,
+                    FeatureResetRuntimeOutcome.UNCHANGED, FeatureResetRollbackOutcome.NOT_REQUIRED,
+                    Set.of(), List.of(), null, null);
+        }
+        String key = inventory.resolveFeatureKey(requested);
+        if (key == null) {
+            return resetResponse(FeatureFileResetResult.NOT_FOUND, requested, request, false,
+                    FeatureResetRuntimeOutcome.UNCHANGED, FeatureResetRollbackOutcome.NOT_REQUIRED,
+                    Set.of(), List.of(), null, null);
+        }
+
+        boolean wasLoaded = inventory.registry().isFeatureLoaded(key);
+        boolean configuredEnabled = runtime.mutableFeatureCatalog().find(FeatureId.of(key))
+                .map(snapshot -> snapshot.configuredEnabled()).orElse(inventory.enabledDefault(key));
+        List<String> order = List.of();
+        Map<String, Optional<SnapshotState>> states = Map.of();
+        Set<String> dependents = Set.of();
+        if (wasLoaded) {
+            try {
+                order = controller.buildReloadOrder(key);
+                states = controller.captureReloadStates(order);
+                java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>(order);
+                values.remove(key);
+                dependents = Set.copyOf(values);
+            } catch (Throwable failure) {
+                return resetResponse(FeatureFileResetResult.QUIESCE_FAILED, key, request, false,
+                        FeatureResetRuntimeOutcome.UNCHANGED, FeatureResetRollbackOutcome.NOT_REQUIRED,
+                        dependents, List.of(), null, failure);
+            }
+            Throwable stopFailure = controller.stopReloadGraph(order);
+            if (stopFailure != null) {
+                boolean restored = controller.startReloadGraph(order, states);
+                afterGraphMutation.run();
+                return resetResponse(restored ? FeatureFileResetResult.QUIESCE_FAILED
+                                : FeatureFileResetResult.ROLLBACK_FAILED,
+                        key, request, false,
+                        restored ? FeatureResetRuntimeOutcome.RESTORED : FeatureResetRuntimeOutcome.DEGRADED,
+                        restored ? FeatureResetRollbackOutcome.SUCCEEDED : FeatureResetRollbackOutcome.FAILED,
+                        dependents, List.of(), null, stopFailure);
+            }
+        }
+
+        FeatureFileResetStorage.Backup backup;
+        try {
+            backup = resetStorage.begin(key, request);
+        } catch (FeatureFileResetStorage.UnsafeTargetException unsafe) {
+            restoreGraphAfterPreMutationFailure(wasLoaded, order, states);
+            return resetResponse(FeatureFileResetResult.UNSAFE_TARGET, key, request, false,
+                    wasLoaded ? FeatureResetRuntimeOutcome.RESTORED : FeatureResetRuntimeOutcome.UNCHANGED,
+                    wasLoaded ? FeatureResetRollbackOutcome.SUCCEEDED : FeatureResetRollbackOutcome.NOT_REQUIRED,
+                    dependents, List.of(), null, unsafe);
+        } catch (Throwable failure) {
+            boolean restored = restoreGraphAfterPreMutationFailure(wasLoaded, order, states);
+            return resetResponse(restored ? FeatureFileResetResult.BACKUP_FAILED
+                            : FeatureFileResetResult.ROLLBACK_FAILED,
+                    key, request, false,
+                    restored ? (wasLoaded ? FeatureResetRuntimeOutcome.RESTORED : FeatureResetRuntimeOutcome.UNCHANGED)
+                            : FeatureResetRuntimeOutcome.DEGRADED,
+                    wasLoaded ? (restored ? FeatureResetRollbackOutcome.SUCCEEDED
+                            : FeatureResetRollbackOutcome.FAILED) : FeatureResetRollbackOutcome.NOT_REQUIRED,
+                    dependents, List.of(), null, failure);
+        }
+
+        List<String> deletedOverrides;
+        boolean fullyPrepared;
+        try {
+            deletedOverrides = resetStorage.stage(backup, request);
+            boolean stagedMalformedPrerequisites = resetStorage.stageMalformedPrerequisites(backup);
+            boolean regeneratedFromSnapshot = controller.regenerateDefaults(key, request);
+            fullyPrepared = controller.prepareFeatureStorage(key);
+            if (!regeneratedFromSnapshot && !fullyPrepared) {
+                throw new IllegalStateException("Feature defaults could not be regenerated");
+            }
+            if (stagedMalformedPrerequisites) {
+                resetStorage.restorePrerequisites(backup);
+                fullyPrepared = controller.prepareFeatureStorage(key);
+            }
+            if (wasLoaded && !fullyPrepared) {
+                throw new IllegalStateException("Regenerated files could not prepare the active feature");
+            }
+            if (request instanceof FeatureFileResetRequest.Config) persistEnabled(key, configuredEnabled);
+        } catch (Throwable failure) {
+            return rollbackReset(key, request, backup, wasLoaded, order, states, dependents,
+                    List.of(), FeatureFileResetResult.REGENERATION_FAILED, failure);
+        }
+
+        FeatureResetRuntimeOutcome runtimeOutcome;
+        if (wasLoaded) {
+            if (!controller.startReloadGraph(order, states)) {
+                return rollbackReset(key, request, backup, true, order, states, dependents,
+                        deletedOverrides, FeatureFileResetResult.RESTART_FAILED,
+                        new IllegalStateException("Replacement feature graph did not start"));
+            }
+            runtimeOutcome = FeatureResetRuntimeOutcome.ACTIVE;
+        } else if (!fullyPrepared) {
+            runtimeOutcome = FeatureResetRuntimeOutcome.INACTIVE;
+        } else if (!configuredEnabled) {
+            runtimeOutcome = FeatureResetRuntimeOutcome.DISABLED;
+        } else {
+            runtimeOutcome = controller.loadFeature(key)
+                    ? FeatureResetRuntimeOutcome.ACTIVE : FeatureResetRuntimeOutcome.INACTIVE;
+        }
+
+        try {
+            resetStorage.commit(backup);
+        } catch (Throwable failure) {
+            return rollbackReset(key, request, backup, wasLoaded, order, states, dependents,
+                    deletedOverrides, FeatureFileResetResult.BACKUP_FAILED, failure);
+        }
+        afterGraphMutation.run();
+        logger.info("Reset feature files for '" + key + "' using backup '" + backup.id() + "'.");
+        return resetResponse(FeatureFileResetResult.SUCCESS, key, request, true, runtimeOutcome,
+                FeatureResetRollbackOutcome.NOT_REQUIRED, dependents, deletedOverrides, backup.id(), null);
+    }
+
+    private FeatureFileResetResponse rollbackReset(
+            String key,
+            FeatureFileResetRequest request,
+            FeatureFileResetStorage.Backup backup,
+            boolean wasLoaded,
+            List<String> order,
+            Map<String, Optional<SnapshotState>> states,
+            Set<String> dependents,
+            List<String> deletedOverrides,
+            FeatureFileResetResult originalResult,
+            Throwable failure
+    ) {
+        if (wasLoaded) {
+            controller.stopReloadGraph(order);
+        } else if (inventory.registry().isFeatureLoaded(key)) {
+            Throwable cleanupFailure = controller.stopAndRemove(key);
+            controller.completeDisable(key, cleanupFailure, "reset-rollback-shutdown");
+            if (cleanupFailure != null) failure.addSuppressed(cleanupFailure);
+        }
+        boolean filesRestored;
+        try {
+            resetStorage.restore(backup);
+            filesRestored = true;
+            controller.prepareFeatureStorage(key);
+            resetStorage.markRolledBack(backup);
+        } catch (Throwable restoreFailure) {
+            failure.addSuppressed(restoreFailure);
+            filesRestored = false;
+        }
+        boolean graphRestored = !wasLoaded || (filesRestored && controller.startReloadGraph(order, states));
+        afterGraphMutation.run();
+        boolean restored = filesRestored && graphRestored;
+        return resetResponse(restored ? originalResult : FeatureFileResetResult.ROLLBACK_FAILED,
+                key, request, false,
+                restored ? (wasLoaded ? FeatureResetRuntimeOutcome.RESTORED : FeatureResetRuntimeOutcome.UNCHANGED)
+                        : FeatureResetRuntimeOutcome.DEGRADED,
+                restored ? FeatureResetRollbackOutcome.SUCCEEDED : FeatureResetRollbackOutcome.FAILED,
+                dependents, deletedOverrides, backup.id(), failure);
+    }
+
+    private boolean restoreGraphAfterPreMutationFailure(
+            boolean wasLoaded,
+            List<String> order,
+            Map<String, Optional<SnapshotState>> states
+    ) {
+        boolean restored = !wasLoaded || controller.startReloadGraph(order, states);
+        if (wasLoaded) afterGraphMutation.run();
+        return restored;
+    }
+
+    private static FeatureFileResetResponse resetResponse(
+            FeatureFileResetResult result,
+            String feature,
+            FeatureFileResetRequest request,
+            boolean committed,
+            FeatureResetRuntimeOutcome runtimeOutcome,
+            FeatureResetRollbackOutcome rollbackOutcome,
+            Set<String> dependents,
+            List<String> deletedOverrides,
+            String backupId,
+            Throwable failure
+    ) {
+        return new FeatureFileResetResponse(result, feature, request, committed, runtimeOutcome, rollbackOutcome,
+                dependents, deletedOverrides, Optional.ofNullable(backupId), Optional.ofNullable(failure));
     }
 
     private FeatureGraphReloadResult reloadLocked() {
@@ -321,6 +562,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
             logger = Objects.requireNonNull(value, "logger");
             return this;
         }
+
 
         public FeatureHost<V, F, C> build() {
             return new FeatureHost<>(this);

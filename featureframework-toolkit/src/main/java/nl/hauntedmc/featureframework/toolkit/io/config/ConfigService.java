@@ -7,6 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,6 +80,72 @@ public final class ConfigService {
     }
 
     public boolean exists(String relativePath) { return Files.exists(resolve(relativePath)); }
+
+    /** Root directory used by this service. Administrative storage operations must remain below it. */
+    public Path dataDirectory() { return dataDir; }
+
+    /** Replaces a YAML file with a valid empty document while keeping cached handles coherent. */
+    public void replaceWithEmptyDocument(String relativePath) {
+        Path absolute = resolve(relativePath);
+        YamlFile cached = cache.get(absolute);
+        if (cached != null) {
+            cached.replaceWithEmptyDocument();
+            return;
+        }
+        Path temporary = null;
+        try {
+            Files.createDirectories(absolute.getParent());
+            temporary = Files.createTempFile(absolute.getParent(), "." + absolute.getFileName(), ".tmp");
+            preservePosixPermissions(absolute, temporary);
+            try {
+                Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException ignored) {
+                Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
+            }
+            open(relativePath, false);
+        } catch (IOException exception) {
+            throw new ConfigPersistenceException(absolute, "replace with empty document", exception);
+        } finally {
+            if (temporary != null) {
+                try { Files.deleteIfExists(temporary); }
+                catch (IOException cleanupFailure) {
+                    logger.warn("[FeatureFramework] Could not remove temporary YAML '" + temporary + "'.",
+                            cleanupFailure);
+                }
+            }
+        }
+    }
+
+    private static void preservePosixPermissions(Path source, Path target) {
+        if (Files.notExists(source)) return;
+        try {
+            Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(source);
+            Files.setPosixFilePermissions(target, permissions);
+        } catch (IOException | UnsupportedOperationException ignored) {
+            // Non-POSIX filesystems keep their native permission behavior.
+        }
+    }
+
+    /**
+     * Removes a file and evicts its cached handle. This is intended for optional files that are
+     * rediscovered on reload; stable main config/message files should be replaced instead.
+     */
+    public void deleteOptional(String relativePath) throws IOException {
+        Path absolute = resolve(relativePath);
+        Files.deleteIfExists(absolute);
+        cache.remove(absolute);
+    }
+
+    /** Reloads a cached handle after an external atomic restore, if one exists. */
+    public void reloadIfCached(String relativePath) {
+        YamlFile cached = cache.get(resolve(relativePath));
+        if (cached != null) cached.reload();
+    }
+
+    /** Evicts an optional cached handle without changing the filesystem. */
+    public void evict(String relativePath) {
+        cache.remove(resolve(relativePath));
+    }
 
     public Path resolve(String relativePath) {
         Objects.requireNonNull(relativePath, "relativePath");

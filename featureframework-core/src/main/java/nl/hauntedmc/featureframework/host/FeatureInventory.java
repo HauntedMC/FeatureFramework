@@ -39,6 +39,8 @@ final class FeatureInventory<F extends LifecycleFeature<C>, C extends FeatureHos
     private final Predicate<String> pluginAvailable;
     private final FrameworkLogger logger;
     private final FeatureRegistry<F, ResolvedFeatureDefinition<F, C>> registry = new FeatureRegistry<>();
+    private final Set<String> storageFailures = new LinkedHashSet<>();
+    private final Map<String, Boolean> enabledDefaults = new LinkedHashMap<>();
     private boolean discovered;
 
     FeatureInventory(
@@ -72,10 +74,20 @@ final class FeatureInventory<F extends LifecycleFeature<C>, C extends FeatureHos
             ResolvedFeatureDefinition<F, C> descriptor = item.descriptor();
             FeatureDefinition<F, C> definition = definitions.get(normalize(descriptor.registryName()));
             registry.registerAvailableFeature(descriptor);
-            configuration.registerFeature(descriptor.registryName(), definition.enabledByDefault());
             runtime.mutableFeatureCatalog().register(item.publicDescriptor());
-            runtime.mutableFeatureCatalog().setConfiguredEnabled(
-                    FeatureId.of(descriptor.registryName()), configuration.isFeatureEnabled(descriptor.registryName()));
+            enabledDefaults.put(descriptor.registryName(), definition.enabledByDefault());
+            try {
+                configuration.registerFeature(descriptor.registryName(), definition.enabledByDefault());
+                runtime.mutableFeatureCatalog().setConfiguredEnabled(
+                        FeatureId.of(descriptor.registryName()), configuration.isFeatureEnabled(descriptor.registryName()));
+            } catch (Throwable failure) {
+                storageFailures.add(descriptor.registryName());
+                runtime.mutableFeatureCatalog().setConfiguredEnabled(
+                        FeatureId.of(descriptor.registryName()), definition.enabledByDefault());
+                runtime.mutableFeatureCatalog().fail(FeatureId.of(descriptor.registryName()), "configuration", failure);
+                logger.error("Feature '" + descriptor.registryName()
+                        + "' has unreadable configuration and will remain available for recovery.", failure);
+            }
         }
         pruneMissingFeatureDependencies();
         discovered = true;
@@ -108,6 +120,18 @@ final class FeatureInventory<F extends LifecycleFeature<C>, C extends FeatureHos
         return descriptor.pluginDependencies().stream()
                 .filter(pluginAvailable.negate())
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    boolean hasStorageFailure(String featureName) {
+        return storageFailures.contains(featureName);
+    }
+
+    void clearStorageFailure(String featureName) {
+        storageFailures.remove(featureName);
+    }
+
+    boolean enabledDefault(String featureName) {
+        return enabledDefaults.getOrDefault(featureName, false);
     }
 
     String resolveFeatureKey(String inputName) {

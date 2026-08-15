@@ -18,6 +18,9 @@ import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetPreview;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
+import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
 import nl.hauntedmc.featureframework.resource.FeatureResourceContributor;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
@@ -122,6 +125,15 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
     public FeatureReloadResponse recreate(FeatureId id) { return composition.recreate(id); }
     public FeatureSoftReloadResponse softReload(FeatureId id) { return composition.softReload(id); }
     public FeatureGraphReloadResult reloadGraph() { return composition.reloadGraph(); }
+    public FeatureFileResetPreview previewFileReset(FeatureId id, FeatureFileResetRequest request) {
+        return composition.previewFileReset(id, request);
+    }
+    public FeatureFileResetResponse resetFiles(FeatureId id, FeatureFileResetRequest request) {
+        return composition.resetFiles(id, request);
+    }
+    public boolean reloadFeatureLocalization(FeatureId id) {
+        return composition.reloadFeatureLocalization(id);
+    }
     public Optional<FeatureId> resolve(String name) { return composition.resolve(name); }
     public Optional<VelocityFeature<P>> findLoaded(FeatureId id) { return composition.findLoaded(id); }
     public List<VelocityFeature<P>> loadedFeatures() { return composition.loadedFeatures(); }

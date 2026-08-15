@@ -42,6 +42,22 @@ Define stable message keys with `MessageMap` and use the platform localization a
 
 Keep formatting at the presentation boundary. Domain services should return useful results or models rather than preformatted chat strings.
 
+## Transactional feature-file reset
+
+Concrete Paper and Velocity hosts expose `previewFileReset(...)` and `resetFiles(...)` for administrative tooling.
+Supported requests replace a feature's `config.yml`, replace only its main `messages.yml`, or replace the main messages
+and remove every safe direct `messages_<LANG>.yml` override. The operation is serialized with lifecycle mutations,
+preserves the last accepted configured enablement, and recreates a loaded dependent graph after regeneration.
+
+Every confirmed reset first creates a checksummed journal below
+`backups/feature-resets/<feature>/<operation-id>/`. A failed transaction restores exact original bytes; a journal left in
+`PREPARED` state by process interruption is restored before feature discovery on the next startup. Five completed
+journals per feature are retained, while unresolved journals are never pruned automatically.
+
+Only paths produced by `FeatureStoragePaths` are accepted. Feature directories and targets containing symbolic links,
+special files, or path escapes are rejected. Host config, host localization, auxiliary `local/*.yml`, and feature data
+stores are outside the reset boundary.
+
 ## Logging
 
 Each managed feature has its own feature logger. Log lifecycle failures and operational problems with enough context to identify what failed, but avoid turning normal control flow into log noise.
