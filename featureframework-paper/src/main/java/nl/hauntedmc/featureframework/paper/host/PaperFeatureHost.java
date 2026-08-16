@@ -34,6 +34,8 @@ import nl.hauntedmc.featureframework.service.Registration;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
+import nl.hauntedmc.featureframework.theme.Theme;
+import nl.hauntedmc.featureframework.theme.ThemeRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -54,6 +56,7 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
     private final DefaultFeatureConfiguration configuration;
     private final ConfigService files;
     private final PaperLocalization localization;
+    private final ThemeRegistry themes;
     private final List<Registration> bootstrapRegistrations;
 
     private PaperFeatureHost(Builder<P, V> builder) {
@@ -66,8 +69,9 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
                 builder.plugin.getClass().getClassLoader());
         configuration = new DefaultFeatureConfiguration(
                 files, frameworkLogger, builder.mismatchPolicy, builder.globalDefaults);
+        themes = ThemeRegistry.of(builder.themes);
         localization = new PaperLocalization(
-                builder.plugin, files, builder.languageResolver, builder.messageDecorator);
+                builder.plugin, files, builder.languageResolver, builder.messageDecorator, themes);
         BrigadierDispatcher dispatcher = new BrigadierDispatcher(builder.plugin, frameworkLogger);
         dispatcher.resolveDispatcher();
         PaperFeatureResourcesFactory resources = new PaperFeatureResourcesFactory(
@@ -144,6 +148,7 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
     public ConfigService files() { return files; }
     public PaperLocalization localization() { return localization; }
     public PaperLocalization localization(FeatureId id) { return composition.localization(id.value()); }
+    public ThemeRegistry themes() { return themes; }
     @Override public V version() { return composition.version(); }
     @Override public RuntimeState state() { return composition.state(); }
     @Override public CompletionStage<Void> whenReady() { return composition.whenReady(); }
@@ -197,6 +202,7 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
         private Runnable afterHostResourcesReload = () -> { };
         private final List<FeatureResourceContributor<PaperFeatureResources>> contributors = new ArrayList<>();
         private final List<BootstrapCapability<?>> bootstrapCapabilities = new ArrayList<>();
+        private final List<Theme> themes = new ArrayList<>();
 
         private Builder(P plugin, V version, Class<?> apiRoot,
                         FeatureCollection<PaperFeature<P>, PaperFeatureContext<P>> features) {
@@ -235,6 +241,12 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
         }
         public <T> Builder<P, V> bootstrapCapability(Class<T> type, T value) {
             bootstrapCapabilities.add(new BootstrapCapability<>(type, type.cast(value))); return this;
+        }
+        public Builder<P, V> theme(Theme value) {
+            themes.add(Objects.requireNonNull(value, "theme")); return this;
+        }
+        public Builder<P, V> themes(Iterable<? extends Theme> values) {
+            Objects.requireNonNull(values, "themes").forEach(this::theme); return this;
         }
         public PaperFeatureHost<P, V> build() { return new PaperFeatureHost<>(this); }
     }

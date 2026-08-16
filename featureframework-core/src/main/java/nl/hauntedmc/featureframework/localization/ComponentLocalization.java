@@ -8,6 +8,7 @@ import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import nl.hauntedmc.featureframework.toolkit.text.format.ComponentFormatter;
 import nl.hauntedmc.featureframework.toolkit.text.format.TextFormatter;
 import nl.hauntedmc.featureframework.toolkit.text.placeholder.MessagePlaceholders;
+import nl.hauntedmc.featureframework.theme.ThemeRegistry;
 
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,6 +29,8 @@ public class ComponentLocalization implements FeatureLocalization {
     private final Function<Audience, Language> playerLanguageResolver;
     private final BiFunction<String, Audience, String> platformPlaceholders;
     private final boolean preserveUnknownTags;
+    private final ThemeRegistry themes;
+    private final ThemeTagExpander themeTagExpander;
     private final ConcurrentMap<StaticMessageSlot, CachedStaticMessage> staticPlayerMessages =
             new ConcurrentHashMap<>();
 
@@ -39,12 +42,28 @@ public class ComponentLocalization implements FeatureLocalization {
             BiFunction<String, Audience, String> platformPlaceholders,
             boolean preserveUnknownTags
     ) {
+        this(store, logger, playerType, playerLanguageResolver, platformPlaceholders,
+                preserveUnknownTags, ThemeRegistry.empty());
+    }
+
+    protected ComponentLocalization(
+            LocalizationStore store,
+            FrameworkLogger logger,
+            Class<? extends Audience> playerType,
+            Function<Audience, Language> playerLanguageResolver,
+            BiFunction<String, Audience, String> platformPlaceholders,
+            boolean preserveUnknownTags,
+            ThemeRegistry themes
+    ) {
         this.store = Objects.requireNonNull(store, "store");
         this.logger = Objects.requireNonNull(logger, "logger");
         this.playerType = Objects.requireNonNull(playerType, "playerType");
         this.playerLanguageResolver = Objects.requireNonNull(playerLanguageResolver, "playerLanguageResolver");
         this.platformPlaceholders = Objects.requireNonNull(platformPlaceholders, "platformPlaceholders");
         this.preserveUnknownTags = preserveUnknownTags;
+        this.themes = Objects.requireNonNull(themes, "themes");
+        this.themeTagExpander = new ThemeTagExpander(themes,
+                warning -> logger.warn("[FeatureFramework] " + warning));
     }
 
     protected final LocalizationStore store() {
@@ -53,6 +72,10 @@ public class ComponentLocalization implements FeatureLocalization {
 
     protected final FrameworkLogger logger() {
         return logger;
+    }
+
+    public final ThemeRegistry themes() {
+        return themes;
     }
 
     @Override
@@ -203,11 +226,13 @@ public class ComponentLocalization implements FeatureLocalization {
                     return MessagePlaceholders.applyPlaceholders(expanded, placeholders);
                 })
                 .toMiniMessage();
+        message = themeTagExpander.expand(message);
 
         ComponentFormatter.Converter converter = ComponentFormatter.deserialize(message)
                 .sanitizeUnknownTags(!preserveUnknownTags)
                 .expect(TextFormatter.InputFormat.MINIMESSAGE)
                 .features(ComponentFormatter.ALL_DEFAULTS());
+        themes.themes().forEach(theme -> converter.allowTagName(theme.id().value()));
         if (autoLinkUrls) {
             converter.autoLinkUrls(autoLinkUnderline);
         }

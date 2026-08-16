@@ -3,6 +3,19 @@
 Use this guide when moving an existing Paper or Velocity application onto FeatureFramework, or when
 removing duplicated framework infrastructure from an application module.
 
+## Migrating to 1.5.0
+
+Version 1.5.0 adds the optional `featureframework-theme-api` module and host-level programmatic themes. Existing host
+builders and localization constructors remain source-compatible and behave as before when no theme is registered.
+
+To adopt themes, add a theme implementation to the host builder with `theme(...)` or `themes(...)`, then use
+`<theme-id:item-id>` references in newly generated defaults. The same immutable theme registry is propagated to all
+feature localization instances.
+
+Theme libraries that only construct theme objects should depend on `featureframework-theme-api`. Applications already
+using a Paper or Velocity host receive the API transitively but should declare it directly when their source code uses
+theme API types. See [Programmatic message themes](guides/THEMES.md) for the complete contract.
+
 ## Keep in the application
 
 - plugin bootstrap and platform metadata;

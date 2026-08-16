@@ -302,7 +302,7 @@ public final class ComponentFormatter {
         }
 
         /**
-         * Enable/disable strict MiniMessage parsing (default: true after sanitization).
+         * Enable/disable strict MiniMessage parsing (default: false).
          * With {@code strict=true}, any remaining unknown tags cause parse errors.
          *
          * @param on true to enable strict parsing
@@ -337,6 +337,18 @@ public final class ComponentFormatter {
             Objects.requireNonNull(resolver, "resolver");
             this.extraResolvers.add(resolver);
             this.allowedCustomTagNames.add(name.toLowerCase());
+            return this;
+        }
+
+        /**
+         * Allows a tag name through sanitization without registering a resolver.
+         * This is useful for escaped custom markup that must remain visible as literal text.
+         */
+        public Converter allowTagName(String name) {
+            Objects.requireNonNull(name, "name");
+            String normalized = name.trim().toLowerCase(Locale.ROOT);
+            if (normalized.isEmpty()) throw new IllegalArgumentException("name must not be blank");
+            this.allowedCustomTagNames.add(normalized);
             return this;
         }
 

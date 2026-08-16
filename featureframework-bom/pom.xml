@@ -7,6 +7,7 @@
     <name>FeatureFramework BOM</name>
     <dependencyManagement><dependencies>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-api</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-theme-api</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-toolkit</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-core</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataprovider</artifactId><version>${project.version}</version></dependency>

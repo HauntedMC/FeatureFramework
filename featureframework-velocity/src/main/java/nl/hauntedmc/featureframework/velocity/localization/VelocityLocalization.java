@@ -6,6 +6,7 @@ import nl.hauntedmc.featureframework.localization.LocalizationStore;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
+import nl.hauntedmc.featureframework.theme.ThemeRegistry;
 import org.slf4j.Logger;
 
 import java.util.Objects;
@@ -22,17 +23,29 @@ public final class VelocityLocalization extends ComponentLocalization {
             ConfigService configService,
             Function<Player, Language> playerLanguageResolver
     ) {
+        this(logger, resources, configService, playerLanguageResolver, ThemeRegistry.empty());
+    }
+
+    public VelocityLocalization(
+            Logger logger,
+            ClassLoader resources,
+            ConfigService configService,
+            Function<Player, Language> playerLanguageResolver,
+            ThemeRegistry themes
+    ) {
         this(
                 logger,
                 new LocalizationStore(resources, configService, FrameworkLogger.from(logger)),
-                playerLanguageResolver
+                playerLanguageResolver,
+                themes
         );
     }
 
     private VelocityLocalization(
             Logger logger,
             LocalizationStore store,
-            Function<Player, Language> playerLanguageResolver
+            Function<Player, Language> playerLanguageResolver,
+            ThemeRegistry themes
     ) {
         super(
                 store,
@@ -40,13 +53,15 @@ public final class VelocityLocalization extends ComponentLocalization {
                 Player.class,
                 audience -> playerLanguageResolver.apply((Player) audience),
                 (message, player) -> message,
-                true
+                true,
+                themes
         );
         platformLogger = Objects.requireNonNull(logger, "logger");
         this.playerLanguageResolver = Objects.requireNonNull(playerLanguageResolver, "playerLanguageResolver");
     }
 
     public VelocityLocalization openFeature(String featureName) {
-        return new VelocityLocalization(platformLogger, store().openFeature(featureName), playerLanguageResolver);
+        return new VelocityLocalization(
+                platformLogger, store().openFeature(featureName), playerLanguageResolver, themes());
     }
 }

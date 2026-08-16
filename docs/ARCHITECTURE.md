@@ -15,11 +15,11 @@ remain in their adapters.
 ## Dependency direction
 
 ```text
-featureframework-api     featureframework-toolkit
-        ^                         ^
-        +------------+------------+
-                     |
-          featureframework-core
+featureframework-api   featureframework-theme-api   featureframework-toolkit
+        ^                         ^                           ^
+        +-------------------------+---------------------------+
+                                  |
+                       featureframework-core
              ^              ^
              |              |
  featureframework-paper  featureframework-velocity
@@ -29,7 +29,7 @@ featureframework-api     featureframework-toolkit
       Paper application  Velocity application
 ```
 
-Dependency-free public contracts belong in `api`; cross-platform orchestration belongs in `core`, and
+Dependency-light public contracts belong in `api` and `theme-api`; cross-platform orchestration belongs in `core`, and
 optional neutral integration resources live in their own integration modules. A class belongs in a
 platform module when its contract or implementation requires that
 platform. Paper and Velocity modules must not import each other. Source-boundary tests enforce these
@@ -108,7 +108,9 @@ YAML writes are copy-on-write and use atomic replacement where the filesystem su
 normalized under the configured data directory. `FeatureConfigHandler` owns default merging, schema
 mismatch policy, and reload listeners. `FeatureConfigurationRoot` owns the global feature enablement
 map. `LocalizationStore` owns bundled defaults, language files, feature-to-framework fallback, and
-reload behavior. `ComponentLocalization` adds fluent component rendering, player-language selection,
+reload behavior. Immutable themes are registered while a host is built and expanded to standard MiniMessage colour
+tags by `ComponentLocalization`, so the same registry is shared by host and feature localization.
+`ComponentLocalization` adds fluent component rendering, player-language selection,
 platform placeholder hooks, and static-message caching; consumer adapters only provide the player
 type and language/placeholder callbacks. `FrameworkLogger` is the logging boundary; feature-prefixed
 adapters support JUL (Paper) and SLF4J/Adventure (Velocity). The Velocity module also owns reusable

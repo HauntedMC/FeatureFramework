@@ -5,6 +5,7 @@ import nl.hauntedmc.featureframework.localization.LocalizationStore;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
+import nl.hauntedmc.featureframework.theme.ThemeRegistry;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -22,7 +23,7 @@ public final class PaperLocalization extends ComponentLocalization {
             ConfigService configService,
             Function<Player, Language> playerLanguageResolver
     ) {
-        this(plugin, configService, playerLanguageResolver, PaperMessageDecorator.identity());
+        this(plugin, configService, playerLanguageResolver, PaperMessageDecorator.identity(), ThemeRegistry.empty());
     }
 
     public PaperLocalization(
@@ -30,6 +31,16 @@ public final class PaperLocalization extends ComponentLocalization {
             ConfigService configService,
             Function<Player, Language> playerLanguageResolver,
             PaperMessageDecorator decorator
+    ) {
+        this(plugin, configService, playerLanguageResolver, decorator, ThemeRegistry.empty());
+    }
+
+    public PaperLocalization(
+            Plugin plugin,
+            ConfigService configService,
+            Function<Player, Language> playerLanguageResolver,
+            PaperMessageDecorator decorator,
+            ThemeRegistry themes
     ) {
         this(
                 Objects.requireNonNull(plugin, "plugin"),
@@ -39,7 +50,8 @@ public final class PaperLocalization extends ComponentLocalization {
                         FrameworkLogger.from(plugin.getLogger())
                 ),
                 playerLanguageResolver,
-                decorator
+                decorator,
+                themes
         );
     }
 
@@ -47,7 +59,8 @@ public final class PaperLocalization extends ComponentLocalization {
             Plugin plugin,
             LocalizationStore store,
             Function<Player, Language> playerLanguageResolver,
-            PaperMessageDecorator decorator
+            PaperMessageDecorator decorator,
+            ThemeRegistry themes
     ) {
         super(
                 store,
@@ -55,7 +68,8 @@ public final class PaperLocalization extends ComponentLocalization {
                 Player.class,
                 audience -> playerLanguageResolver.apply((Player) audience),
                 (message, audience) -> decorator.decorate(message, (Player) audience),
-                false
+                false,
+                themes
         );
         this.plugin = plugin;
         this.playerLanguageResolver = Objects.requireNonNull(playerLanguageResolver, "playerLanguageResolver");
@@ -63,6 +77,7 @@ public final class PaperLocalization extends ComponentLocalization {
     }
 
     public PaperLocalization openFeature(String featureName) {
-        return new PaperLocalization(plugin, store().openFeature(featureName), playerLanguageResolver, decorator);
+        return new PaperLocalization(
+                plugin, store().openFeature(featureName), playerLanguageResolver, decorator, themes());
     }
 }

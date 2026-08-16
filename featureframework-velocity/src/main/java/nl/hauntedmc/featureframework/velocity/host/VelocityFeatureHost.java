@@ -29,6 +29,8 @@ import nl.hauntedmc.featureframework.service.Registration;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
+import nl.hauntedmc.featureframework.theme.Theme;
+import nl.hauntedmc.featureframework.theme.ThemeRegistry;
 import nl.hauntedmc.featureframework.velocity.lifecycle.VelocityFeatureResources;
 import nl.hauntedmc.featureframework.velocity.lifecycle.VelocityFeatureResourcesFactory;
 import nl.hauntedmc.featureframework.velocity.localization.VelocityLocalization;
@@ -52,6 +54,7 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
     private final DefaultFeatureConfiguration configuration;
     private final ConfigService files;
     private final VelocityLocalization localization;
+    private final ThemeRegistry themes;
     private final List<Registration> bootstrapRegistrations;
 
     private VelocityFeatureHost(Builder<P, V> builder) {
@@ -63,8 +66,9 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
                 builder.plugin.getClass().getClassLoader());
         configuration = new DefaultFeatureConfiguration(
                 files, frameworkLogger, builder.mismatchPolicy, builder.globalDefaults);
+        themes = ThemeRegistry.of(builder.themes);
         localization = new VelocityLocalization(
-                builder.logger, builder.plugin.getClass().getClassLoader(), files, builder.languageResolver);
+                builder.logger, builder.plugin.getClass().getClassLoader(), files, builder.languageResolver, themes);
         VelocityFeatureResourcesFactory resources = new VelocityFeatureResourcesFactory(
                 builder.plugin, builder.proxy, builder.logger, builder.dataDirectory,
                 frameworkLogger, builder.contributors);
@@ -142,6 +146,7 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
     public ConfigService files() { return files; }
     public VelocityLocalization localization() { return localization; }
     public VelocityLocalization localization(FeatureId id) { return composition.localization(id.value()); }
+    public ThemeRegistry themes() { return themes; }
     @Override public V version() { return composition.version(); }
     @Override public RuntimeState state() { return composition.state(); }
     @Override public CompletionStage<Void> whenReady() { return composition.whenReady(); }
@@ -197,6 +202,7 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
         private Runnable afterHostResourcesReload = () -> { };
         private final List<FeatureResourceContributor<VelocityFeatureResources>> contributors = new ArrayList<>();
         private final List<BootstrapCapability<?>> bootstrapCapabilities = new ArrayList<>();
+        private final List<Theme> themes = new ArrayList<>();
 
         private Builder(P plugin, ProxyServer proxy, ComponentLogger logger, Path dataDirectory,
                         V version, Class<?> apiRoot,
@@ -236,6 +242,12 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
         }
         public <T> Builder<P, V> bootstrapCapability(Class<T> type, T value) {
             bootstrapCapabilities.add(new BootstrapCapability<>(type, type.cast(value))); return this;
+        }
+        public Builder<P, V> theme(Theme value) {
+            themes.add(Objects.requireNonNull(value, "theme")); return this;
+        }
+        public Builder<P, V> themes(Iterable<? extends Theme> values) {
+            Objects.requireNonNull(values, "themes").forEach(this::theme); return this;
         }
         public VelocityFeatureHost<P, V> build() { return new VelocityFeatureHost<>(this); }
     }

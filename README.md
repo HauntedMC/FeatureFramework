@@ -10,6 +10,7 @@ FeatureFramework is a library, not a Minecraft plugin. Your project provides the
 - **Owned resources** — commands, listeners, tasks, caches, GUIs, data resources, and services can be tied to the feature that created them and cleaned up with it.
 - **Explicit relationships** — declare required or optional features, external plugins, capabilities, and internal services.
 - **Feature-scoped infrastructure** — configuration, localization, logging, scheduling, commands, listeners, caching, and other toolkit components are available without application-wide singletons.
+- **Reusable message themes** — register one or more immutable, programmatic colour palettes and reference them from any host or feature message.
 - **Paper and Velocity support** — the same feature model on both platforms, with platform-specific behavior where it matters.
 
 ## Built for a plugin that behaves like an application
@@ -129,6 +130,7 @@ Call `featureHost.stop()` from `onDisable()`. See the [complete Paper example](e
 | Understand cleanup and reloads | [Lifecycle and resources](docs/concepts/LIFECYCLE-AND-RESOURCES.md) |
 | Share APIs between features | [Dependencies, capabilities, and services](docs/concepts/DEPENDENCIES-CAPABILITIES-SERVICES.md) |
 | Use config and messages | [Configuration and localization](docs/guides/CONFIGURATION-AND-LOCALIZATION.md) |
+| Share colours across plugins | [Programmatic message themes](docs/guides/THEMES.md) |
 | Operate a large, live feature graph | [Operating a large feature plugin](docs/guides/OPERATING-A-LARGE-FEATURE-PLUGIN.md) |
 | See a complete persistent Paper subsystem | [Persistent ContractBoard](examples/paper/11-persistent-contract-board/README.md) |
 | See a complete real-time Velocity subsystem | [Adaptive rollout router](examples/velocity/11-adaptive-rollout-router/README.md) |
@@ -142,6 +144,7 @@ The full documentation index is in [`docs/README.md`](docs/README.md).
 
 - `featureframework-bom` — one import for aligned framework artifact versions.
 - `featureframework-api` — stable public runtime, feature metadata, and capability contracts.
+- `featureframework-theme-api` — platform-neutral theme identifiers, colour operations, builders, and registry contracts.
 - `featureframework-toolkit` — platform-neutral configuration, localization, cache, HTTP, text, and token utilities.
 - `featureframework-core` — feature model, host/runtime, lifecycle, dependency loading, services, and resource ownership.
 - `featureframework-dataprovider` and `featureframework-dataregistry` — neutral optional integration contracts and resource extensions.

@@ -3,6 +3,9 @@
 This script releases FeatureFramework only. Consumer repositories update their own dependency properties and release
 versions separately.
 
+The reactor publishes `featureframework-theme-api` with the other framework artifacts. Publish FeatureFramework before
+any separately versioned theme adapter that targets the new API.
+
 ## 1. Prepare
 
 - Work from a clean, reviewed branch.

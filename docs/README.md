@@ -17,6 +17,7 @@ If FeatureFramework is new to you, read the [feature mental model](concepts/FEAT
 - [Paper UI and platform adapters](toolkits/PAPER-UI-AND-PLATFORM-ADAPTERS.md)
 - [Text, formatting, and safe player input](toolkits/TEXT-AND-FORMATTING.md)
 - [Configuration and localization](guides/CONFIGURATION-AND-LOCALIZATION.md)
+- [Programmatic message themes](guides/THEMES.md)
 
 ## Guides and reference
 

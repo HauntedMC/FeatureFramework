@@ -9,6 +9,7 @@ readonly MODULES=(
   featureframework-testkit
   featureframework-mockito-testkit
   featureframework-api
+  featureframework-theme-api
   featureframework-toolkit
   featureframework-core
   featureframework-dataprovider
