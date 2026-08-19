@@ -33,10 +33,22 @@ public final class FeatureStoragePaths {
 
     public static String localDataPath(String fileName) {
         String normalized = Objects.requireNonNull(fileName, "fileName").trim();
-        if (!VALID_LOCAL_DATA_FILE.matcher(normalized).matches()) {
+        if (!isValidLocalDataFileName(normalized)) {
             throw new IllegalArgumentException("Invalid local YAML file name: " + fileName);
         }
         return "local/" + normalized;
+    }
+
+    /** Returns whether a value can be used as one feature storage directory name. */
+    public static boolean isValidFeatureName(String featureName) {
+        if (featureName == null) return false;
+        String normalized = featureName.trim();
+        return !normalized.isEmpty() && VALID_FEATURE_NAME.matcher(normalized).matches();
+    }
+
+    /** Returns whether a value is a safe local YAML file name without directory segments. */
+    public static boolean isValidLocalDataFileName(String fileName) {
+        return fileName != null && VALID_LOCAL_DATA_FILE.matcher(fileName.trim()).matches();
     }
 
     public static String normalizeFeatureName(String featureName) {

@@ -3,6 +3,7 @@ package nl.hauntedmc.featureframework.integration.dataregistry;
 import nl.hauntedmc.dataregistry.api.player.PlayerIdentity;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Immutable, persistence-free reference to a DataRegistry player.
@@ -27,6 +28,11 @@ public record PlayerReference(Long id, String uuid, String username) {
     public static PlayerReference byId(long playerId) {
         return new PlayerReference(playerId, null, null);
     }
+
+    public long playerId() { return id; }
+    public Optional<String> uuidOptional() { return Optional.ofNullable(uuid); }
+    public Optional<String> usernameOptional() { return Optional.ofNullable(username); }
+    public boolean hasIdentitySnapshot() { return uuid != null || username != null; }
 
     /**
      * References identify the same player when their canonical DataRegistry ids match. Snapshot fields

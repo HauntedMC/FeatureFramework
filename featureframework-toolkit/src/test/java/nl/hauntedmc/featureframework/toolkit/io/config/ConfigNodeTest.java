@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -16,8 +17,14 @@ class ConfigNodeTest {
                 "weights", Map.of("a", "1")
         ), "root");
         assertFalse(root.isNull());
+        assertTrue(root.isMap());
+        assertFalse(root.isList());
+        assertEquals(3, root.size());
         assertEquals("server", root.getAt("global.name").asRequired(String.class));
+        assertEquals(Optional.of("server"), root.getAt("global.name").asOptional(String.class));
         assertEquals(List.of("1", "2"), root.get("list").listOf(String.class));
+        assertTrue(root.get("list").isList());
+        assertEquals(2, root.get("list").size());
         assertEquals(Map.of("a", 1), root.get("weights").mapValues(Integer.class));
         assertTrue(root.keys().contains("global"));
         assertTrue(root.children().containsKey("global"));
@@ -28,6 +35,8 @@ class ConfigNodeTest {
     void missingAndNonMapNodesAreSafe() {
         ConfigNode missing = ConfigNode.ofRaw(null, "x");
         assertTrue(missing.isNull());
+        assertTrue(missing.asOptional(String.class).isEmpty());
+        assertEquals(0, missing.size());
         assertNull(missing.raw());
         assertEquals("fallback", missing.as(String.class, "fallback"));
         assertThrows(IllegalStateException.class, () -> missing.asRequired(String.class));

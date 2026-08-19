@@ -7,6 +7,8 @@ import java.util.*;
 
 /** Immutable typed placeholder bag used by framework and feature messages. */
 public final class MessagePlaceholders {
+    private static final MessagePlaceholders EMPTY = new MessagePlaceholders(Map.of());
+
     private final Map<String, String> values;
 
     private MessagePlaceholders(Map<String, String> values) {
@@ -14,10 +16,15 @@ public final class MessagePlaceholders {
     }
 
     public static Builder builder() { return new Builder(); }
-    public static MessagePlaceholders empty() { return new MessagePlaceholders(Map.of()); }
+    public static MessagePlaceholders empty() { return EMPTY; }
     public static MessagePlaceholders of(String key, String value) { return new MessagePlaceholders(Map.of(key, value)); }
     public static MessagePlaceholders of(Map<String, String> values) { return new MessagePlaceholders(new HashMap<>(values)); }
     public String get(String key) { return values.get(key); }
+    public boolean contains(String key) { return values.containsKey(key); }
+    public int size() { return values.size(); }
+    public boolean isEmpty() { return values.isEmpty(); }
+    public Map<String, String> asMap() { return values; }
+    public String apply(String message) { return applyPlaceholders(message, this); }
 
     public static String applyPlaceholders(String message, MessagePlaceholders placeholders) {
         if (message == null || placeholders == null || placeholders.values.isEmpty()) return message;

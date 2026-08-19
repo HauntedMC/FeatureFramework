@@ -18,7 +18,18 @@ public final class ConfigNode {
 
     public boolean isNull() { return value == null; }
     public boolean isPresent() { return !isNull(); }
+    public boolean isMap() { return value instanceof Map<?, ?>; }
+    public boolean isList() { return value instanceof List<?>; }
+    public int size() {
+        if (value instanceof Map<?, ?> map) return map.size();
+        if (value instanceof List<?> list) return list.size();
+        return 0;
+    }
     public <T> T as(Class<T> type, T defaultValue) { return ConfigTypes.convertOrDefault(value, type, defaultValue); }
+
+    public <T> Optional<T> asOptional(Class<T> type) {
+        return Optional.ofNullable(ConfigTypes.convert(value, type));
+    }
 
     public <T> T asRequired(Class<T> type) {
         T converted = ConfigTypes.convert(value, type);

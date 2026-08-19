@@ -11,6 +11,14 @@ public final class TestFs {
     private TestFs() {
     }
 
+    public static Path directory(Path directory) {
+        try {
+            return Files.createDirectories(directory);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create test directory: " + directory, e);
+        }
+    }
+
     public static Path touch(Path file) {
         try {
             Files.createDirectories(file.getParent());
@@ -19,7 +27,7 @@ public final class TestFs {
             }
             return file;
         } catch (IOException e) {
-            throw new RuntimeException("Kon testbestand niet aanmaken: " + file, e);
+            throw new RuntimeException("Could not create test file: " + file, e);
         }
     }
 
@@ -29,7 +37,15 @@ public final class TestFs {
             return Files.writeString(file, content == null ? "" : content, StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
         } catch (IOException e) {
-            throw new RuntimeException("Kon testbestand niet schrijven: " + file, e);
+            throw new RuntimeException("Could not write test file: " + file, e);
+        }
+    }
+
+    public static String read(Path file) {
+        try {
+            return Files.readString(file, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not read test file: " + file, e);
         }
     }
 

@@ -13,12 +13,16 @@ class DependencyCheckResultTest {
     void okIsTrueWhenNothingMissing() {
         DependencyCheckResult result = new DependencyCheckResult(Set.of(), Set.of());
         assertTrue(result.ok());
+        assertFalse(result.hasMissingDependencies());
+        assertEquals(0, result.missingDependencyCount());
     }
 
     @Test
     void okIsFalseWhenAnyDependencyMissing() {
-        assertFalse(new DependencyCheckResult(Set.of("Vault"), Set.of()).ok());
-        assertFalse(new DependencyCheckResult(Set.of(), Set.of("OtherFeature")).ok());
+        DependencyCheckResult result = new DependencyCheckResult(Set.of("Vault"), Set.of("OtherFeature"));
+        assertFalse(result.ok());
+        assertTrue(result.hasMissingDependencies());
+        assertEquals(2, result.missingDependencyCount());
     }
 
     @Test

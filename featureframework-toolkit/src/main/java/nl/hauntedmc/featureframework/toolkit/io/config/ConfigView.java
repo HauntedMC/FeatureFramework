@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -32,6 +33,10 @@ public class ConfigView {
     public Object get(String key) { return file.getRaw(base(key)); }
     public <T> T get(String key, Class<T> type) { return ConfigTypes.convert(get(key), type); }
     public <T> T get(String key, Class<T> type, T def) { return ConfigTypes.convertOrDefault(get(key), type, def); }
+    public <T> Optional<T> getOptional(String key, Class<T> type) {
+        return Optional.ofNullable(get(key, type));
+    }
+    public boolean contains(String key) { return node(key).isPresent(); }
     public <T> List<T> getList(String key, Class<T> type) { return ConfigTypes.convertList(get(key), type); }
 
     public <T> List<T> getList(String key, Class<T> type, List<T> def) {
@@ -61,9 +66,19 @@ public class ConfigView {
     public ConfigNode nodeAt(String path) { return node().getAt(path); }
     public <T> T getAt(String path, Class<T> type) { return node().getAt(path).asRequired(type); }
     public <T> T getAt(String path, Class<T> type, T def) { return node().getAt(path).as(type, def); }
+    public <T> Optional<T> getAtOptional(String path, Class<T> type) {
+        return node().getAt(path).asOptional(type);
+    }
 
     public void put(String path, Object value) { file.setRawAndSave(base(path), value); }
     public void remove(String path) { put(path, null); }
+
+    /** Applies multiple path/value updates in one atomic file write. */
+    public void putAll(Map<String, ?> values) {
+        Map<String, ?> required = Objects.requireNonNull(values, "values");
+        if (required.isEmpty()) return;
+        batch(batch -> batch.putAll(required));
+    }
 
     public boolean putIfAbsent(String path, Object value) {
         String absolute = base(path);
@@ -185,6 +200,11 @@ public class ConfigView {
         public Batch put(String path, Object value) {
             set(root.node(YamlFile.splitPath(base(path))), value, path);
             changed = true;
+            return this;
+        }
+
+        public Batch putAll(Map<String, ?> values) {
+            Objects.requireNonNull(values, "values").forEach(this::put);
             return this;
         }
 

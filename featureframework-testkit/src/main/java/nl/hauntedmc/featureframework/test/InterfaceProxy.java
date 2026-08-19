@@ -12,9 +12,16 @@ public final class InterfaceProxy {
     private InterfaceProxy() {
     }
 
+    public static <T> T of(Class<T> type) {
+        return of(type, Map.of());
+    }
+
     public static <T> T of(Class<T> type, Map<String, Function<Object[], Object>> handlers) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(handlers, "handlers");
+        if (!type.isInterface()) {
+            throw new IllegalArgumentException("Proxy type must be an interface: " + type.getName());
+        }
 
         InvocationHandler invocationHandler = (proxy, method, args) -> {
             if (method.getDeclaringClass() == Object.class) {
