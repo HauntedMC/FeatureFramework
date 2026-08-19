@@ -51,6 +51,10 @@ public final class FeatureCollection<F extends Feature, C> {
         return definitions;
     }
 
+    public int size() {
+        return definitions.size();
+    }
+
     /** Builder useful when a product composes definitions from several feature packs. */
     public static final class Builder<F extends Feature, C> {
         private final List<FeatureDefinition<F, C>> definitions = new ArrayList<>();

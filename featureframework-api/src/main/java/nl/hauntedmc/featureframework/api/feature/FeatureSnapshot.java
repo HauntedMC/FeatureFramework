@@ -56,4 +56,11 @@ public record FeatureSnapshot(
         );
     }
 
+    public boolean active() {
+        return state == FeatureState.ACTIVE;
+    }
+
+    public boolean failed() {
+        return state == FeatureState.FAILED;
+    }
 }

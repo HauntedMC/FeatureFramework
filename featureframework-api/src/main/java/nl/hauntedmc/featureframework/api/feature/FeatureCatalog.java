@@ -7,9 +7,9 @@ import java.util.Optional;
 public interface FeatureCatalog {
     Optional<FeatureSnapshot> find(FeatureId id);
 
-    /** Finds a feature by a textual id using the same normalization as {@link FeatureId#of(String)}. */
+    /** Finds a feature from external text, returning empty for null or malformed identifiers. */
     default Optional<FeatureSnapshot> findByName(String id) {
-        return find(FeatureId.of(id));
+        return FeatureId.tryParse(id).flatMap(this::find);
     }
 
     List<FeatureSnapshot> snapshot();

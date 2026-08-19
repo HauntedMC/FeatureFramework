@@ -14,6 +14,12 @@ public class ConfigMap {
         return this;
     }
 
+    /** Adds all supplied values and returns this map for fluent default construction. */
+    public ConfigMap putAll(Map<String, ?> values) {
+        this.values.putAll(values);
+        return this;
+    }
+
     public Object get(String key) {
         return values.get(key);
     }
@@ -29,6 +35,8 @@ public class ConfigMap {
     }
 
     public boolean contains(String key) { return values.containsKey(key); }
+    public boolean isEmpty() { return values.isEmpty(); }
+    public int size() { return values.size(); }
     public Set<String> keySet() { return values.keySet(); }
     public Set<Map.Entry<String, Object>> entrySet() { return values.entrySet(); }
     public Map<String, Object> toMap() { return new HashMap<>(values); }

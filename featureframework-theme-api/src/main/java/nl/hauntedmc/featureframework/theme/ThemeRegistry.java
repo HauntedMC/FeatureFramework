@@ -46,6 +46,10 @@ public final class ThemeRegistry {
         return themesByKey.isEmpty();
     }
 
+    public int size() {
+        return themes.size();
+    }
+
     public List<Theme> themes() {
         return themes;
     }

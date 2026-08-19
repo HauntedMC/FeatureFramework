@@ -40,7 +40,7 @@ class FrameworkApiContractsTest {
     }
 
     @Test
-    void featureCatalogAcceptsTextIds() {
+    void featureCatalogAcceptsExternalTextIds() {
         FeatureMetadata metadata = new FeatureMetadata(
                 FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of()
         );
@@ -74,6 +74,10 @@ class FrameworkApiContractsTest {
 
         assertEquals(Optional.of(snapshot), catalog.findByName(" DEMO "));
         assertEquals(Optional.empty(), catalog.findByName("missing"));
+        assertEquals(Optional.empty(), catalog.findByName("bad id"));
+        assertEquals(Optional.empty(), catalog.findByName(null));
+        assertTrue(snapshot.active());
+        assertFalse(snapshot.failed());
     }
 
     @Test
@@ -96,6 +100,8 @@ class FrameworkApiContractsTest {
 
         assertEquals(Optional.of("boom"), snapshot.failure());
         assertEquals(Optional.of(failure), snapshot.failureDetail());
+        assertTrue(snapshot.failed());
+        assertFalse(snapshot.active());
         assertThrows(IllegalArgumentException.class, () -> new FeatureSnapshot(
                 metadata, true, FeatureState.ACTIVE, Optional.empty(), Set.of(),
                 Instant.EPOCH, Optional.empty(), -1, Instant.EPOCH
@@ -104,7 +110,14 @@ class FrameworkApiContractsTest {
 
     @Test
     void validatesServerIdsAndCapabilityFailures() {
-        assertEquals("hub", ServerId.of(" HUB ").value());
+        ServerId hub = ServerId.of(" HUB ");
+        assertEquals("hub", hub.value());
+        assertTrue(ServerId.isValid(" HUB "));
+        assertFalse(ServerId.isValid("bad id"));
+        assertFalse(ServerId.isValid(null));
+        assertEquals(Optional.of(hub), ServerId.tryParse(" HUB "));
+        assertTrue(ServerId.tryParse("bad id").isEmpty());
+
         CapabilityUnavailableException failure = new CapabilityUnavailableException(Runnable.class);
         assertEquals(Runnable.class, failure.capabilityType());
         assertTrue(failure.getMessage().contains(Runnable.class.getName()));

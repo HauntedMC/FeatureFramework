@@ -40,6 +40,10 @@ public final class Theme {
         return items;
     }
 
+    public int size() {
+        return items.size();
+    }
+
     public Optional<ThemeItem> item(String itemId) {
         return item(ThemeItemId.of(itemId));
     }
@@ -63,11 +67,20 @@ public final class Theme {
         }
 
         public Builder item(ThemeItemId itemId, ThemeColor color) {
-            ThemeItem item = new ThemeItem(itemId, color);
-            ThemeItem previous = itemsByKey.putIfAbsent(itemId.lookupKey(), item);
+            return item(new ThemeItem(itemId, color));
+        }
+
+        public Builder item(ThemeItem item) {
+            ThemeItem value = Objects.requireNonNull(item, "item");
+            ThemeItem previous = itemsByKey.putIfAbsent(value.id().lookupKey(), value);
             if (previous != null) {
-                throw new IllegalArgumentException("duplicate theme item identifier: " + itemId.value());
+                throw new IllegalArgumentException("duplicate theme item identifier: " + value.id().value());
             }
+            return this;
+        }
+
+        public Builder items(Iterable<? extends ThemeItem> values) {
+            Objects.requireNonNull(values, "items").forEach(this::item);
             return this;
         }
 

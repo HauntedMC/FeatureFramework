@@ -49,7 +49,6 @@ public final class FeatureDefinition<F extends Feature, C>
         constructor = Objects.requireNonNull(builder.constructor, "constructor");
         startupPhase = builder.startupPhase;
         enabledByDefault = builder.enabledByDefault;
-        roles = immutableRoles(builder.roles);
         requiredFeatures = immutableText(builder.requiredFeatures, "requiredFeatures");
         optionalFeatures = withoutRequired(
                 immutableText(builder.optionalFeatures, "optionalFeatures"), requiredFeatures);
@@ -71,6 +70,7 @@ public final class FeatureDefinition<F extends Feature, C>
         optionalResourceExtensions = withoutRequiredTypes(
                 immutableTypes(builder.optionalResourceExtensions, "optionalResourceExtensions"),
                 requiredResourceExtensions);
+        roles = effectiveRoles(builder.roles, requiredCapabilities, optionalCapabilities, providedCapabilities);
         ensureDisjoint(requiredCapabilities, providedCapabilities, "required", "provided capability");
         ensureDisjoint(optionalCapabilities, providedCapabilities, "optional", "provided capability");
         ensureDisjoint(requiredInternalServices, providedInternalServices, "required", "provided internal service");
@@ -101,10 +101,7 @@ public final class FeatureDefinition<F extends Feature, C>
 
     @Override
     public Set<FeatureRole> roles() {
-        EnumSet<FeatureRole> result = roles.isEmpty()
-                ? EnumSet.noneOf(FeatureRole.class) : EnumSet.copyOf(roles);
-        result.addAll(FeatureManifestDefinition.super.roles());
-        return Set.copyOf(result);
+        return roles;
     }
 
     @Override public Set<Class<?>> requiredCapabilities() { return requiredCapabilities; }
@@ -245,9 +242,19 @@ public final class FeatureDefinition<F extends Feature, C>
         }
     }
 
-    private static Set<FeatureRole> immutableRoles(Set<FeatureRole> values) {
-        if (values.isEmpty()) return Set.of();
-        return Collections.unmodifiableSet(EnumSet.copyOf(values));
+    private static Set<FeatureRole> effectiveRoles(
+            Set<FeatureRole> declared,
+            Set<Class<?>> requiredCapabilities,
+            Set<Class<?>> optionalCapabilities,
+            Set<Class<?>> providedCapabilities
+    ) {
+        EnumSet<FeatureRole> result = declared.isEmpty()
+                ? EnumSet.noneOf(FeatureRole.class) : EnumSet.copyOf(declared);
+        if (!providedCapabilities.isEmpty()) result.add(FeatureRole.CAPABILITY_PROVIDER);
+        if (!requiredCapabilities.isEmpty() || !optionalCapabilities.isEmpty()) {
+            result.add(FeatureRole.CAPABILITY_CONSUMER);
+        }
+        return result.isEmpty() ? Set.of() : Collections.unmodifiableSet(result);
     }
 
     private static Set<String> immutableText(Set<String> values, String field) {

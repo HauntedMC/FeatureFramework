@@ -240,6 +240,12 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
         public Builder<P, V> contribute(FeatureResourceContributor<VelocityFeatureResources> value) {
             contributors.add(Objects.requireNonNull(value, "contributor")); return this;
         }
+        public Builder<P, V> contributors(
+                Iterable<? extends FeatureResourceContributor<VelocityFeatureResources>> values
+        ) {
+            Objects.requireNonNull(values, "contributors").forEach(this::contribute);
+            return this;
+        }
         public <T> Builder<P, V> bootstrapCapability(Class<T> type, T value) {
             bootstrapCapabilities.add(new BootstrapCapability<>(type, type.cast(value))); return this;
         }

@@ -10,11 +10,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class ConfigMapTest {
     @Test
     void putGetTypedGetAndCollectionViewsWork() {
-        ConfigMap map = new ConfigMap().put("name", "server").put("enabled", true).put("count", 3);
+        ConfigMap map = new ConfigMap()
+                .put("name", "server")
+                .putAll(Map.of("enabled", true, "count", 3));
         assertEquals("server", map.get("name"));
         assertEquals("server", map.get("name", String.class));
         assertNull(map.get("missing", String.class));
         assertTrue(map.contains("enabled"));
+        assertFalse(map.isEmpty());
+        assertEquals(3, map.size());
         assertTrue(map.keySet().contains("count"));
         assertTrue(map.entrySet().stream().anyMatch(entry -> entry.getKey().equals("name")));
         Map<String, Object> copy = map.toMap();
@@ -24,6 +28,7 @@ class ConfigMapTest {
         map.forEach((key, value) -> seen.incrementAndGet());
         assertEquals(3, seen.get());
         assertTrue(map.toString().contains("server"));
+        assertTrue(new ConfigMap().isEmpty());
     }
 
     @Test

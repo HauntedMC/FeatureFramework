@@ -3,9 +3,12 @@ package nl.hauntedmc.featureframework.toolkit.token;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TokenServiceTest {
 
@@ -17,9 +20,15 @@ class TokenServiceTest {
                 TokenOptions.of(2, Duration.ofMinutes(1), true)
         );
 
+        TokenResult<String> first = tokens.consume(token);
+        assertEquals(TokenResult.State.OK, first.state());
+        assertTrue(first.isOk());
+        assertEquals(Optional.of("payload"), first.payloadOptional());
         assertEquals(TokenResult.State.OK, tokens.consume(token).state());
-        assertEquals(TokenResult.State.OK, tokens.consume(token).state());
-        assertEquals(TokenResult.State.INVALID, tokens.consume(token).state());
+        TokenResult<String> invalid = tokens.consume(token);
+        assertEquals(TokenResult.State.INVALID, invalid.state());
+        assertFalse(invalid.isOk());
+        assertTrue(invalid.payloadOptional().isEmpty());
         assertEquals(0, tokens.size());
     }
 
