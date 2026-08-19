@@ -13,9 +13,11 @@ public final class ThemeRegistry {
     private static final ThemeRegistry EMPTY = new ThemeRegistry(Map.of());
 
     private final Map<String, Theme> themesByKey;
+    private final List<Theme> themes;
 
     private ThemeRegistry(Map<String, Theme> themesByKey) {
         this.themesByKey = Collections.unmodifiableMap(new LinkedHashMap<>(themesByKey));
+        themes = List.copyOf(this.themesByKey.values());
     }
 
     public static ThemeRegistry empty() {
@@ -45,7 +47,7 @@ public final class ThemeRegistry {
     }
 
     public List<Theme> themes() {
-        return List.copyOf(themesByKey.values());
+        return themes;
     }
 
     public Optional<Theme> theme(String id) {
@@ -71,6 +73,11 @@ public final class ThemeRegistry {
 
         public Builder themes(Iterable<? extends Theme> values) {
             Objects.requireNonNull(values, "themes").forEach(this::theme);
+            return this;
+        }
+
+        public Builder include(ThemeRegistry registry) {
+            themes(Objects.requireNonNull(registry, "registry").themes());
             return this;
         }
 

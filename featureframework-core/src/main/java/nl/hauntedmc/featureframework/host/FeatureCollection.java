@@ -63,6 +63,12 @@ public final class FeatureCollection<F extends Feature, C> {
             return this;
         }
 
+        /** Adds an ordered batch of definitions without forcing callers to loop manually. */
+        public Builder<F, C> features(Iterable<? extends FeatureDefinition<? extends F, C>> values) {
+            Objects.requireNonNull(values, "definitions").forEach(this::feature);
+            return this;
+        }
+
         public Builder<F, C> include(FeatureCollection<? extends F, C> collection) {
             Objects.requireNonNull(collection, "collection");
             collection.definitions().forEach(this::feature);

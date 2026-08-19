@@ -6,6 +6,12 @@ import java.util.Optional;
 /** Read-only catalog of all features managed by one host plugin. */
 public interface FeatureCatalog {
     Optional<FeatureSnapshot> find(FeatureId id);
+
+    /** Convenience overload for callers that already have a feature name or id as text. */
+    default Optional<FeatureSnapshot> find(String id) {
+        return find(FeatureId.of(id));
+    }
+
     List<FeatureSnapshot> snapshot();
     AutoCloseable subscribe(FeatureCatalogListener listener);
 }

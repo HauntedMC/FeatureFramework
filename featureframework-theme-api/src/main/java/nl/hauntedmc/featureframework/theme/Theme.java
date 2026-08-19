@@ -13,6 +13,7 @@ import java.util.Optional;
 public final class Theme {
     private final ThemeId id;
     private final Map<String, ThemeItem> itemsByKey;
+    private final List<ThemeItem> items;
 
     private Theme(Builder builder) {
         id = builder.id;
@@ -20,6 +21,7 @@ public final class Theme {
             throw new IllegalArgumentException("theme must contain at least one item");
         }
         itemsByKey = Collections.unmodifiableMap(new LinkedHashMap<>(builder.itemsByKey));
+        items = List.copyOf(itemsByKey.values());
     }
 
     public static Builder builder(String id) {
@@ -35,7 +37,7 @@ public final class Theme {
     }
 
     public List<ThemeItem> items() {
-        return List.copyOf(itemsByKey.values());
+        return items;
     }
 
     public Optional<ThemeItem> item(String itemId) {

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -18,13 +19,17 @@ class ThemeTest {
                 .build();
         ThemeRegistry registry = ThemeRegistry.of(List.of(haunted));
         ThemeRegistry builtRegistry = ThemeRegistry.builder().theme(haunted).build();
+        ThemeRegistry includedRegistry = ThemeRegistry.builder().include(registry).build();
 
         assertEquals(0xA855F7, ((ThemeColor.Solid) registry.item("hauntedmc", "BRAND")
                 .orElseThrow().color()).color().value());
         assertEquals(List.of("Brand", "Header"), haunted.items().stream()
                 .map(item -> item.id().value()).toList());
+        assertSame(haunted.items(), haunted.items());
+        assertSame(registry.themes(), registry.themes());
         assertTrue(registry.theme("HAUNTEDMC").isPresent());
         assertTrue(builtRegistry.theme("hauntedmc").isPresent());
+        assertTrue(includedRegistry.theme("hauntedmc").isPresent());
     }
 
     @Test
