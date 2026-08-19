@@ -7,8 +7,8 @@ import java.util.Optional;
 public interface FeatureCatalog {
     Optional<FeatureSnapshot> find(FeatureId id);
 
-    /** Convenience overload for callers that already have a feature name or id as text. */
-    default Optional<FeatureSnapshot> find(String id) {
+    /** Finds a feature by a textual id using the same normalization as {@link FeatureId#of(String)}. */
+    default Optional<FeatureSnapshot> findByName(String id) {
         return find(FeatureId.of(id));
     }
 

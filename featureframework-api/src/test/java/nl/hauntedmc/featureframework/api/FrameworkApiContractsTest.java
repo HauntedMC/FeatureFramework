@@ -72,8 +72,8 @@ class FrameworkApiContractsTest {
             }
         };
 
-        assertEquals(Optional.of(snapshot), catalog.find(" DEMO "));
-        assertEquals(Optional.empty(), catalog.find("missing"));
+        assertEquals(Optional.of(snapshot), catalog.findByName(" DEMO "));
+        assertEquals(Optional.empty(), catalog.findByName("missing"));
     }
 
     @Test
