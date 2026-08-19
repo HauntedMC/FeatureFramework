@@ -10,9 +10,9 @@ import java.nio.file.Path;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.Set;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Central registry/factory for YAML files shared by the Paper runtime and feature implementations. */
@@ -80,6 +80,9 @@ public final class ConfigService {
     }
 
     public boolean exists(String relativePath) { return Files.exists(resolve(relativePath)); }
+    public boolean isCached(String relativePath) { return cache.containsKey(resolve(relativePath)); }
+    public int cachedFileCount() { return cache.size(); }
+    public Set<Path> cachedPaths() { return Set.copyOf(cache.keySet()); }
 
     /** Root directory used by this service. Administrative storage operations must remain below it. */
     public Path dataDirectory() { return dataDir; }

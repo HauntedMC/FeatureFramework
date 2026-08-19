@@ -42,6 +42,21 @@ class JsonCacheFileTest {
     }
 
     @Test
+    void nonPositiveExpirationRemainsNonExpiringAfterPersistence() {
+        Path file = tempDir.resolve("never-expires.json");
+        JsonCacheFile cache = new JsonCacheFile(file.toFile());
+        cache.put("zero", CacheValue.of(Map.of("value", 1), 0));
+        cache.put("negative", CacheValue.of(Map.of("value", 2), -1));
+
+        JsonCacheFile reloaded = new JsonCacheFile(file.toFile());
+
+        assertNotNull(reloaded.get("zero"));
+        assertNotNull(reloaded.get("negative"));
+        assertEquals(2, reloaded.listAll().size());
+        assertTrue(Files.exists(file));
+    }
+
+    @Test
     void expiredEntriesAreRemovedAndEmptyStoreDeletesFile() {
         Path file = tempDir.resolve("expired.json");
         JsonCacheFile cache = new JsonCacheFile(file.toFile());

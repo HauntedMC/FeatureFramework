@@ -8,11 +8,13 @@ import nl.hauntedmc.dataprovider.database.DatabaseType;
 import nl.hauntedmc.dataprovider.database.messaging.MessagingDataAccess;
 import nl.hauntedmc.dataprovider.database.messaging.MessagingDatabaseProvider;
 import nl.hauntedmc.dataprovider.database.relational.RelationalDatabaseProvider;
+import nl.hauntedmc.featureframework.lifecycle.FeatureResourceState;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import org.junit.jupiter.api.Test;
 
 import javax.sql.DataSource;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,15 +32,24 @@ class DataProviderResourcesTest {
         when(scope.registerDatabaseOrThrow(DatabaseType.MYSQL, "default")).thenReturn(provider);
         DataProviderResources manager = manager(api);
 
+        assertFalse(manager.isBound());
         manager.initializeForFeature("Queue");
 
+        assertTrue(manager.isBound());
+        assertEquals(Optional.of("Queue"), manager.boundFeatureName());
         assertSame(provider, manager.registerConnection("main", DatabaseType.MYSQL, "default").orElseThrow());
+        assertTrue(manager.hasConnection("main"));
+        assertEquals(Set.of("main"), manager.connectionIdentifiers());
+        assertEquals(1, manager.activeConnectionCount());
+        assertEquals(0, manager.activeOrmContextCount());
         assertEquals(1, manager.getActiveConnCount());
-        manager.closeAllConnections();
+        manager.close();
 
         verify(scope).registerDatabaseOrThrow(DatabaseType.MYSQL, "default");
         verify(scope).close();
+        assertEquals(FeatureResourceState.CLOSED, manager.state());
         assertEquals(0, manager.getActiveConnCount());
+        assertTrue(manager.connectionIdentifiers().isEmpty());
     }
 
     @Test
@@ -94,6 +105,9 @@ class DataProviderResourcesTest {
 
         assertTrue(manager.registerConnection("main", DatabaseType.MYSQL, "default").isPresent());
         assertSame(ormContext, manager.createORMContext("main", String.class).orElseThrow());
+        assertTrue(manager.hasOrmContext("main"));
+        assertEquals(Set.of("main"), manager.ormContextIdentifiers());
+        assertEquals(1, manager.activeOrmContextCount());
         manager.closeAllConnections();
 
         verify(api).createOrmContext(same(dataSource), any(), eq("validate"), eq(String.class));

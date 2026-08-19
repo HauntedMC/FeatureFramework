@@ -389,7 +389,7 @@ public class JsonCacheFile implements FileCacheStore {
             return false;
         }
         long timestamp = number.longValue();
-        return timestamp >= 0 && now > timestamp;
+        return timestamp > 0 && now > timestamp;
     }
 
     private static CacheValue toValue(Map<String, Object> entry) {
