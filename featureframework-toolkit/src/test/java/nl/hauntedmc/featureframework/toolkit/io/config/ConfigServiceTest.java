@@ -29,6 +29,11 @@ class ConfigServiceTest {
 
         assertSame(first, second);
         assertTrue(service.exists("config.yml"));
+        assertTrue(service.isCached("config.yml"));
+        assertEquals(1, service.cachedFileCount());
+        assertEquals(java.util.Set.of(tempDir.resolve("config.yml").toAbsolutePath().normalize()), service.cachedPaths());
+        assertThrows(UnsupportedOperationException.class,
+                () -> service.cachedPaths().add(tempDir.resolve("other.yml")));
         assertThrows(IllegalArgumentException.class, () -> service.open("../evil.yml", false));
         assertThrows(IllegalArgumentException.class, () -> service.open(" ", false));
         assertThrows(IllegalArgumentException.class,
@@ -116,10 +121,13 @@ class ConfigServiceTest {
         YamlFile cached = service.open("cached-broken.yml", false);
         Files.writeString(path, "key: [unterminated");
         assertThrows(ConfigLoadException.class, cached::reload);
+        assertTrue(cached.hasLoadFailure());
+        assertTrue(cached.loadFailure().isPresent());
 
         service.replaceWithEmptyDocument("cached-broken.yml");
 
         assertSame(cached, service.open("cached-broken.yml", false));
+        assertFalse(cached.hasLoadFailure());
         new ConfigView(cached, "").put("healthy", true);
         assertTrue(Files.readString(path).contains("healthy: true"));
     }
@@ -128,8 +136,10 @@ class ConfigServiceTest {
     void deletingOptionalFileEvictsItsCachedHandle() throws Exception {
         ConfigService service = new ConfigService(tempDir, mock(Logger.class), null);
         YamlFile original = service.open("optional.yml", false);
+        assertTrue(service.isCached("optional.yml"));
         service.deleteOptional("optional.yml");
         assertFalse(service.exists("optional.yml"));
+        assertFalse(service.isCached("optional.yml"));
 
         YamlFile recreated = service.open("optional.yml", false);
         assertNotSame(original, recreated);

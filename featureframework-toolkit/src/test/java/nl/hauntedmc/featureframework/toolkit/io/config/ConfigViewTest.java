@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,12 +25,18 @@ class ConfigViewTest {
         view.put("numbers", List.of("1", 2));
         view.put("weights", Map.of("a", "1"));
 
+        assertTrue(view.contains("global.name"));
+        assertFalse(view.contains("global.missing"));
         assertEquals("server", view.get("global.name", String.class));
+        assertEquals(Optional.of("server"), view.getOptional("global.name", String.class));
+        assertTrue(view.getOptional("missing", String.class).isEmpty());
         assertEquals("fallback", view.get("missing", String.class, "fallback"));
         assertEquals(List.of(1, 2), view.getList("numbers", Integer.class));
         assertEquals(Map.of("a", 1), view.getMapValues("weights", Integer.class));
         assertEquals("server", view.nodeAt("global.name").asRequired(String.class));
         assertEquals("server", view.getAt("global.name", String.class));
+        assertEquals(Optional.of("server"), view.getAtOptional("global.name", String.class));
+        assertTrue(view.getAtOptional("global.missing", String.class).isEmpty());
         assertEquals("fallback", view.getAt("global.missing", String.class, "fallback"));
 
         assertTrue(view.putIfAbsent("global.mode", "on"));
@@ -55,9 +62,14 @@ class ConfigViewTest {
         assertEquals(List.of("b"), view.getList("items", String.class));
         assertEquals(0, view.removeFromList("missing", ignored -> true));
 
+        view.putAll(Map.of("bulk.one", 1, "bulk.two", 2));
+        assertEquals(1, view.get("bulk.one", Integer.class));
+        assertEquals(2, view.get("bulk.two", Integer.class));
+
         view.batch(batch -> {
             try {
                 batch.put("batch.value", 1)
+                        .putAll(Map.of("batch.extra", true))
                         .putIfAbsent("batch.value", 2)
                         .compute("batch.value", Integer.class, value -> value + 1, () -> 0)
                         .appendToList("batch.items", "x")
@@ -68,6 +80,7 @@ class ConfigViewTest {
             }
         });
         assertEquals(2, view.get("batch.value", Integer.class));
+        assertEquals(true, view.get("batch.extra", Boolean.class));
         assertEquals(List.of("y"), view.getList("batch.items", String.class));
 
         view.batch(batch -> {

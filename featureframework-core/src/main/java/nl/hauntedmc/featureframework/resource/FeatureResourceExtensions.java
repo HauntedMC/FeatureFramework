@@ -1,9 +1,11 @@
 package nl.hauntedmc.featureframework.resource;
 
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /** Typed extensions attached to one feature generation by host contributors. */
 public final class FeatureResourceExtensions {
@@ -29,5 +31,23 @@ public final class FeatureResourceExtensions {
 
     public synchronized boolean contains(Class<?> type) {
         return values.keySet().stream().anyMatch(key -> key.type().equals(type));
+    }
+
+    /** Returns whether the exact typed resource key is registered. */
+    public synchronized boolean containsKey(ResourceKey<?> key) {
+        return values.containsKey(Objects.requireNonNull(key, "key"));
+    }
+
+    /** Returns an immutable snapshot of the currently registered resource keys. */
+    public synchronized Set<ResourceKey<?>> keys() {
+        return java.util.Collections.unmodifiableSet(new LinkedHashSet<>(values.keySet()));
+    }
+
+    public synchronized int size() {
+        return values.size();
+    }
+
+    public synchronized boolean isEmpty() {
+        return values.isEmpty();
     }
 }

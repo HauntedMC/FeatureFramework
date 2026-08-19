@@ -5,20 +5,26 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class FeatureResourceInfrastructureTest {
 
     @Test
-    void extensionsAreTypedUniqueAndRequiredExplicitly() {
+    void extensionsAreTypedUniqueAndInspectable() {
         FeatureResourceExtensions extensions = new FeatureResourceExtensions();
         ResourceKey<String> key = ResourceKey.of(String.class);
 
+        assertTrue(extensions.isEmpty());
         extensions.register(key, "value");
 
         assertEquals("value", extensions.require(key));
         assertTrue(extensions.contains(String.class));
+        assertTrue(extensions.containsKey(key));
+        assertEquals(Set.of(key), extensions.keys());
+        assertEquals(1, extensions.size());
+        assertFalse(extensions.isEmpty());
         assertThrows(IllegalStateException.class, () -> extensions.register(key, "replacement"));
         assertThrows(IllegalStateException.class,
                 () -> extensions.require(ResourceKey.of(Integer.class)));

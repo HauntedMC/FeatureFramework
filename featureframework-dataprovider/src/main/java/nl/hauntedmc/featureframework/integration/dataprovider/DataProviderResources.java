@@ -19,6 +19,7 @@ import javax.sql.DataSource;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
@@ -26,7 +27,7 @@ import java.util.function.Supplier;
  * Feature-scoped DataProvider resource owner shared by every platform.
  * Database scopes, ORM contexts, messaging handles, and cleanup are isolated per feature.
  */
-public class DataProviderResources {
+public class DataProviderResources implements AutoCloseable {
     public static final ResourceKey<DataProviderResources> KEY = ResourceKey.of(DataProviderResources.class);
     private static final String DEFAULT_PLAYER_ORM_IDENTIFIER = "playerOrmContext";
     private static final String DEFAULT_SYSTEM_ORM_IDENTIFIER = "systemOrmContext";
@@ -114,6 +115,14 @@ public class DataProviderResources {
 
     public FeatureResourceState state() { return state; }
     public boolean isInitialized() { return initialized; }
+    public boolean isBound() { return featureName != null; }
+    public Optional<String> boundFeatureName() { return Optional.ofNullable(featureName); }
+    public int activeConnectionCount() { return connections.size(); }
+    public int activeOrmContextCount() { return ormContexts.size(); }
+    public boolean hasConnection(String identifier) { return hasText(identifier) && connections.containsKey(identifier); }
+    public boolean hasOrmContext(String identifier) { return hasText(identifier) && ormContexts.containsKey(identifier); }
+    public Set<String> connectionIdentifiers() { return Set.copyOf(connections.keySet()); }
+    public Set<String> ormContextIdentifiers() { return Set.copyOf(ormContexts.keySet()); }
 
     private boolean initializeBoundFeature() {
         requireOpen();
@@ -291,8 +300,11 @@ public class DataProviderResources {
         if (failure != null) throwUnchecked(failure);
     }
 
+    @Override
+    public void close() { closeAllDataResources(); }
+
     public void closeAllConnections() { closeAllDataResources(); }
-    public int getActiveConnectionCount() { return connections.size(); }
+    public int getActiveConnectionCount() { return activeConnectionCount(); }
     public int getActiveConnCount() { return getActiveConnectionCount(); }
 
     private Optional<DataProviderAPI> api() {

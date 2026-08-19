@@ -22,6 +22,9 @@ class YamlFileTest {
         Files.createFile(path);
         YamlFile yaml = new YamlFile(path, mock(Logger.class));
 
+        assertEquals(path.toAbsolutePath().normalize(), yaml.path());
+        assertFalse(yaml.hasLoadFailure());
+        assertTrue(yaml.loadFailure().isEmpty());
         yaml.setRawAndSave("global.name", "server");
         assertEquals("server", yaml.getRaw("global.name"));
         assertNull(yaml.getRaw("global.missing"));
@@ -44,6 +47,22 @@ class YamlFileTest {
                 () -> new YamlFile(path, mock(Logger.class)));
         assertEquals(path, failure.path());
         assertTrue(Files.readString(path).contains("[broken"));
+    }
+
+    @Test
+    void failedReloadExposesDiagnosticsAndRecoveryClearsThem() throws Exception {
+        Path path = tempDir.resolve("reload.yml");
+        Files.createFile(path);
+        YamlFile yaml = new YamlFile(path, mock(Logger.class));
+        Files.writeString(path, "global: [broken");
+
+        ConfigLoadException failure = assertThrows(ConfigLoadException.class, yaml::reload);
+        assertTrue(yaml.hasLoadFailure());
+        assertSame(failure, yaml.loadFailure().orElseThrow());
+
+        yaml.replaceWithEmptyDocument();
+        assertFalse(yaml.hasLoadFailure());
+        assertTrue(yaml.loadFailure().isEmpty());
     }
 
     @Test

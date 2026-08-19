@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.service;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -52,6 +53,23 @@ public final class InternalServiceRegistry<O> implements OwnedServiceRegistry<O>
         return find(type).orElseThrow(() -> new IllegalStateException(
                 "Internal feature service is unavailable: " + type.getName()
         ));
+    }
+
+    public boolean isAvailable(Class<?> type) {
+        return providers.containsKey(Objects.requireNonNull(type, "type"));
+    }
+
+    /** Returns an immutable snapshot of currently registered service contracts. */
+    public Set<Class<?>> availableTypes() {
+        return Set.copyOf(providers.keySet());
+    }
+
+    public int size() {
+        return providers.size();
+    }
+
+    public boolean isEmpty() {
+        return providers.isEmpty();
     }
 
     public Optional<O> owner(Class<?> type) {

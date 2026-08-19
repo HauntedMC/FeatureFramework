@@ -40,8 +40,16 @@ public final class PlayerReferenceResolver {
         return findIdentityByUuid(uuid).map(PlayerReference::from);
     }
 
+    public Optional<PlayerReference> findByUsername(String username) {
+        return findIdentityByUsername(username).map(PlayerReference::from);
+    }
+
     public Optional<PlayerReference> findByIdentifier(String identifier) {
         return findIdentityByIdentifier(identifier).map(PlayerReference::from);
+    }
+
+    public Optional<PlayerReference> findById(Long playerId) {
+        return findIdentityById(playerId).map(PlayerReference::from);
     }
 
     public CompletionStage<Optional<PlayerReference>> findByUuidAsync(UUID uuid) {
@@ -52,8 +60,16 @@ public final class PlayerReferenceResolver {
         return findIdentityByUuidAsync(uuid).thenApply(identity -> identity.map(PlayerReference::from));
     }
 
+    public CompletionStage<Optional<PlayerReference>> findByUsernameAsync(String username) {
+        return findIdentityByUsernameAsync(username).thenApply(identity -> identity.map(PlayerReference::from));
+    }
+
     public CompletionStage<Optional<PlayerReference>> findByIdentifierAsync(String identifier) {
         return findIdentityByIdentifierAsync(identifier).thenApply(identity -> identity.map(PlayerReference::from));
+    }
+
+    public CompletionStage<Optional<PlayerReference>> findByIdAsync(Long playerId) {
+        return findIdentityByIdAsync(playerId).thenApply(identity -> identity.map(PlayerReference::from));
     }
 
     public CompletionStage<List<PlayerReference>> findByIdsAsync(Collection<Long> playerIds) {
@@ -217,7 +233,7 @@ public final class PlayerReferenceResolver {
     }
 
     public CompletableFuture<Optional<PlayerIdentity>> whenReady(UUID uuid) {
-        return playerDirectory.whenReady(uuid);
+        return uuid == null ? CompletableFuture.completedFuture(Optional.empty()) : playerDirectory.whenReady(uuid);
     }
 
     public PlayerReference resolveReference(UUID uuid) {

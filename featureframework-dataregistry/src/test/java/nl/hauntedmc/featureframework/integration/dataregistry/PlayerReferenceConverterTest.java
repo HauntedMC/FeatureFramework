@@ -12,10 +12,17 @@ class PlayerReferenceConverterTest {
     void roundTripPreservesCanonicalIdentityButNotTransientSnapshots() {
         PlayerReference reference = new PlayerReference(42L, "7d73c2d0-a9a7-4acb-a4e6-cc9ad0ef19c3", "Remy");
 
+        assertEquals(42L, reference.playerId());
+        assertEquals("Remy", reference.usernameOptional().orElseThrow());
+        assertTrue(reference.uuidOptional().isPresent());
+        assertTrue(reference.hasIdentitySnapshot());
         assertEquals(42L, converter.convertToDatabaseColumn(reference));
 
         PlayerReference restored = converter.convertToEntityAttribute(42L);
         assertEquals(reference, restored);
+        assertFalse(restored.hasIdentitySnapshot());
+        assertTrue(restored.uuidOptional().isEmpty());
+        assertTrue(restored.usernameOptional().isEmpty());
         assertNull(restored.uuid());
         assertNull(restored.username());
     }

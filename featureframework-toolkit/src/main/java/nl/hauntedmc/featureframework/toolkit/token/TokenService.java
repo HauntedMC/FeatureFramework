@@ -4,16 +4,16 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 /**
  * Generic, thread-safe token service.
  * - Tokens map to a payload that may be loaded asynchronously.
  * - Supports max uses, expiration, optional consume-on-empty.
- * - No external scheduler assumptions: caller supplies a loader that returns a
- * {@code CompletableFuture<T>}.
+ * - No external scheduler assumptions: caller supplies a loader that returns a completion stage.
  * <p>
  * Typical flow:
  * String token = service.create(() -> myAsyncLoader(), options);
@@ -49,14 +49,19 @@ public final class TokenService<T> {
         }
     }
 
+    /** Creates an unlimited token using the supplied asynchronous payload loader. */
+    public String create(Supplier<? extends CompletionStage<T>> payloadLoader) {
+        return create(payloadLoader, TokenOptions.infinite());
+    }
+
     /**
      * Create a token and start loading the payload with the provided loader.
      * The loader should complete exceptionally or with null to represent "empty" payload.
      *
-     * @param payloadLoader supplier returning a {@code CompletableFuture<T>} (can load sync or async)
+     * @param payloadLoader supplier returning a completion stage (can load sync or async)
      * @param options       token options (uses/expiry)
      */
-    public String create(java.util.function.Supplier<CompletableFuture<T>> payloadLoader, TokenOptions options) {
+    public String create(Supplier<? extends CompletionStage<T>> payloadLoader, TokenOptions options) {
         Objects.requireNonNull(payloadLoader, "payloadLoader");
         Objects.requireNonNull(options, "options");
 
@@ -70,24 +75,24 @@ public final class TokenService<T> {
         final Entry<T> entry = new Entry<>(expiresAt, initialUses, true, options.consumeOnEmpty());
         store.put(token, entry);
 
-        CompletableFuture<T> fut;
+        CompletionStage<T> future;
         try {
-            fut = payloadLoader.get();
+            future = payloadLoader.get();
         } catch (Throwable t) {
-            // loader threw before returning CF => treat as empty
+            // loader threw before returning a stage => treat as empty
             entry.payload = null;
             entry.loading = false;
             return token;
         }
 
-        if (fut == null) {
+        if (future == null) {
             entry.payload = null;
             entry.loading = false;
             return token;
         }
 
-        fut.handle((res, err) -> {
-            entry.payload = (err != null) ? null : res;
+        future.handle((res, err) -> {
+            entry.payload = err != null ? null : res;
             entry.loading = false;
             return null;
         });
@@ -142,8 +147,26 @@ public final class TokenService<T> {
         if (token != null) store.remove(token);
     }
 
+    public void clear() {
+        store.clear();
+    }
+
+    /** Removes expired or exhausted tokens immediately instead of waiting for opportunistic cleanup. */
+    public void cleanup() {
+        cleanup(System.currentTimeMillis());
+        lastCleanup = System.currentTimeMillis();
+    }
+
+    public String namespace() {
+        return namespace;
+    }
+
     public int size() {
         return store.size();
+    }
+
+    public boolean isEmpty() {
+        return store.isEmpty();
     }
 
     private String newToken() {
@@ -160,9 +183,13 @@ public final class TokenService<T> {
         final long now = System.currentTimeMillis();
         if (now - lastCleanup < CLEANUP_INTERVAL_MILLIS && store.size() < 500) return;
         lastCleanup = now;
-        store.forEach((k, v) -> {
-            if (now > v.expiresAt || v.usesLeft.get() == 0) {
-                store.remove(k);
+        cleanup(now);
+    }
+
+    private void cleanup(long now) {
+        store.forEach((key, value) -> {
+            if (now > value.expiresAt || value.usesLeft.get() == 0) {
+                store.remove(key, value);
             }
         });
     }

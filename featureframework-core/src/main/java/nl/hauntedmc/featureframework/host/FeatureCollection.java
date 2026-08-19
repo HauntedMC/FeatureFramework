@@ -51,6 +51,10 @@ public final class FeatureCollection<F extends Feature, C> {
         return definitions;
     }
 
+    public int size() {
+        return definitions.size();
+    }
+
     /** Builder useful when a product composes definitions from several feature packs. */
     public static final class Builder<F extends Feature, C> {
         private final List<FeatureDefinition<F, C>> definitions = new ArrayList<>();
@@ -60,6 +64,12 @@ public final class FeatureCollection<F extends Feature, C> {
             @SuppressWarnings("unchecked")
             FeatureDefinition<F, C> compatible = (FeatureDefinition<F, C>) definition;
             definitions.add(compatible);
+            return this;
+        }
+
+        /** Adds an ordered batch of definitions without forcing callers to loop manually. */
+        public Builder<F, C> features(Iterable<? extends FeatureDefinition<? extends F, C>> values) {
+            Objects.requireNonNull(values, "definitions").forEach(this::feature);
             return this;
         }
 

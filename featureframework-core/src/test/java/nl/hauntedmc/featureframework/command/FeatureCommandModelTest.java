@@ -25,8 +25,8 @@ class FeatureCommandModelTest {
         catalog.transition(alpha, FeatureState.ACTIVE);
         FeatureCommandModel model = new FeatureCommandModel(catalog);
 
-        FeatureCommandModel.FeatureInfo loaded = model.info("ALPHA").orElseThrow();
-        FeatureCommandModel.FeatureInfo available = model.info("BETA").orElseThrow();
+        FeatureCommandModel.FeatureInfo loaded = model.info(" ALPHA ").orElseThrow();
+        FeatureCommandModel.FeatureInfo available = model.info(" Beta ").orElseThrow();
 
         assertTrue(loaded.enabled());
         assertEquals(List.of("core"), loaded.featureDependencies());

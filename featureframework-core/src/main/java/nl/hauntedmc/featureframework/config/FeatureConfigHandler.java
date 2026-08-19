@@ -48,6 +48,13 @@ public class FeatureConfigHandler extends ConfigView {
         reloadListeners.add(Objects.requireNonNull(listener, "listener"));
     }
 
+    /** Registers a reload listener that can be removed independently by closing the returned handle. */
+    public AutoCloseable subscribeReload(Runnable listener) {
+        Runnable required = Objects.requireNonNull(listener, "listener");
+        reloadListeners.add(required);
+        return () -> reloadListeners.remove(required);
+    }
+
     public void clearReloadListeners() {
         reloadListeners.clear();
     }

@@ -13,4 +13,12 @@ public record DependencyCheckResult(Set<String> missingPluginDependencies, Set<S
     public boolean ok() {
         return missingPluginDependencies.isEmpty() && missingFeatureDependencies.isEmpty();
     }
+
+    public boolean hasMissingDependencies() {
+        return !ok();
+    }
+
+    public int missingDependencyCount() {
+        return missingPluginDependencies.size() + missingFeatureDependencies.size();
+    }
 }

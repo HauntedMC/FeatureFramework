@@ -92,6 +92,17 @@ public final class PlayerIdentityResolver {
                 : playerDirectory.findActiveIdentityCached(normalized);
     }
 
+    /** Looks up an active identity by either UUID or current username without performing I/O. */
+    public Optional<PlayerIdentity> findActiveByIdentifier(String identifier) {
+        String normalized = normalize(identifier);
+        if (normalized == null) return Optional.empty();
+        try {
+            return findActiveByUuid(UUID.fromString(normalized));
+        } catch (IllegalArgumentException ignored) {
+            return findActiveByUsername(normalized);
+        }
+    }
+
     /**
      * Looks up an active identity by its current username without performing I/O.
      */
@@ -103,14 +114,6 @@ public final class PlayerIdentityResolver {
         return playerDirectory.snapshotActiveIdentities().values().stream()
                 .filter(identity -> normalized.equalsIgnoreCase(identity.username()))
                 .findFirst();
-    }
-
-    private Optional<PlayerIdentity> findActiveByIdentifier(String identifier) {
-        try {
-            return findActiveByUuid(UUID.fromString(identifier));
-        } catch (IllegalArgumentException ignored) {
-            return findActiveByUsername(identifier);
-        }
     }
 
     /**

@@ -12,8 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.Set;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
@@ -41,6 +42,9 @@ public final class YamlFile {
         this(path, FrameworkLogger.from(logger));
     }
 
+    public Path path() { return path; }
+    public Optional<ConfigLoadException> loadFailure() { return Optional.ofNullable(loadFailure); }
+    public boolean hasLoadFailure() { return loadFailure != null; }
     public ReentrantReadWriteLock lock() { return lock; }
 
     public void reload() {

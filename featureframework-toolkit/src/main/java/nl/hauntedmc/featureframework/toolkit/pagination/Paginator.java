@@ -7,7 +7,14 @@ import java.util.List;
 public final class Paginator {
     private Paginator() { }
 
-    public record Page<T>(List<T> items, int page, int totalPages, int totalItems, int pageSize) { }
+    public record Page<T>(List<T> items, int page, int totalPages, int totalItems, int pageSize) {
+        public boolean hasPrevious() { return page > 1; }
+        public boolean hasNext() { return page < totalPages; }
+        public boolean isFirst() { return page == 1; }
+        public boolean isLast() { return page == totalPages; }
+        public int previousPage() { return Math.max(1, page - 1); }
+        public int nextPage() { return Math.min(totalPages, page + 1); }
+    }
 
     public static <T> Page<T> paginate(List<T> all, int page, int pageSize) {
         if (pageSize <= 0) throw new IllegalArgumentException("pageSize must be positive");

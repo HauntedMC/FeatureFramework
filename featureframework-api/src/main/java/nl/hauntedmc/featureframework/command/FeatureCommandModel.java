@@ -3,7 +3,6 @@ package nl.hauntedmc.featureframework.command;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureSnapshot;
-import nl.hauntedmc.featureframework.api.feature.FeatureState;
 
 import java.util.Comparator;
 import java.util.List;
@@ -73,14 +72,15 @@ public final class FeatureCommandModel {
 
     private Optional<FeatureSnapshot> find(String requestedName) {
         if (requestedName == null || requestedName.isBlank()) return Optional.empty();
+        String normalizedName = requestedName.trim();
         return catalog.snapshot().stream().filter(snapshot ->
-                snapshot.metadata().id().value().equalsIgnoreCase(requestedName)
-                        || snapshot.metadata().displayName().equalsIgnoreCase(requestedName))
+                snapshot.metadata().id().value().equalsIgnoreCase(normalizedName)
+                        || snapshot.metadata().displayName().equalsIgnoreCase(normalizedName))
                 .findFirst();
     }
 
     private static boolean loaded(FeatureSnapshot snapshot) {
-        return snapshot.state() == FeatureState.ACTIVE;
+        return snapshot.active();
     }
 
     private static Comparator<FeatureSnapshot> byId() {

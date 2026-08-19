@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.toolkit.token;
 
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Result of consuming a token.
@@ -47,7 +48,16 @@ public final class TokenResult<T> {
         return state;
     }
 
+    public boolean isOk() {
+        return state == State.OK;
+    }
+
     public T payload() {
         return payload;
+    }
+
+    /** Returns the payload as an Optional for callers that prefer null-free result handling. */
+    public Optional<T> payloadOptional() {
+        return Optional.ofNullable(payload);
     }
 }
