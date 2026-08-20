@@ -34,7 +34,7 @@ for installed_pom in "$parent_pom" "$bom_pom"; do
     echo "Expected installed consumer POM was not created: $installed_pom" >&2
     exit 1
   fi
-  if grep -Fq '${revision}' "$installed_pom"; then
+  if grep -Fq "\${revision}" "$installed_pom"; then
     echo "Installed consumer POM still contains an unresolved \${revision}: $installed_pom" >&2
     exit 1
   fi
