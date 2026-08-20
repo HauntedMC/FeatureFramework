@@ -61,6 +61,9 @@ jobs:
             || { echo "Tag $GITHUB_REF_NAME does not match Maven version $PROJECT_VERSION." >&2; exit 1; }
           echo "value=$PROJECT_VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Verify external BOM consumption
+        run: bash scripts/verify-bom-consumer.sh
+
       - name: Verify and publish the exact release reactor
         env:
           PLATFORM_ACCEPTANCE_WORK_DIRECTORY: ${{ runner.temp }}/featureframework-platform-acceptance
