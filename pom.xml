@@ -69,7 +69,6 @@
         <module>featureframework-core</module>
         <module>featureframework-dataprovider</module>
         <module>featureframework-dataregistry</module>
-        <module>featureframework-data-audit</module>
         <module>featureframework-paper</module>
         <module>featureframework-paper-toolkit</module>
         <module>featureframework-paper-integrations</module>
@@ -81,7 +80,7 @@
         <revision>1.5.2</revision>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <project.build.outputTimestamp>2026-08-20T00:00:00Z</project.build.outputTimestamp>
+        <project.build.outputTimestamp>2026-08-21T00:00:00Z</project.build.outputTimestamp>
         <java.version>25</java.version>
         <maven.compiler.release>${java.version}</maven.compiler.release>
 
@@ -98,13 +97,11 @@
         <slf4j.version>2.0.18</slf4j.version>
         <errorprone.annotations.version>2.49.0</errorprone.annotations.version>
         <brigadier.version>1.3.10</brigadier.version>
-        <packetevents.version>2.13.0</packetevents.version>
         <placeholderapi.version>2.12.3</placeholderapi.version>
         <viaversion.version>5.11.0</viaversion.version>
         <dataregistry.version>1.14.3</dataregistry.version>
         <dataprovider.version>3.2.0</dataprovider.version>
         <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
-        <hibernate.version>7.4.5.Final</hibernate.version>
 
         <junit.version>6.1.2</junit.version>
         <mockito.version>5.23.0</mockito.version>

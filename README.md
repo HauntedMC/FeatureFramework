@@ -149,8 +149,7 @@ The full documentation index is in [`docs/README.md`](docs/README.md).
 - `featureframework-core` — feature model, host/runtime, lifecycle, dependency loading, services, and resource ownership.
 - `featureframework-dataprovider` and `featureframework-dataregistry` — neutral optional integration contracts and resource extensions.
 - `featureframework-paper` and `featureframework-velocity` — dependency-clean platform hosts and native lifecycle adapters.
-- `featureframework-paper-toolkit` — optional Paper UI, inventory, sound, persistence, and registry helpers.
-- `featureframework-data-audit` — optional platform-neutral ORM audit support using DataProvider and DataRegistry.
+- `featureframework-paper-toolkit` — optional Paper UI, inventory, sound, and registry helpers.
 - `featureframework-paper-integrations` and `featureframework-velocity-integrations` — optional third-party adapters and resource contributors.
 - `featureframework-testkit` and `featureframework-mockito-testkit` — reusable test support.
 

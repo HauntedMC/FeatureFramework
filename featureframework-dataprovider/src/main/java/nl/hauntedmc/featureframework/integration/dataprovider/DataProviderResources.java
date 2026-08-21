@@ -29,8 +29,6 @@ import java.util.function.Supplier;
  */
 public class DataProviderResources implements AutoCloseable {
     public static final ResourceKey<DataProviderResources> KEY = ResourceKey.of(DataProviderResources.class);
-    private static final String DEFAULT_PLAYER_ORM_IDENTIFIER = "playerOrmContext";
-    private static final String DEFAULT_SYSTEM_ORM_IDENTIFIER = "systemOrmContext";
 
     private final Object hostOwner;
     private final Supplier<DataProviderAPI> apiSupplier;
@@ -199,10 +197,6 @@ public class DataProviderResources implements AutoCloseable {
         return getDatabaseProvider(identifier).flatMap(provider -> typedAccess(provider, expectedType));
     }
 
-    public Optional<MessagingDatabaseProvider> registerRedisMessagingProvider(String identifier) {
-        return registerRedisMessagingProvider(identifier, DataProviderConnections.REDIS_MESSAGING);
-    }
-
     public Optional<MessagingDatabaseProvider> registerRedisMessagingProvider(
             String identifier, String connectionName) {
         Optional<DatabaseProvider> provider = registerDatabaseConnection(
@@ -218,11 +212,6 @@ public class DataProviderResources implements AutoCloseable {
     }
 
     public <T extends DataAccess> Optional<T> registerRedisMessagingDataAccess(
-            String identifier, Class<T> expectedType) {
-        return registerRedisMessagingDataAccess(identifier, DataProviderConnections.REDIS_MESSAGING, expectedType);
-    }
-
-    public <T extends DataAccess> Optional<T> registerRedisMessagingDataAccess(
             String identifier, String connectionName, Class<T> expectedType) {
         return registerRedisMessagingProvider(identifier, connectionName)
                 .flatMap(provider -> typedAccess(provider, expectedType));
@@ -232,22 +221,6 @@ public class DataProviderResources implements AutoCloseable {
             String identifier, String connectionName, Class<?>... entityClasses) {
         return registerDatabaseConnection(identifier, DatabaseType.MYSQL, connectionName)
                 .flatMap(ignored -> createOrmContext(identifier, entityClasses));
-    }
-
-    public Optional<ORMContext> createPlayerOrmContext(String identifier, Class<?>... entityClasses) {
-        return createMySqlOrmContext(identifier, DataProviderConnections.PLAYER_DATA_RW, entityClasses);
-    }
-
-    public Optional<ORMContext> createPlayerOrmContext(Class<?>... entityClasses) {
-        return createPlayerOrmContext(DEFAULT_PLAYER_ORM_IDENTIFIER, entityClasses);
-    }
-
-    public Optional<ORMContext> createSystemOrmContext(String identifier, Class<?>... entityClasses) {
-        return createMySqlOrmContext(identifier, DataProviderConnections.SYSTEM_DATA_RW, entityClasses);
-    }
-
-    public Optional<ORMContext> createSystemOrmContext(Class<?>... entityClasses) {
-        return createSystemOrmContext(DEFAULT_SYSTEM_ORM_IDENTIFIER, entityClasses);
     }
 
     public Optional<ORMContext> createOrmContext(String identifier, Class<?>... entityClasses) {

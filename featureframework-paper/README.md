@@ -12,7 +12,7 @@ Start with the [Paper examples](../examples/paper/README.md). Dependency, GitHub
 - `PaperFeatureHost` — configurable host façade for normal and integration-rich plugin composition.
 
 Add `featureframework-paper-toolkit` for UI helpers and `featureframework-paper-integrations` for
-DataProvider, DataRegistry, PlaceholderAPI, ViaVersion, and packet adapters. Attach scoped facilities
+DataProvider, DataRegistry, PlaceholderAPI, and ViaVersion adapters. Attach scoped facilities
 with the host builder's `contribute(...)` method.
 
 Paper host lifecycle operations follow Bukkit primary-thread rules. Task scheduling can still be synchronous or asynchronous, so normal Bukkit thread-safety rules still apply. See [Threading](../docs/THREADING.md).

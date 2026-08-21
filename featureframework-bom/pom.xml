@@ -12,7 +12,6 @@
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-core</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataprovider</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-dataregistry</artifactId><version>${project.version}</version></dependency>
-        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-data-audit</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper-toolkit</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-paper-integrations</artifactId><version>${project.version}</version></dependency>

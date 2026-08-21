@@ -1,7 +1,6 @@
 package nl.hauntedmc.featureframework.api;
 
 import nl.hauntedmc.featureframework.api.feature.*;
-import nl.hauntedmc.featureframework.api.network.ServerId;
 import nl.hauntedmc.featureframework.api.service.CapabilityUnavailableException;
 import org.junit.jupiter.api.Test;
 
@@ -109,15 +108,7 @@ class FrameworkApiContractsTest {
     }
 
     @Test
-    void validatesServerIdsAndCapabilityFailures() {
-        ServerId hub = ServerId.of(" HUB ");
-        assertEquals("hub", hub.value());
-        assertTrue(ServerId.isValid(" HUB "));
-        assertFalse(ServerId.isValid("bad id"));
-        assertFalse(ServerId.isValid(null));
-        assertEquals(Optional.of(hub), ServerId.tryParse(" HUB "));
-        assertTrue(ServerId.tryParse("bad id").isEmpty());
-
+    void exposesCapabilityFailures() {
         CapabilityUnavailableException failure = new CapabilityUnavailableException(Runnable.class);
         assertEquals(Runnable.class, failure.capabilityType());
         assertTrue(failure.getMessage().contains(Runnable.class.getName()));

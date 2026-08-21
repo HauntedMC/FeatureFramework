@@ -32,10 +32,10 @@ You should not manually close the connection registered in `PlayerStorageFeature
 
 ## Connection names
 
-The sample uses `DataProviderConnections.PLAYER_DATA_RW` as the configured DataProvider connection name. Your DataProvider installation must define that connection, or you should replace it with one that exists in your environment.
+The sample defines its own `example_player_data` connection name. Your DataProvider installation must define that connection, or you should replace it with one that exists in your environment.
 
 `registerConnection(...)` returns an `Optional<DatabaseProvider>`. A real feature should fail clearly or disable the affected functionality if a required connection cannot be created.
 
 ## ORM and Redis
 
-The same manager also exposes helpers such as `createPlayerOrmContext(...)`, `createSystemOrmContext(...)`, `registerRedisMessagingProvider(...)`, and typed `registerDataAccess(...)`. Keep those resources on the feature's manager so their lifetime remains aligned with the feature.
+The same manager exposes explicit helpers such as `createMySqlOrmContext(identifier, connectionName, ...)`, `registerRedisMessagingProvider(identifier, connectionName)`, and typed `registerDataAccess(...)`. Keep those resources on the feature's manager so their lifetime remains aligned with the feature.

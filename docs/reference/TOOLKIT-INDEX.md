@@ -38,7 +38,7 @@ Useful areas in `featureframework-paper` include:
 - `paper.command` — feature-owned commands and Brigadier integration;
 - `paper.localization` and `paper.log` — platform message/logging adapters;
 - `paper.ui` — inventory/menu UI support from `featureframework-paper-toolkit`;
-- optional packet, PlaceholderAPI, ViaVersion, DataProvider, and DataRegistry adapters from `featureframework-paper-integrations`.
+- optional PlaceholderAPI, ViaVersion, DataProvider, and DataRegistry adapters from `featureframework-paper-integrations`.
 
 `PaperFeatureResources` is the main entry point for feature-owned tasks, commands, listeners, data, caches, GUIs, and services.
 
@@ -50,7 +50,7 @@ Useful areas in `featureframework-velocity` include:
 - lifecycle/resource managers for tasks, listeners, commands, data, caches, and services;
 - command/Brigadier adapters;
 - localization and feature logging;
-- connection/network utilities and optional DataProvider/DataRegistry contributors from `featureframework-velocity-integrations`.
+- optional DataProvider/DataRegistry contributors from `featureframework-velocity-integrations`.
 
 Use `VelocityFeatureContext.proxy()` when you need the native `ProxyServer`.
 

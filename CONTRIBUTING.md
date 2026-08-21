@@ -6,4 +6,5 @@ add tests for behavior changes, and pass `./mvnw clean verify`.
 Do not add a concrete feature, plugin bootstrap, feature catalog, domain capability, or persistence
 entity to this repository. Prefer a small shared contract plus a platform adapter when behavior differs
 between Paper and Velocity. Public API changes require migration notes and a version appropriate to
-semantic versioning.
+semantic versioning. Any explicitly documented release-boundary exception, such as 1.6.0's removal of
+HauntedMC-private APIs, must state the compatibility impact and migration path.

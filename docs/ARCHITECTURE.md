@@ -113,12 +113,10 @@ tags by `ComponentLocalization`, so the same registry is shared by host and feat
 `ComponentLocalization` adds fluent component rendering, player-language selection,
 platform placeholder hooks, and static-message caching; consumer adapters only provide the player
 type and language/placeholder callbacks. `FrameworkLogger` is the logging boundary; feature-prefixed
-adapters support JUL (Paper) and SLF4J/Adventure (Velocity). The Velocity module also owns reusable
-structured connection-event logging.
+adapters support JUL (Paper) and SLF4J/Adventure (Velocity).
 
-Administrative command front ends remain platform bindings, while `FeatureCommandModel`,
-`FeatureCommandView`, and `FeatureOperationMessages` own platform-neutral lookup, suggestions,
-rendering, and operation-result mapping.
+Administrative command front ends remain platform bindings, while `FeatureCommandModel` and
+`FeatureOperationMessages` own platform-neutral lookup, suggestions, and operation-result mapping.
 
 ## Consumer boundary
 
@@ -140,14 +138,22 @@ player-reference resolution, proxy access, feature contexts, configuration/local
 resource managers, graph loaders, construction descriptors, registries, and capability implementations
 are framework-owned.
 
+Deployment-specific network identifiers, DataProvider connection conventions, audit and connection-log
+policy, PacketEvents wrappers, custom player-file layouts, and feature-specific clocks are application
+code. They belong in the owning Paper or Velocity product, not in FeatureFramework.
+The same rule applies to a product-wide HUD runtime that coordinates a named scoreboard, glow-team
+policy, and its bootstrap lifecycle; reusable UI primitives remain framework-owned.
+
 ## Packaging
 
 Platform dependencies use `provided` scope. Consumers shade framework artifacts but do not embed the
 Paper or Velocity API. Public framework packages use `nl.hauntedmc.featureframework`; consumer domain
 APIs retain their own namespaces. Releases publish normal, source, and Javadoc artifacts.
 
-The framework follows semantic versioning. Breaking API changes are released in a new major version;
-consumers should migrate to the canonical platform feature accessors when upgrading.
+The framework follows semantic versioning. Version 1.6.0 is an explicitly documented boundary-cleanup
+exception: it removes HauntedMC-private APIs without compatibility shims. Future breaking API changes
+are released in a new major version; consumers should migrate to the canonical platform feature
+accessors when upgrading.
 
 ## Acceptance boundary
 

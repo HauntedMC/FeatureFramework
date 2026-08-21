@@ -11,6 +11,7 @@ readonly MODULES=(
   featureframework-api
   featureframework-theme-api
   featureframework-toolkit
+  featureframework-processor
   featureframework-core
   featureframework-dataprovider
   featureframework-dataregistry

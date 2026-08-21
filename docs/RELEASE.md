@@ -6,6 +6,10 @@ versions separately.
 The reactor publishes `featureframework-theme-api` with the other framework artifacts. Publish FeatureFramework before
 any separately versioned theme adapter that targets the new API.
 
+For the 1.6.0 boundary release, publish FeatureFramework first, then ProxyFeatures 3.6.0, then
+ServerFeatures 3.6.0. The consumer releases carry the private contracts and platform implementations
+removed from the public framework.
+
 ## 1. Prepare
 
 - Work from a clean, reviewed branch.

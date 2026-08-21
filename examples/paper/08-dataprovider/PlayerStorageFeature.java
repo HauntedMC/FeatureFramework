@@ -3,7 +3,6 @@ package com.example.dataplugin;
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
 import nl.hauntedmc.dataprovider.database.DatabaseType;
 import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderResources;
-import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderConnections;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
 
@@ -11,6 +10,8 @@ import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
         name = "PlayerStorage", version = "1.0.0", enabledByDefault = true,
         requiresPlugins = "DataProvider", requiresResourceExtensions = DataProviderResources.class)
 public final class PlayerStorageFeature extends PaperFeature<MyPlugin> {
+    private static final String PLAYER_DATABASE_CONNECTION = "example_player_data";
+
     public PlayerStorageFeature(PaperFeatureContext<MyPlugin> context) {
         super(context);
     }
@@ -22,7 +23,7 @@ public final class PlayerStorageFeature extends PaperFeature<MyPlugin> {
         data.registerConnection(
                         "players",
                         DatabaseType.MYSQL,
-                        DataProviderConnections.PLAYER_DATA_RW)
+                        PLAYER_DATABASE_CONNECTION)
                 .orElseThrow(() -> new IllegalStateException(
                         "Required player database connection is unavailable"));
 

@@ -3,6 +3,29 @@
 Use this guide when moving an existing Paper or Velocity application onto FeatureFramework, or when
 removing duplicated framework infrastructure from an application module.
 
+## Migrating to 1.6.0
+
+Version 1.6.0 is a deliberate clean boundary release. It removes HauntedMC-private APIs from the
+public framework with no deprecated aliases or compatibility wrappers.
+
+- `nl.hauntedmc.featureframework.api.network.ServerId` moved to the private
+  `nl.hauntedmc.proxyfeatures.contracts.network.ServerId` contract.
+- `DataProviderConnections` and the implicit `createPlayerOrmContext`, `createSystemOrmContext`, and
+  Redis convenience overloads were removed. Applications must own their connection names and call the
+  explicit APIs, for example `createMySqlOrmContext("playerOrm", "my_player_data", Entity.class)` and
+  `registerRedisMessagingProvider("redis", "my_redis")`. HauntedMC consumers use
+  `HauntedDataConnections` from `proxyfeatures-contracts`.
+- `featureframework-data-audit` moved to ProxyFeatures support code.
+- PacketEvents packet wrappers, `PlayerDataFiles`, `ServerActiveClock`, and `ConnectionLogHelper` moved
+  to the owning private platform projects. They have no general public replacement.
+- The ServerFeatures-specific scoreboard/glow runtime (`ScoreboardManager`, `ScoreboardListener`, and
+  `PaperUiRuntime`) moved to ServerFeatures. Generic Paper UI primitives remain in the Paper toolkit.
+- `FeatureCommandView` was removed. Consumer command front ends own their presentation and wording;
+  `FeatureCommandModel` and `FeatureOperationMessages` remain the framework contracts.
+
+Upgrade direct consumers by removing the deleted imports and adding their own product dependencies or
+implementations. Do not retain copies under the former FeatureFramework packages.
+
 ## Migrating to 1.5.0
 
 Version 1.5.0 adds the optional `featureframework-theme-api` module and host-level programmatic themes. Existing host
