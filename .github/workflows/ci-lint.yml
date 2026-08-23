@@ -2,62 +2,34 @@ name: CI Lint
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
+    types: [opened, synchronize, reopened]
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Checkstyle and ShellCheck
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      packages: read
-    env:
+  maven-policy:
+    name: Shared Maven policy
+    uses: HauntedMC/HauntedPlatform/.github/workflows/maven-ci.yml@v1.0.0
+    with:
+      maven-command: ./mvnw -U -B -ntp -DskipTests verify
+    secrets:
       PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME }}
       PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN }}
 
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@v4
         with:
           persist-credentials: false
-
-      - name: Validate package token
-        shell: bash
-        run: |
-          test -n "$PACKAGES_USER" \
-            || { echo "Missing secret HAUNTEDMC_PACKAGES_USERNAME." >&2; exit 1; }
-          test -n "$PACKAGES_TOKEN" \
-            || { echo "Missing secret HAUNTEDMC_PACKAGES_TOKEN (requires read:packages)." >&2; exit 1; }
-
-      - name: Set up JDK 25
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
-        with:
-          distribution: temurin
-          java-version: "25"
-          cache: maven
-          server-id: github
-          server-username: PACKAGES_USER
-          server-password: PACKAGES_TOKEN
-
-      - name: Run Checkstyle
-        run: ./mvnw -U -B -ntp -DskipTests checkstyle:check
-
-      - name: Run ShellCheck
-        shell: bash
+      - shell: bash
         run: |
           mapfile -d '' scripts < <(git ls-files -z '*.sh')
           if (( ${#scripts[@]} == 0 )); then
-            echo "No tracked shell scripts found."
             exit 0
           fi
           shellcheck "${scripts[@]}"
