@@ -134,6 +134,10 @@
         <repository><id>github</id><url>https://maven.pkg.github.com/HauntedMC/*</url></repository>
     </repositories>
 
+    <pluginRepositories>
+        <pluginRepository><id>github</id><url>https://maven.pkg.github.com/HauntedMC/*</url></pluginRepository>
+    </pluginRepositories>
+
     <dependencyManagement>
         <dependencies>
             <dependency>
