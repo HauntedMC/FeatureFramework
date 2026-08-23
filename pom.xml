@@ -4,6 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>nl.hauntedmc.platform</groupId>
+        <artifactId>haunted-library-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath/>
+    </parent>
+
     <groupId>nl.hauntedmc.featureframework</groupId>
     <artifactId>featureframework-parent</artifactId>
     <version>${revision}</version>
@@ -78,11 +85,7 @@
 
     <properties>
         <revision>1.6.0</revision>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <project.build.outputTimestamp>2026-08-21T00:00:00Z</project.build.outputTimestamp>
-        <java.version>25</java.version>
-        <maven.compiler.release>${java.version}</maven.compiler.release>
 
         <paper.version>26.2.build.65-beta</paper.version>
         <velocity.version>4.1.0-SNAPSHOT</velocity.version>
