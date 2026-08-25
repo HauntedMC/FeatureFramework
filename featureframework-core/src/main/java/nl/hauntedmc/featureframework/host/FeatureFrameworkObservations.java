@@ -74,9 +74,9 @@ final class FeatureFrameworkObservations {
                         failure.apply(result)
                 );
                 return result;
-            } catch (RuntimeException | Error throwable) {
+            } catch (Throwable throwable) {
                 operation.complete(FeatureFrameworkOperationOutcome.FAILURE, throwable);
-                throw throwable;
+                return throwUnchecked(throwable);
             }
         }
     }
@@ -152,5 +152,10 @@ final class FeatureFrameworkObservations {
                 // Context cleanup must never alter FeatureFramework behavior.
             }
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T, E extends Throwable> T throwUnchecked(Throwable failure) throws E {
+        throw (E) failure;
     }
 }
