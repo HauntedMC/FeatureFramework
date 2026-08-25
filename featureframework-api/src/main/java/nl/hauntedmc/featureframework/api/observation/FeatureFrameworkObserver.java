@@ -4,7 +4,10 @@ package nl.hauntedmc.featureframework.api.observation;
 @FunctionalInterface
 public interface FeatureFrameworkObserver {
 
-    /** Starts one observation. Observer failures are isolated by FeatureFramework. */
+    /**
+     * Starts one observation. Runtime exceptions from observation callbacks are isolated by
+     * FeatureFramework; fatal JVM errors are not swallowed.
+     */
     FeatureFrameworkObservation start(FeatureFrameworkOperationContext context);
 
     /** Returns the reusable no-op observer. */
