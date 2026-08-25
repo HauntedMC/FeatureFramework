@@ -7,6 +7,7 @@ import nl.hauntedmc.featureframework.api.FeatureFrameworkApi;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
@@ -91,7 +92,8 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
                 builder.afterGraphMutation,
                 localization::reloadLocalization,
                 builder.afterHostResourcesReload,
-                frameworkLogger
+                frameworkLogger,
+                builder.observer
         );
     }
 
@@ -200,6 +202,7 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
         private Function<Player, Language> languageResolver = player -> Language.EN;
         private Runnable afterGraphMutation = () -> { };
         private Runnable afterHostResourcesReload = () -> { };
+        private FeatureFrameworkObserver observer = FeatureFrameworkObserver.noop();
         private final List<FeatureResourceContributor<VelocityFeatureResources>> contributors = new ArrayList<>();
         private final List<BootstrapCapability<?>> bootstrapCapabilities = new ArrayList<>();
         private final List<Theme> themes = new ArrayList<>();
@@ -236,6 +239,9 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
         }
         public Builder<P, V> afterHostResourcesReload(Runnable value) {
             afterHostResourcesReload = Objects.requireNonNull(value, "afterHostResourcesReload"); return this;
+        }
+        public Builder<P, V> observer(FeatureFrameworkObserver value) {
+            observer = Objects.requireNonNull(value, "observer"); return this;
         }
         public Builder<P, V> contribute(FeatureResourceContributor<VelocityFeatureResources> value) {
             contributors.add(Objects.requireNonNull(value, "contributor")); return this;

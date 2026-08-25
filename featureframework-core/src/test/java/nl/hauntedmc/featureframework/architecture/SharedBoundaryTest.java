@@ -22,6 +22,15 @@ class SharedBoundaryTest {
     }
 
     @Test
+    void sharedSourcesHaveNoTelemetryImplementationKnowledge() throws IOException {
+        assertSourcesExclude(
+                "io.opentelemetry",
+                "nl.hauntedmc.observability",
+                "hauntedobservability"
+        );
+    }
+
+    @Test
     void hostFacadeDoesNotReabsorbLowLevelGraphMechanics() throws IOException {
         String source = Files.readString(Path.of(
                 "src", "main", "java", "nl", "hauntedmc", "featureframework", "host", "FeatureHost.java"));

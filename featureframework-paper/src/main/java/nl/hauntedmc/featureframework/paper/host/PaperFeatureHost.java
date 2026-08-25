@@ -4,6 +4,7 @@ import nl.hauntedmc.featureframework.api.FeatureFrameworkApi;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
@@ -101,7 +102,8 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
                 () -> CommandSync.apply(builder.plugin),
                 localization::reloadLocalization,
                 builder.afterHostResourcesReload,
-                frameworkLogger
+                frameworkLogger,
+                builder.observer
         );
     }
 
@@ -200,6 +202,7 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
         private PaperMessageDecorator messageDecorator = PaperMessageDecorator.identity();
         private String overwriteCommandConflictsKey = "commands.overwrite-conflicts";
         private Runnable afterHostResourcesReload = () -> { };
+        private FeatureFrameworkObserver observer = FeatureFrameworkObserver.noop();
         private final List<FeatureResourceContributor<PaperFeatureResources>> contributors = new ArrayList<>();
         private final List<BootstrapCapability<?>> bootstrapCapabilities = new ArrayList<>();
         private final List<Theme> themes = new ArrayList<>();
@@ -235,6 +238,9 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
         }
         public Builder<P, V> afterHostResourcesReload(Runnable value) {
             afterHostResourcesReload = Objects.requireNonNull(value, "afterHostResourcesReload"); return this;
+        }
+        public Builder<P, V> observer(FeatureFrameworkObserver value) {
+            observer = Objects.requireNonNull(value, "observer"); return this;
         }
         public Builder<P, V> contribute(FeatureResourceContributor<PaperFeatureResources> value) {
             contributors.add(Objects.requireNonNull(value, "contributor")); return this;

@@ -4,40 +4,44 @@ import nl.hauntedmc.featureframework.api.FeatureFrameworkApi;
 import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObservationScope;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationKind;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationOutcome;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
 import nl.hauntedmc.featureframework.config.FeatureConfigurationRoot;
 import nl.hauntedmc.featureframework.feature.LifecycleFeature;
-import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
+import nl.hauntedmc.featureframework.feature.stateful.SnapshotState;
 import nl.hauntedmc.featureframework.loader.FeatureLoadOrderResolver;
+import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.operation.FeatureOperationCoordinator;
 import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResponse;
 import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloader;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
-import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetPreview;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResult;
 import nl.hauntedmc.featureframework.operation.reset.FeatureResetRollbackOutcome;
 import nl.hauntedmc.featureframework.operation.reset.FeatureResetRuntimeOutcome;
+import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
-import nl.hauntedmc.featureframework.feature.stateful.SnapshotState;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.function.Consumer;
 
 /**
  * Complete platform-neutral host for a collection of managed features.
@@ -62,6 +66,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     private final FeatureInventory<F, C> inventory;
     private final FeatureInstanceController<F, C> controller;
     private final FeatureFileResetStorage resetStorage;
+    private final FeatureFrameworkObservations observations;
     private boolean startAttempted;
 
     private FeatureHost(Builder<V, F, C> builder) {
@@ -80,10 +85,12 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
                 ? configuration::reloadConfig
                 : builder.reloadHostResources;
         logger = Objects.requireNonNull(builder.logger, "logger");
+        observations = new FeatureFrameworkObservations(builder.observer);
         resetStorage = new FeatureFileResetStorage(configuration.files(), logger);
         inventory = new FeatureInventory<>(
                 capabilityNamespace, runtime, configuration, collection, pluginAvailable, logger);
-        controller = new FeatureInstanceController<>(inventory, runtime, configuration, contextFactory, logger);
+        controller = new FeatureInstanceController<>(
+                inventory, runtime, configuration, contextFactory, logger, observations);
     }
 
     public static <V, F extends LifecycleFeature<C>, C extends FeatureHostContext>
@@ -104,6 +111,18 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     }
 
     private synchronized void startLocked() {
+        observations.observe(
+                FeatureFrameworkOperationKind.HOST_START,
+                () -> {
+                    startLockedUnobserved();
+                    return null;
+                },
+                ignored -> FeatureFrameworkOperationOutcome.SUCCESS,
+                ignored -> null
+        );
+    }
+
+    private void startLockedUnobserved() {
         if (startAttempted) throw new IllegalStateException(hostName + " has already been started");
         startAttempted = true;
         runtime.markStarting();
@@ -129,11 +148,18 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     }
 
     public FeatureEnableResponse enable(FeatureId id) {
-        return enableLockedId(Objects.requireNonNull(id, "id").value());
+        FeatureId featureId = Objects.requireNonNull(id, "id");
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.FEATURE_ENABLE,
+                featureId,
+                () -> enableLockedId(featureId.value()),
+                FeatureHost::enableOutcome,
+                ignored -> null
+        ));
     }
 
     private FeatureEnableResponse enableLockedId(String featureName) {
-        return runtime.lifecycle().callExclusive(() -> FeatureOperationCoordinator.enable(
+        return FeatureOperationCoordinator.enable(
                 featureName,
                 inventory::resolveFeatureKey,
                 key -> inventory.registry().getAvailableFeature(key) != null,
@@ -143,11 +169,18 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
                 this::persistEnabled,
                 controller::loadFeature,
                 afterGraphMutation
-        ));
+        );
     }
 
     public FeatureDisableResponse disable(FeatureId id) {
-        return runtime.lifecycle().callExclusive(() -> disableFeatureLocked(Objects.requireNonNull(id, "id").value()));
+        FeatureId featureId = Objects.requireNonNull(id, "id");
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.FEATURE_DISABLE,
+                featureId,
+                () -> disableFeatureLocked(featureId.value()),
+                FeatureHost::disableOutcome,
+                ignored -> null
+        ));
     }
 
     private FeatureDisableResponse disableFeatureLocked(String featureName) {
@@ -165,27 +198,47 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     }
 
     public FeatureSoftReloadResponse softReload(FeatureId id) {
-        String featureName = Objects.requireNonNull(id, "id").value();
-        return runtime.lifecycle().callExclusive(() -> FeatureOperationCoordinator.softReload(
-                featureName,
-                inventory::resolveFeatureKey,
-                inventory.registry()::isFeatureLoaded,
-                key -> {
-                    F feature = controller.loadedFeature(key);
-                    feature.context().prepare(feature);
-                    return feature.applyConfiguration();
-                },
-                    this::recreateLocked
+        FeatureId featureId = Objects.requireNonNull(id, "id");
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.FEATURE_SOFT_RELOAD,
+                featureId,
+                () -> FeatureOperationCoordinator.softReload(
+                        featureId.value(),
+                        inventory::resolveFeatureKey,
+                        inventory.registry()::isFeatureLoaded,
+                        key -> {
+                            F feature = controller.loadedFeature(key);
+                            feature.context().prepare(feature);
+                            return feature.applyConfiguration();
+                        },
+                        this::recreateLocked
+                ),
+                FeatureHost::softReloadOutcome,
+                ignored -> null
         ));
     }
 
     public FeatureReloadResponse recreate(FeatureId id) {
-        return runtime.lifecycle().callExclusive(() -> recreateLocked(Objects.requireNonNull(id, "id").value()));
+        FeatureId featureId = Objects.requireNonNull(id, "id");
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.FEATURE_RECREATE,
+                featureId,
+                () -> recreateLocked(featureId.value()),
+                FeatureHost::reloadOutcome,
+                ignored -> null
+        ));
     }
 
     /** Reloads host configuration and transactionally reconciles every configured feature. */
     public FeatureGraphReloadResult reloadGraph() {
-        return runtime.lifecycle().callExclusive(this::reloadLocked);
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.GRAPH_RELOAD,
+                this::reloadLocked,
+                result -> result.success()
+                        ? FeatureFrameworkOperationOutcome.SUCCESS
+                        : FeatureFrameworkOperationOutcome.FAILURE,
+                result -> result.failure().orElse(null)
+        ));
     }
 
     public FeatureFileResetPreview previewFileReset(FeatureId id, FeatureFileResetRequest request) {
@@ -217,9 +270,15 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     }
 
     public FeatureFileResetResponse resetFiles(FeatureId id, FeatureFileResetRequest request) {
-        Objects.requireNonNull(id, "id");
+        FeatureId featureId = Objects.requireNonNull(id, "id");
         Objects.requireNonNull(request, "request");
-        return runtime.lifecycle().callExclusive(() -> resetFilesLocked(id.value(), request));
+        return runtime.lifecycle().callExclusive(() -> observations.observe(
+                FeatureFrameworkOperationKind.FILE_RESET,
+                featureId,
+                () -> resetFilesLocked(featureId.value(), request),
+                FeatureHost::resetOutcome,
+                response -> response.failure().orElse(null)
+        ));
     }
 
     boolean reloadFeatureLocalization(FeatureId id, Consumer<String> reload) {
@@ -446,11 +505,27 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
     }
 
     private synchronized void stopLocked() {
-        if (runtime.state() == RuntimeState.STOPPED) return;
-        runtime.markStopping();
-        Throwable failure = unloadAll();
-        runtime.markStopped(failure);
-        if (failure != null) logger.error(hostName + " shutdown completed with failures.", failure);
+        FeatureFrameworkObservations.Operation observation = observations.start(FeatureFrameworkOperationKind.HOST_STOP);
+        FeatureFrameworkObservationScope scope = observation.openScope();
+        try {
+            if (runtime.state() == RuntimeState.STOPPED) {
+                observation.complete(FeatureFrameworkOperationOutcome.NO_CHANGE, null);
+                return;
+            }
+            runtime.markStopping();
+            Throwable failure = unloadAll();
+            runtime.markStopped(failure);
+            if (failure != null) logger.error(hostName + " shutdown completed with failures.", failure);
+            observation.complete(
+                    failure == null ? FeatureFrameworkOperationOutcome.SUCCESS : FeatureFrameworkOperationOutcome.FAILURE,
+                    failure
+            );
+        } catch (Throwable failure) {
+            observation.complete(FeatureFrameworkOperationOutcome.FAILURE, failure);
+            throwUnchecked(failure);
+        } finally {
+            scope.close();
+        }
     }
 
     private Throwable unloadAll() {
@@ -516,6 +591,7 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
         private Runnable clearScopes = () -> { };
         private Runnable reloadHostResources;
         private FrameworkLogger logger = FrameworkLogger.noop();
+        private FeatureFrameworkObserver observer = FeatureFrameworkObserver.noop();
 
         private Builder(
                 String hostName,
@@ -563,10 +639,57 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
             return this;
         }
 
+        public Builder<V, F, C> observer(FeatureFrameworkObserver value) {
+            observer = Objects.requireNonNull(value, "observer");
+            return this;
+        }
 
         public FeatureHost<V, F, C> build() {
             return new FeatureHost<>(this);
         }
+    }
+
+    private static FeatureFrameworkOperationOutcome enableOutcome(FeatureEnableResponse response) {
+        return switch (response.result()) {
+            case SUCCESS -> FeatureFrameworkOperationOutcome.SUCCESS;
+            case ALREADY_LOADED -> FeatureFrameworkOperationOutcome.NO_CHANGE;
+            case NOT_FOUND, MISSING_PLUGIN_DEPENDENCY, MISSING_FEATURE_DEPENDENCY ->
+                    FeatureFrameworkOperationOutcome.SKIPPED;
+            case FAILED -> FeatureFrameworkOperationOutcome.FAILURE;
+        };
+    }
+
+    private static FeatureFrameworkOperationOutcome disableOutcome(FeatureDisableResponse response) {
+        return switch (response.result()) {
+            case SUCCESS -> FeatureFrameworkOperationOutcome.SUCCESS;
+            case NOT_LOADED -> FeatureFrameworkOperationOutcome.NO_CHANGE;
+            case FAILED -> FeatureFrameworkOperationOutcome.FAILURE;
+        };
+    }
+
+    private static FeatureFrameworkOperationOutcome reloadOutcome(FeatureReloadResponse response) {
+        return switch (response.result()) {
+            case SUCCESS -> FeatureFrameworkOperationOutcome.SUCCESS;
+            case NOT_LOADED -> FeatureFrameworkOperationOutcome.SKIPPED;
+            case FAILED -> FeatureFrameworkOperationOutcome.FAILURE;
+        };
+    }
+
+    private static FeatureFrameworkOperationOutcome softReloadOutcome(FeatureSoftReloadResponse response) {
+        return switch (response.result()) {
+            case SUCCESS -> FeatureFrameworkOperationOutcome.SUCCESS;
+            case NOT_LOADED -> FeatureFrameworkOperationOutcome.SKIPPED;
+            case FAILED -> FeatureFrameworkOperationOutcome.FAILURE;
+        };
+    }
+
+    private static FeatureFrameworkOperationOutcome resetOutcome(FeatureFileResetResponse response) {
+        return switch (response.result()) {
+            case SUCCESS -> FeatureFrameworkOperationOutcome.SUCCESS;
+            case NOT_FOUND, HOST_UNAVAILABLE, UNSAFE_TARGET -> FeatureFrameworkOperationOutcome.SKIPPED;
+            case QUIESCE_FAILED, BACKUP_FAILED, REGENERATION_FAILED, RESTART_FAILED, ROLLBACK_FAILED ->
+                    FeatureFrameworkOperationOutcome.FAILURE;
+        };
     }
 
     private static String requireText(String value, String field) {

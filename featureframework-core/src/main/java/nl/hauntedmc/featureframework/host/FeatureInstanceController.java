@@ -2,24 +2,27 @@ package nl.hauntedmc.featureframework.host;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObservationScope;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationKind;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationOutcome;
 import nl.hauntedmc.featureframework.config.FeatureConfigurationRoot;
+import nl.hauntedmc.featureframework.config.FeatureStoragePaths;
 import nl.hauntedmc.featureframework.feature.LifecycleFeature;
 import nl.hauntedmc.featureframework.feature.stateful.FeatureReloadState;
 import nl.hauntedmc.featureframework.feature.stateful.SnapshotState;
 import nl.hauntedmc.featureframework.loader.FeatureDependencyManager;
-import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.loader.FeatureGraphLifecycle;
 import nl.hauntedmc.featureframework.loader.FeatureGraphReloadTransaction;
 import nl.hauntedmc.featureframework.loader.FeatureRegistry;
 import nl.hauntedmc.featureframework.loader.FeatureStartupCoordinator;
+import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResult;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
-import nl.hauntedmc.featureframework.config.FeatureStoragePaths;
-import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
-import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
+import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
+import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.util.LinkedHashMap;
@@ -47,19 +50,22 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     private final Set<String> preparationFailures = new LinkedHashSet<>();
     private final Map<String, FeatureDefaults> defaults = new LinkedHashMap<>();
     private final FeatureDependencyManager dependencyManager;
+    private final FeatureFrameworkObservations observations;
 
     FeatureInstanceController(
             FeatureInventory<F, C> inventory,
             FeatureRuntime<FeatureId, ? extends DefaultCapabilityRegistry> runtime,
             FeatureConfigurationRoot<?> configuration,
             Function<ResolvedFeatureDefinition<F, C>, C> contextFactory,
-            FrameworkLogger logger
+            FrameworkLogger logger,
+            FeatureFrameworkObservations observations
     ) {
         this.inventory = inventory;
         this.runtime = runtime;
         this.configuration = configuration;
         this.contextFactory = contextFactory;
         this.logger = logger;
+        this.observations = observations;
         registry = inventory.registry();
         dependencyManager = new FeatureDependencyManager(
                 inventory::resolveFeatureKey,
@@ -185,41 +191,71 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
 
     private boolean loadFeature(String featureName, SnapshotState reloadState) {
         String key = inventory.resolveFeatureKey(featureName);
-        if (key == null || registry.isFeatureLoaded(key) || preparationFailures.contains(key)
-                || inventory.hasStorageFailure(key)) return false;
-        ResolvedFeatureDefinition<F, C> descriptor = registry.getAvailableFeature(key);
-        if (descriptor == null) return false;
+        if (key == null) return false;
 
-        boolean enabled = configuration.isFeatureEnabled(key);
-        runtime.mutableFeatureCatalog().setConfiguredEnabled(FeatureId.of(key), enabled);
-        if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()
-                || !dependencyManager.areDependenciesMet(key)) return false;
-
-        return FeatureStartupCoordinator.start(
-                reloadState,
-                () -> contextFactory.apply(descriptor),
-                descriptor::create,
-                feature -> {
-                    captureDefaults(key, feature);
-                    feature.context().prepare(feature);
-                },
-                LifecycleFeature::initialize,
-                feature -> feature.context().activateServices(),
-                feature -> registry.registerLoadedFeature(key, feature),
-                () -> runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.STARTING),
-                () -> {
-                    runtime.mutableFeatureCatalog().setUnavailableDependencies(FeatureId.of(key), Set.of());
-                    runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.ACTIVE);
-                    logger.info("Feature loaded: " + key);
-                },
-                failure -> {
-                    runtime.mutableFeatureCatalog().fail(FeatureId.of(key), "startup", failure);
-                    logger.error("Feature '" + key + "' failed to start.", failure);
-                },
-                LifecycleFeature::cleanup,
-                FeatureHostContext::cleanup,
-                () -> registry.deregisterLoadedFeature(key)
+        FeatureId featureId = FeatureId.of(key);
+        FeatureFrameworkObservations.Operation observation = observations.start(
+                FeatureFrameworkOperationKind.FEATURE_LOAD,
+                featureId
         );
+        FeatureFrameworkObservationScope scope = observation.openScope();
+        try {
+            if (registry.isFeatureLoaded(key) || preparationFailures.contains(key) || inventory.hasStorageFailure(key)) {
+                observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
+                return false;
+            }
+            ResolvedFeatureDefinition<F, C> descriptor = registry.getAvailableFeature(key);
+            if (descriptor == null) {
+                observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
+                return false;
+            }
+
+            boolean enabled = configuration.isFeatureEnabled(key);
+            runtime.mutableFeatureCatalog().setConfiguredEnabled(featureId, enabled);
+            if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()
+                    || !dependencyManager.areDependenciesMet(key)) {
+                observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
+                return false;
+            }
+
+            Throwable[] startupFailure = observation.isNoop() ? null : new Throwable[1];
+            boolean loaded = FeatureStartupCoordinator.start(
+                    reloadState,
+                    () -> contextFactory.apply(descriptor),
+                    descriptor::create,
+                    feature -> {
+                        captureDefaults(key, feature);
+                        feature.context().prepare(feature);
+                    },
+                    LifecycleFeature::initialize,
+                    feature -> feature.context().activateServices(),
+                    feature -> registry.registerLoadedFeature(key, feature),
+                    () -> runtime.mutableFeatureCatalog().transition(featureId, FeatureState.STARTING),
+                    () -> {
+                        runtime.mutableFeatureCatalog().setUnavailableDependencies(featureId, Set.of());
+                        runtime.mutableFeatureCatalog().transition(featureId, FeatureState.ACTIVE);
+                        logger.info("Feature loaded: " + key);
+                    },
+                    failure -> {
+                        if (startupFailure != null) startupFailure[0] = failure;
+                        runtime.mutableFeatureCatalog().fail(featureId, "startup", failure);
+                        logger.error("Feature '" + key + "' failed to start.", failure);
+                    },
+                    LifecycleFeature::cleanup,
+                    FeatureHostContext::cleanup,
+                    () -> registry.deregisterLoadedFeature(key)
+            );
+            observation.complete(
+                    loaded ? FeatureFrameworkOperationOutcome.SUCCESS : FeatureFrameworkOperationOutcome.FAILURE,
+                    startupFailure == null ? null : startupFailure[0]
+            );
+            return loaded;
+        } catch (Throwable failure) {
+            observation.complete(FeatureFrameworkOperationOutcome.FAILURE, failure);
+            return throwUnchecked(failure);
+        } finally {
+            scope.close();
+        }
     }
 
     List<String> buildReloadOrder(String root) {
@@ -291,6 +327,11 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
             return copy;
         }
         return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T, E extends Throwable> T throwUnchecked(Throwable failure) throws E {
+        throw (E) failure;
     }
 
     private record FeatureDefaults(ConfigMap config, MessageMap messages) { }

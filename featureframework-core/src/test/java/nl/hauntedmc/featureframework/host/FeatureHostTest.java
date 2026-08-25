@@ -4,6 +4,10 @@ import nl.hauntedmc.featureframework.api.RuntimeState;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObservation;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationContext;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationKind;
+import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationOutcome;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
@@ -20,8 +24,8 @@ import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -41,6 +45,8 @@ class FeatureHostTest {
         ConsumerFeature.starts.set(0);
         List<String> startupSequence = new ArrayList<>();
         List<FeatureState> transitions = new ArrayList<>();
+        List<FeatureFrameworkOperationContext> observedContexts = new ArrayList<>();
+        List<FeatureFrameworkOperationOutcome> observedOutcomes = new ArrayList<>();
         FrameworkLogger logger = FrameworkLogger.noop();
         ConfigService configService = new ConfigService(
                 temporaryDirectory, logger, getClass().getClassLoader());
@@ -70,6 +76,15 @@ class FeatureHostTest {
                         "test-host", "1.0.0", "test", runtime, configuration, features)
                 .contextFactory(descriptor -> context(
                         descriptor, configuration, localization, runtime, logger))
+                .observer(context -> {
+                    observedContexts.add(context);
+                    return new FeatureFrameworkObservation() {
+                        @Override
+                        public void completed(FeatureFrameworkOperationOutcome outcome, Throwable failure) {
+                            observedOutcomes.add(outcome);
+                        }
+                    };
+                })
                 .logger(logger)
                 .build();
         host.features().subscribe(snapshot -> transitions.add(snapshot.state()));
@@ -85,14 +100,25 @@ class FeatureHostTest {
                 host.features().find(FeatureId.of("Consumer")).orElseThrow().metadata().roles());
         assertTrue(host.features().snapshot().stream()
                 .allMatch(snapshot -> snapshot.state() == FeatureState.ACTIVE));
+        assertEquals(FeatureFrameworkOperationKind.HOST_START, observedContexts.getFirst().operation());
+        assertEquals(
+                List.of("provider", "consumer"),
+                observedContexts.stream()
+                        .filter(context -> context.operation() == FeatureFrameworkOperationKind.FEATURE_LOAD)
+                        .map(context -> context.featureId().orElseThrow().value())
+                        .toList()
+        );
         var missingPreview = host.previewFileReset(FeatureId.of("Missing"), FeatureFileResetRequest.config());
         assertFalse(missingPreview.valid());
         assertTrue(missingPreview.feature().isBlank());
         assertEquals("hello-1", host.capabilities().reference(GreetingApi.class).require().greeting());
         long firstGeneration = host.capabilities().reference(GreetingApi.class).generation().orElseThrow();
 
+        int beforeRecreate = observedContexts.size();
         assertTrue(host.recreate(FeatureId.of("Provider")).success());
 
+        assertEquals(FeatureFrameworkOperationKind.FEATURE_RECREATE, observedContexts.get(beforeRecreate).operation());
+        assertEquals(FeatureFrameworkOperationKind.FEATURE_LOAD, observedContexts.get(beforeRecreate + 1).operation());
         assertEquals(2, ProviderFeature.starts.get());
         assertEquals(2, ConsumerFeature.starts.get());
         assertEquals("hello-2", host.capabilities().reference(GreetingApi.class).require().greeting());
@@ -129,11 +155,26 @@ class FeatureHostTest {
         assertTrue(Files.notExists(providerDirectory.resolve("messages_EN.yml")));
         assertTrue(Files.notExists(providerDirectory.resolve("messages_old-LANG.yml")));
 
+        assertTrue(host.disable(FeatureId.of("Consumer")).success());
+        assertTrue(host.enable(FeatureId.of("Consumer")).success());
+        assertTrue(host.softReload(FeatureId.of("Consumer")).success());
         host.stop();
 
         assertEquals(RuntimeState.STOPPED, host.state());
         assertTrue(host.features().snapshot().stream()
                 .allMatch(snapshot -> snapshot.state() == FeatureState.DISABLED));
+        assertTrue(observedContexts.stream().anyMatch(
+                context -> context.operation() == FeatureFrameworkOperationKind.GRAPH_RELOAD));
+        assertTrue(observedContexts.stream().anyMatch(
+                context -> context.operation() == FeatureFrameworkOperationKind.FILE_RESET));
+        assertTrue(observedContexts.stream().anyMatch(
+                context -> context.operation() == FeatureFrameworkOperationKind.FEATURE_DISABLE));
+        assertTrue(observedContexts.stream().anyMatch(
+                context -> context.operation() == FeatureFrameworkOperationKind.FEATURE_ENABLE));
+        assertTrue(observedContexts.stream().anyMatch(
+                context -> context.operation() == FeatureFrameworkOperationKind.FEATURE_SOFT_RELOAD));
+        assertEquals(FeatureFrameworkOperationKind.HOST_STOP, observedContexts.getLast().operation());
+        assertTrue(observedOutcomes.stream().noneMatch(FeatureFrameworkOperationOutcome::isFailure));
     }
 
     private static TestContext context(
