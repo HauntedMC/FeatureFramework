@@ -218,7 +218,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
                 return false;
             }
 
-            Throwable[] startupFailure = observations.isEnabled() ? new Throwable[1] : null;
+            Throwable[] startupFailure = observation.isNoop() ? null : new Throwable[1];
             boolean loaded = FeatureStartupCoordinator.start(
                     reloadState,
                     () -> contextFactory.apply(descriptor),
