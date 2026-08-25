@@ -6,9 +6,10 @@ versions separately.
 The reactor publishes `featureframework-theme-api` with the other framework artifacts. Publish FeatureFramework before
 any separately versioned theme adapter that targets the new API.
 
-For the 1.6.0 boundary release, publish FeatureFramework first, then ProxyFeatures 3.6.0, then
-ServerFeatures 3.6.0. The consumer releases carry the private contracts and platform implementations
-removed from the public framework.
+For the 1.7.0 observability boundary, HauntedPlatform 1.3.0, DataProvider 3.3.0, and DataRegistry 1.15.0 must already be
+published. Publish FeatureFramework 1.7.0 before HauntedObservability 1.0.0. After HauntedObservability is published,
+align the ecosystem through HauntedPlatform 1.4.0 before ServerFeatures and ProxyFeatures adopt the observability runtime.
+FeatureFramework remains vendor-neutral and does not depend on HauntedObservability.
 
 ## 1. Prepare
 
