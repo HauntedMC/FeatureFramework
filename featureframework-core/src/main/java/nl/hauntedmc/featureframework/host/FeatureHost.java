@@ -16,13 +16,10 @@ import nl.hauntedmc.featureframework.loader.FeatureLoadOrderResolver;
 import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.operation.FeatureOperationCoordinator;
 import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResponse;
-import nl.hauntedmc.featureframework.operation.disable.FeatureDisableResult;
 import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResponse;
-import nl.hauntedmc.featureframework.operation.enable.FeatureEnableResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloadResult;
 import nl.hauntedmc.featureframework.operation.reload.FeatureGraphReloader;
 import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResponse;
-import nl.hauntedmc.featureframework.operation.reload.FeatureReloadResult;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetPreview;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetRequest;
 import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
@@ -30,7 +27,6 @@ import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResult;
 import nl.hauntedmc.featureframework.operation.reset.FeatureResetRollbackOutcome;
 import nl.hauntedmc.featureframework.operation.reset.FeatureResetRuntimeOutcome;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
-import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResult;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
@@ -510,7 +506,8 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
 
     private synchronized void stopLocked() {
         FeatureFrameworkObservations.Operation observation = observations.start(FeatureFrameworkOperationKind.HOST_STOP);
-        try (FeatureFrameworkObservationScope ignored = observation.openScope()) {
+        FeatureFrameworkObservationScope scope = observation.openScope();
+        try {
             if (runtime.state() == RuntimeState.STOPPED) {
                 observation.complete(FeatureFrameworkOperationOutcome.NO_CHANGE, null);
                 return;
@@ -526,6 +523,8 @@ final class FeatureHost<V, F extends LifecycleFeature<C>, C extends FeatureHostC
         } catch (Throwable failure) {
             observation.complete(FeatureFrameworkOperationOutcome.FAILURE, failure);
             throwUnchecked(failure);
+        } finally {
+            scope.close();
         }
     }
 
