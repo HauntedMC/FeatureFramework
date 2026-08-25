@@ -31,10 +31,16 @@ final class FeatureFrameworkObservations {
     }
 
     Operation start(FeatureFrameworkOperationKind kind) {
+        if (!enabled) {
+            return NOOP_OPERATION;
+        }
         return start(FeatureFrameworkOperationContext.host(kind));
     }
 
     Operation start(FeatureFrameworkOperationKind kind, FeatureId featureId) {
+        if (!enabled) {
+            return NOOP_OPERATION;
+        }
         return start(FeatureFrameworkOperationContext.feature(kind, featureId));
     }
 
@@ -66,7 +72,8 @@ final class FeatureFrameworkObservations {
         Objects.requireNonNull(work, "work");
         Objects.requireNonNull(outcome, "outcome");
         Objects.requireNonNull(failure, "failure");
-        try (FeatureFrameworkObservationScope ignored = operation.openScope()) {
+        FeatureFrameworkObservationScope scope = operation.openScope();
+        try {
             try {
                 T result = work.get();
                 operation.complete(
@@ -78,13 +85,12 @@ final class FeatureFrameworkObservations {
                 operation.complete(FeatureFrameworkOperationOutcome.FAILURE, throwable);
                 return throwUnchecked(throwable);
             }
+        } finally {
+            scope.close();
         }
     }
 
     private Operation start(FeatureFrameworkOperationContext context) {
-        if (!enabled) {
-            return NOOP_OPERATION;
-        }
         try {
             FeatureFrameworkObservation observation = observer.start(context);
             if (observation == null || observation == FeatureFrameworkObservation.noop()) {
