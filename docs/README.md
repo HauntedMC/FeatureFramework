@@ -31,6 +31,7 @@ If FeatureFramework is new to you, read the [feature mental model](concepts/FEAT
 
 - [Architecture](ARCHITECTURE.md)
 - [Threading](THREADING.md)
+- [Lifecycle operation observation](OBSERVATION.md)
 - [Version migration notes](MIGRATION.md)
 - [Coordinated release process](RELEASE.md)
 
