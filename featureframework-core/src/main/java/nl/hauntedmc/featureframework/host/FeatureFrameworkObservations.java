@@ -10,6 +10,8 @@ import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationOu
 
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 /** Runtime-local, single-observer dispatcher that keeps instrumentation fail-open. */
 final class FeatureFrameworkObservations {
@@ -34,6 +36,49 @@ final class FeatureFrameworkObservations {
 
     Operation start(FeatureFrameworkOperationKind kind, FeatureId featureId) {
         return start(FeatureFrameworkOperationContext.feature(kind, featureId));
+    }
+
+    <T> T observe(
+            FeatureFrameworkOperationKind kind,
+            Supplier<T> work,
+            Function<T, FeatureFrameworkOperationOutcome> outcome,
+            Function<T, Throwable> failure
+    ) {
+        return observe(start(kind), work, outcome, failure);
+    }
+
+    <T> T observe(
+            FeatureFrameworkOperationKind kind,
+            FeatureId featureId,
+            Supplier<T> work,
+            Function<T, FeatureFrameworkOperationOutcome> outcome,
+            Function<T, Throwable> failure
+    ) {
+        return observe(start(kind, featureId), work, outcome, failure);
+    }
+
+    private <T> T observe(
+            Operation operation,
+            Supplier<T> work,
+            Function<T, FeatureFrameworkOperationOutcome> outcome,
+            Function<T, Throwable> failure
+    ) {
+        Objects.requireNonNull(work, "work");
+        Objects.requireNonNull(outcome, "outcome");
+        Objects.requireNonNull(failure, "failure");
+        try (FeatureFrameworkObservationScope ignored = operation.openScope()) {
+            try {
+                T result = work.get();
+                operation.complete(
+                        Objects.requireNonNull(outcome.apply(result), "observation outcome"),
+                        failure.apply(result)
+                );
+                return result;
+            } catch (RuntimeException | Error throwable) {
+                operation.complete(FeatureFrameworkOperationOutcome.FAILURE, throwable);
+                throw throwable;
+            }
+        }
     }
 
     private Operation start(FeatureFrameworkOperationContext context) {
