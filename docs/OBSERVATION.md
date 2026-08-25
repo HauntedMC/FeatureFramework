@@ -33,7 +33,7 @@ The dependency-free API consists of:
 
 Runtime exceptions from observer start, scope activation, completion, and scope cleanup are isolated from FeatureFramework behavior. Java `Error`s are not swallowed. An observability adapter must be non-blocking; FeatureFramework never requires one to be present.
 
-When the default observer is used, or when a custom observer filters an operation by returning `FeatureFrameworkObservation.noop()`, FeatureFramework executes the original lifecycle work directly without constructing observation context or running terminal observation classification.
+With the default no-op observer, FeatureFramework executes lifecycle work without constructing an observation context or running terminal observation classification. A custom observer necessarily receives the bounded context so it can decide whether to observe an operation; if it filters that operation by returning `FeatureFrameworkObservation.noop()`, FeatureFramework then skips scope activation, terminal classification, and completion for that operation.
 
 ## Operation vocabulary
 
