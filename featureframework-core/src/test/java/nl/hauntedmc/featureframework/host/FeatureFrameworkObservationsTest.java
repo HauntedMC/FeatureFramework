@@ -116,6 +116,50 @@ class FeatureFrameworkObservationsTest {
     }
 
     @Test
+    void disabledAndFilteredObserversSkipTerminalClassification() {
+        FeatureFrameworkObservations disabled = new FeatureFrameworkObservations(
+                nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver.noop());
+        FeatureFrameworkObservations filtered = new FeatureFrameworkObservations(
+                context -> FeatureFrameworkObservation.noop());
+
+        assertEquals("disabled", disabled.observe(
+                FeatureFrameworkOperationKind.GRAPH_RELOAD,
+                () -> "disabled",
+                ignored -> { throw new AssertionError("disabled operation was classified"); },
+                ignored -> { throw new AssertionError("disabled failure was inspected"); }
+        ));
+        assertEquals("filtered", filtered.observe(
+                FeatureFrameworkOperationKind.GRAPH_RELOAD,
+                () -> "filtered",
+                ignored -> { throw new AssertionError("filtered operation was classified"); },
+                ignored -> { throw new AssertionError("filtered failure was inspected"); }
+        ));
+    }
+
+    @Test
+    void classificationFailureCannotChangeFrameworkWork() {
+        AtomicReference<FeatureFrameworkOperationOutcome> outcome = new AtomicReference<>();
+        AtomicReference<Throwable> observedFailure = new AtomicReference<>();
+        FeatureFrameworkObservations observations = new FeatureFrameworkObservations(context ->
+                new FeatureFrameworkObservation() {
+                    @Override
+                    public void completed(FeatureFrameworkOperationOutcome value, Throwable failure) {
+                        outcome.set(value);
+                        observedFailure.set(failure);
+                    }
+                });
+
+        assertEquals("ok", observations.observe(
+                FeatureFrameworkOperationKind.GRAPH_RELOAD,
+                () -> "ok",
+                ignored -> { throw new IllegalStateException("classification failure"); },
+                ignored -> null
+        ));
+        assertEquals(FeatureFrameworkOperationOutcome.FAILURE, outcome.get());
+        assertEquals("classification failure", observedFailure.get().getMessage());
+    }
+
+    @Test
     void scopeIsActiveAroundActualWork() {
         AtomicBoolean active = new AtomicBoolean();
         AtomicBoolean closed = new AtomicBoolean();
