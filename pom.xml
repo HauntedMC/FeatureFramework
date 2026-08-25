@@ -205,7 +205,7 @@
                     </plugin>
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <executions><execution><id>javadoc</id><goals><goal>jar</goal></goals></execution></executions>
+                        <executions><execution><id>javadoc</id><goals><goal>jar</goal></executions>
                     </plugin>
                 </plugins>
             </build>
