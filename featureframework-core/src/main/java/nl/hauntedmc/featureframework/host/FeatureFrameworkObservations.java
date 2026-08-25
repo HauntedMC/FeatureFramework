@@ -26,10 +26,6 @@ final class FeatureFrameworkObservations {
         this.enabled = observer != FeatureFrameworkObserver.noop();
     }
 
-    boolean isEnabled() {
-        return enabled;
-    }
-
     Operation start(FeatureFrameworkOperationKind kind) {
         if (!enabled) {
             return NOOP_OPERATION;
@@ -50,6 +46,10 @@ final class FeatureFrameworkObservations {
             Function<T, FeatureFrameworkOperationOutcome> outcome,
             Function<T, Throwable> failure
     ) {
+        Objects.requireNonNull(work, "work");
+        if (!enabled) {
+            return work.get();
+        }
         return observe(start(kind), work, outcome, failure);
     }
 
@@ -60,6 +60,10 @@ final class FeatureFrameworkObservations {
             Function<T, FeatureFrameworkOperationOutcome> outcome,
             Function<T, Throwable> failure
     ) {
+        Objects.requireNonNull(work, "work");
+        if (!enabled) {
+            return work.get();
+        }
         return observe(start(kind, featureId), work, outcome, failure);
     }
 
@@ -69,17 +73,16 @@ final class FeatureFrameworkObservations {
             Function<T, FeatureFrameworkOperationOutcome> outcome,
             Function<T, Throwable> failure
     ) {
-        Objects.requireNonNull(work, "work");
+        if (operation.isNoop()) {
+            return work.get();
+        }
         Objects.requireNonNull(outcome, "outcome");
         Objects.requireNonNull(failure, "failure");
         FeatureFrameworkObservationScope scope = operation.openScope();
         try {
             try {
                 T result = work.get();
-                operation.complete(
-                        Objects.requireNonNull(outcome.apply(result), "observation outcome"),
-                        failure.apply(result)
-                );
+                completeFromResult(operation, result, outcome, failure);
                 return result;
             } catch (Throwable throwable) {
                 operation.complete(FeatureFrameworkOperationOutcome.FAILURE, throwable);
@@ -87,6 +90,22 @@ final class FeatureFrameworkObservations {
             }
         } finally {
             scope.close();
+        }
+    }
+
+    private static <T> void completeFromResult(
+            Operation operation,
+            T result,
+            Function<T, FeatureFrameworkOperationOutcome> outcome,
+            Function<T, Throwable> failure
+    ) {
+        try {
+            operation.complete(
+                    Objects.requireNonNull(outcome.apply(result), "observation outcome"),
+                    failure.apply(result)
+            );
+        } catch (RuntimeException classificationFailure) {
+            operation.complete(FeatureFrameworkOperationOutcome.FAILURE, classificationFailure);
         }
     }
 
@@ -111,8 +130,12 @@ final class FeatureFrameworkObservations {
             this.completed = observation == FeatureFrameworkObservation.noop() ? null : new AtomicBoolean();
         }
 
+        boolean isNoop() {
+            return completed == null;
+        }
+
         FeatureFrameworkObservationScope openScope() {
-            if (completed == null) {
+            if (isNoop()) {
                 return FeatureFrameworkObservationScope.noop();
             }
             try {
@@ -128,7 +151,7 @@ final class FeatureFrameworkObservations {
 
         void complete(FeatureFrameworkOperationOutcome outcome, Throwable failure) {
             Objects.requireNonNull(outcome, "outcome");
-            if (completed == null || !completed.compareAndSet(false, true)) {
+            if (isNoop() || !completed.compareAndSet(false, true)) {
                 return;
             }
             try {
