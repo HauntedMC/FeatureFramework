@@ -6,7 +6,7 @@ public interface FeatureFrameworkObserver {
 
     /**
      * Starts one observation. Runtime exceptions from observation callbacks are isolated by
-     * FeatureFramework; fatal JVM errors are not swallowed.
+     * FeatureFramework; Java {@link Error}s are not swallowed.
      */
     FeatureFrameworkObservation start(FeatureFrameworkOperationContext context);
 
