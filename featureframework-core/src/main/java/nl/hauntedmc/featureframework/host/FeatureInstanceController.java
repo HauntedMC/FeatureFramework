@@ -198,7 +198,8 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
                 FeatureFrameworkOperationKind.FEATURE_LOAD,
                 featureId
         );
-        try (FeatureFrameworkObservationScope ignored = observation.openScope()) {
+        FeatureFrameworkObservationScope scope = observation.openScope();
+        try {
             if (registry.isFeatureLoaded(key) || preparationFailures.contains(key) || inventory.hasStorageFailure(key)) {
                 observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
                 return false;
@@ -252,6 +253,8 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         } catch (Throwable failure) {
             observation.complete(FeatureFrameworkOperationOutcome.FAILURE, failure);
             return throwUnchecked(failure);
+        } finally {
+            scope.close();
         }
     }
 
