@@ -11,15 +11,19 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 class ObservationBoundaryTest {
 
     @Test
-    void publicApiHasNoTelemetryVendorOrHauntedObservabilityDependency() throws IOException {
+    void publicApiHasNoTelemetryImplementationDependency() throws IOException {
         Path sources = Path.of("src", "main", "java");
         try (var files = Files.walk(sources)) {
             for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 String source = Files.readString(file);
                 assertFalse(source.contains("io.opentelemetry"), () -> file + " contains OpenTelemetry coupling");
                 assertFalse(
-                        source.contains("hauntedobservability"),
+                        source.contains("nl.hauntedmc.observability"),
                         () -> file + " contains HauntedObservability coupling"
+                );
+                assertFalse(
+                        source.contains("hauntedobservability"),
+                        () -> file + " contains legacy HauntedObservability coupling"
                 );
             }
         }
