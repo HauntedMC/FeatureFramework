@@ -31,7 +31,9 @@ The dependency-free API consists of:
 - `FeatureFrameworkOperationKind`, the stable operation vocabulary;
 - `FeatureFrameworkOperationOutcome`, a bounded terminal classification.
 
-Observer start, scope activation, completion, and scope cleanup are isolated from FeatureFramework behavior. An observability adapter must be non-blocking; FeatureFramework never requires one to be present.
+Runtime exceptions from observer start, scope activation, completion, and scope cleanup are isolated from FeatureFramework behavior. Java `Error`s are not swallowed. An observability adapter must be non-blocking; FeatureFramework never requires one to be present.
+
+When the default observer is used, or when a custom observer filters an operation by returning `FeatureFrameworkObservation.noop()`, FeatureFramework executes the original lifecycle work directly without constructing observation context or running terminal observation classification.
 
 ## Operation vocabulary
 
