@@ -7,7 +7,7 @@
     <parent>
         <groupId>nl.hauntedmc.platform</groupId>
         <artifactId>haunted-library-parent</artifactId>
-        <version>1.2.0</version>
+        <version>1.3.0</version>
         <relativePath/>
     </parent>
 
@@ -102,8 +102,8 @@
         <brigadier.version>1.3.10</brigadier.version>
         <placeholderapi.version>2.12.3</placeholderapi.version>
         <viaversion.version>5.11.0</viaversion.version>
-        <dataregistry.version>1.14.3</dataregistry.version>
-        <dataprovider.version>3.2.0</dataprovider.version>
+        <dataregistry.version>1.15.0</dataregistry.version>
+        <dataprovider.version>3.3.0</dataprovider.version>
         <jakarta.persistence.version>${haunted.jpa.version}</jakarta.persistence.version>
 
         <junit.version>${haunted.junit.version}</junit.version>
