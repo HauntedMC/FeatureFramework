@@ -3,6 +3,7 @@ package com.example.contracts;
 import nl.hauntedmc.dataprovider.database.DatabaseType;
 import nl.hauntedmc.dataprovider.database.relational.RelationalDatabaseProvider;
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderResources;
@@ -17,6 +18,7 @@ import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
 import java.time.Duration;
 
 @FeatureDeclaration(
+        scope = FeatureScope.NODE,
         name = "ContractBoard",
         version = "1.0.0",
         enabledByDefault = false,

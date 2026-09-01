@@ -89,6 +89,16 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         String key = inventory.resolveFeatureKey(featureName);
         ResolvedFeatureDefinition<F, C> descriptor = key == null ? null : registry.getAvailableFeature(key);
         if (descriptor == null) return false;
+        boolean enabled = configuration.isFeatureEnabled(key);
+        runtime.mutableFeatureCatalog().setConfiguredEnabled(FeatureId.of(key), enabled);
+        if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()) {
+            preparationFailures.remove(key);
+            inventory.clearStorageFailure(key);
+            if (!registry.isFeatureLoaded(key)) {
+                runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
+            }
+            return true;
+        }
         C context = null;
         try {
             context = contextFactory.apply(descriptor);

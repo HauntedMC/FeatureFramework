@@ -3,6 +3,7 @@ package com.example.rollouts;
 import nl.hauntedmc.dataprovider.database.messaging.MessagingDataAccess;
 import nl.hauntedmc.dataprovider.database.messaging.api.Subscription;
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.integration.dataprovider.DataProviderResources;
@@ -17,6 +18,7 @@ import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
 @FeatureDeclaration(
+        scope = FeatureScope.NODE,
         name = "AdaptiveRollout",
         version = "1.0.0",
         enabledByDefault = false,

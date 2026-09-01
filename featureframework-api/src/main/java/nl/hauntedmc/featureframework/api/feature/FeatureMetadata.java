@@ -18,7 +18,8 @@ public record FeatureMetadata(
         Set<String> requiredPlugins,
         Set<String> requiredResourceExtensions,
         Set<String> providedCapabilities,
-        Set<FeatureRole> roles
+        Set<FeatureRole> roles,
+        FeatureScope scope
 ) {
     public FeatureMetadata {
         Objects.requireNonNull(id, "id");
@@ -30,27 +31,7 @@ public record FeatureMetadata(
                 ? Set.of() : Set.copyOf(requiredResourceExtensions);
         providedCapabilities = providedCapabilities == null ? Set.of() : Set.copyOf(providedCapabilities);
         roles = roles == null ? Set.of() : Set.copyOf(roles);
-    }
-
-    /** Creates metadata for a host that does not expose an additional classification policy. */
-    public FeatureMetadata(
-            FeatureId id,
-            String displayName,
-            String version,
-            Set<FeatureId> requiredFeatures,
-            Set<String> providedCapabilities,
-            Set<FeatureRole> roles
-    ) {
-        this(
-                id,
-                displayName,
-                version,
-                requiredFeatures,
-                Set.of(),
-                Set.of(),
-                providedCapabilities,
-                roles
-        );
+        Objects.requireNonNull(scope, "scope");
     }
 
     private static String requireText(String value, String field) {

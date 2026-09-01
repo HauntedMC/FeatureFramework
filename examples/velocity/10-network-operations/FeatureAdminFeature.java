@@ -1,10 +1,12 @@
 package com.example.networkops.velocity;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
-@FeatureDeclaration(name = "FeatureAdmin", version = "1.0.0", enabledByDefault = true)
+@FeatureDeclaration(
+        scope = FeatureScope.NETWORK,name = "FeatureAdmin", version = "1.0.0", enabledByDefault = true)
 public final class FeatureAdminFeature extends VelocityFeature<ProxyPlugin> {
     public FeatureAdminFeature(VelocityFeatureContext<ProxyPlugin> context) {
         super(context);

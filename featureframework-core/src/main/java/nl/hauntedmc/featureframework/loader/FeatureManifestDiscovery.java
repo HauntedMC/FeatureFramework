@@ -157,7 +157,8 @@ public final class FeatureManifestDiscovery {
                 descriptor.pluginDependencies(),
                 resources,
                 capabilities,
-                definition.roles()
+                definition.roles(),
+                definition.scope()
         );
     }
 

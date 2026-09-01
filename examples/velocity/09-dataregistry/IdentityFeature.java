@@ -1,6 +1,7 @@
 package com.example.registryproxy;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.proxy.Player;
@@ -14,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @FeatureDeclaration(
+        scope = FeatureScope.NODE,
         name = "Identity", version = "1.0.0", enabledByDefault = true,
         requiresPlugins = "dataregistry", requiresResourceExtensions = DataRegistryResources.class)
 public final class IdentityFeature extends VelocityFeature<ProxyPlugin>

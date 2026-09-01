@@ -1,10 +1,12 @@
 package com.example.proxy.welcome;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
-@FeatureDeclaration(name = "Welcome", version = "1.0.0", enabledByDefault = true)
+@FeatureDeclaration(
+        scope = FeatureScope.NODE,name = "Welcome", version = "1.0.0", enabledByDefault = true)
 public final class ProxyWelcomeFeature extends VelocityFeature<Object> {
     public ProxyWelcomeFeature(VelocityFeatureContext<Object> context) {
         super(context);

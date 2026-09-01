@@ -1,6 +1,7 @@
 package com.example.registryplugin;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.dataregistry.api.DataRegistryApi;
 import nl.hauntedmc.featureframework.integration.dataregistry.DataRegistryResources;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
@@ -11,6 +12,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
 @FeatureDeclaration(
+        scope = FeatureScope.NODE,
         name = "Identity", version = "1.0.0", enabledByDefault = true,
         requiresPlugins = "DataRegistry", requiresResourceExtensions = DataRegistryResources.class)
 public final class IdentityFeature extends PaperFeature<MyPlugin>

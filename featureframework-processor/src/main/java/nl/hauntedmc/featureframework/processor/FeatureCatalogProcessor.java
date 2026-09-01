@@ -103,6 +103,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     name,
                     version,
                     FeatureStartupPhase.valueOf(enumName(values, "startupPhase")),
+                    enumName(values, "scope"),
                     bool(values, "enabledByDefault"),
                     enumNames(values, "roles"),
                     texts(values, "requiresFeatures"),
@@ -277,12 +278,14 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     + contextType + "> feature(String name, String version, Class<? extends " + featureType + "> type, "
                     + "java.util.function.Function<" + contextType + ", ? extends " + featureType + "> constructor, "
                     + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase startupPhase, "
+                    + "nl.hauntedmc.featureframework.api.feature.FeatureScope scope, "
                     + "boolean enabledByDefault, nl.hauntedmc.featureframework.api.feature.FeatureRole[] roles, String[] requiredFeatures, "
                     + "String[] optionalFeatures, String[] plugins, Class<?>[] requiredResources, Class<?>[] optionalResources, "
                     + "Class<?>[] requiredCapabilities, Class<?>[] optionalCapabilities, "
                     + "Class<?>[] providedCapabilities, Class<?>[] requiredServices, Class<?>[] optionalServices, Class<?>[] providedServices) {\n");
             writer.write("        var builder = nl.hauntedmc.featureframework.host.FeatureDefinition.<" + featureType + ", "
                     + contextType + ">builder(name, version, type, constructor).startupPhase(startupPhase)"
+                    + ".scope(scope)"
                     + ".roles(roles).requiresFeatures(requiredFeatures).optionallyUsesFeatures(optionalFeatures).requiresPlugins(plugins)"
                     + ".requiresResourceExtensions(requiredResources).optionallyUsesResourceExtensions(optionalResources)"
                     + ".requiresCapabilities(requiredCapabilities).optionallyUsesCapabilities(optionalCapabilities).providesCapabilities(providedCapabilities)"
@@ -295,6 +298,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         return "feature(" + quote(entry.name()) + ", " + quote(entry.version()) + ", " + entry.element().getQualifiedName()
                 + ".class, " + entry.element().getQualifiedName() + "::new, "
                 + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase." + entry.startupPhase() + ", "
+                + "nl.hauntedmc.featureframework.api.feature.FeatureScope." + entry.scope() + ", "
                 + entry.enabledByDefault() + ", " + enumArray("FeatureRole", entry.roles()) + ", " + stringArray(entry.requiredFeatures())
                 + ", " + stringArray(entry.optionalFeatures()) + ", " + stringArray(entry.plugins()) + ", "
                 + typeArray(entry.requiredResourceExtensions()) + ", " + typeArray(entry.optionalResourceExtensions()) + ", "
@@ -386,7 +390,8 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
     private record Config(String generatedClassName, String featurePackage,
                           Set<TypeMirror> bootstrapCapabilities) {}
 
-    private record Entry(TypeElement element, String name, String version, FeatureStartupPhase startupPhase, boolean enabledByDefault,
+    private record Entry(TypeElement element, String name, String version, FeatureStartupPhase startupPhase,
+                         String scope, boolean enabledByDefault,
                          List<String> roles, List<String> requiredFeatures,
                          List<String> optionalFeatures, List<String> plugins,
                          List<TypeMirror> requiredResourceExtensions, List<TypeMirror> optionalResourceExtensions,

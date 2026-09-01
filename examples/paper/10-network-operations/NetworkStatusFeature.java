@@ -1,6 +1,7 @@
 package com.example.networkops.paper;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
@@ -8,7 +9,8 @@ import nl.hauntedmc.featureframework.paper.time.BukkitTime;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 
 /** A simple operational target whose task must be recreated after its cadence changes. */
-@FeatureDeclaration(name = "NetworkStatus", version = "1.0.0", enabledByDefault = true)
+@FeatureDeclaration(
+        scope = FeatureScope.NETWORK,name = "NetworkStatus", version = "1.0.0", enabledByDefault = true)
 public final class NetworkStatusFeature extends PaperFeature<MyPlugin> {
     public NetworkStatusFeature(PaperFeatureContext<MyPlugin> context) {
         super(context);

@@ -1,6 +1,7 @@
 package com.example.proxy.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.velocity.host.VelocityFeature;
@@ -8,7 +9,8 @@ import nl.hauntedmc.featureframework.velocity.host.VelocityFeatureContext;
 
 import java.time.Duration;
 
-@FeatureDeclaration(name = "NetworkSync", version = "1.0.0", enabledByDefault = true)
+@FeatureDeclaration(
+        scope = FeatureScope.NETWORK,name = "NetworkSync", version = "1.0.0", enabledByDefault = true)
 public final class NetworkSyncFeature extends VelocityFeature<Object> {
     private ExampleNetworkClient client;
 

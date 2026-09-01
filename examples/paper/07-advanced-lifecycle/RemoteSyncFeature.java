@@ -1,6 +1,7 @@
 package com.example.lifecycle;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.config.ConfigReloadResult;
 import nl.hauntedmc.featureframework.paper.host.PaperFeature;
 import nl.hauntedmc.featureframework.paper.host.PaperFeatureContext;
@@ -8,7 +9,8 @@ import nl.hauntedmc.featureframework.paper.time.BukkitTime;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import org.bukkit.plugin.Plugin;
 
-@FeatureDeclaration(name = "RemoteSync", version = "1.0.0", enabledByDefault = true)
+@FeatureDeclaration(
+        scope = FeatureScope.NETWORK,name = "RemoteSync", version = "1.0.0", enabledByDefault = true)
 public final class RemoteSyncFeature extends PaperFeature<Plugin> {
     private ExampleRemoteClient client;
 

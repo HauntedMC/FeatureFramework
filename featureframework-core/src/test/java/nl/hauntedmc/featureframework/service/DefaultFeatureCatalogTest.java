@@ -119,7 +119,10 @@ class DefaultFeatureCatalogTest {
                 "1.0.0",
                 Set.of(),
                 Set.of(),
-                Set.of()
+                Set.of(),
+                Set.of(),
+                Set.of(),
+                nl.hauntedmc.featureframework.api.feature.FeatureScope.NODE
         );
     }
 }

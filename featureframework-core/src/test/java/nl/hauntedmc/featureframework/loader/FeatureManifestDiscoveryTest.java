@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.loader;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.feature.Feature;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
@@ -36,6 +37,7 @@ class FeatureManifestDiscoveryTest {
         assertEquals(Set.of("provider"), result.discovered().get(1).descriptor().featureDependencies());
         assertEquals(Set.of("demo:service"),
                 result.discovered().get(0).publicDescriptor().providedCapabilities());
+        assertEquals(FeatureScope.NETWORK, result.discovered().get(0).publicDescriptor().scope());
     }
 
     @Test
@@ -68,6 +70,9 @@ class FeatureManifestDiscoveryTest {
         }
 
         @Override public Set<Class<?>> optionalCapabilities() { return Set.of(); }
+        @Override public FeatureScope scope() {
+            return featureName.equals("provider") ? FeatureScope.NETWORK : FeatureScope.NODE;
+        }
         @Override public Set<Class<?>> requiredInternalServices() { return Set.of(); }
         @Override public Set<Class<?>> optionalInternalServices() { return Set.of(); }
         @Override public Set<Class<?>> providedInternalServices() { return Set.of(); }

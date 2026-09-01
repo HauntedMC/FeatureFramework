@@ -21,8 +21,11 @@ class FrameworkApiContractsTest {
                 "Queue",
                 "1.0.0",
                 Set.of(),
+                Set.of(),
+                Set.of(),
                 Set.of("example.QueueApi"),
-                Set.of(FeatureRole.CAPABILITY_PROVIDER)
+                Set.of(FeatureRole.CAPABILITY_PROVIDER),
+                FeatureScope.NETWORK
         );
 
         assertEquals("queue", id.value());
@@ -34,14 +37,15 @@ class FrameworkApiContractsTest {
         assertEquals(Optional.empty(), FeatureId.tryParse("bad id"));
         assertThrows(IllegalArgumentException.class, () -> FeatureId.of("bad id"));
         assertThrows(IllegalArgumentException.class, () -> new FeatureMetadata(
-                id, " ", "1", Set.of(), Set.of(), Set.of()
+                id, " ", "1", Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), FeatureScope.NODE
         ));
     }
 
     @Test
     void featureCatalogAcceptsExternalTextIds() {
         FeatureMetadata metadata = new FeatureMetadata(
-                FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of()
+                FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                FeatureScope.NODE
         );
         FeatureSnapshot snapshot = new FeatureSnapshot(
                 metadata,
@@ -82,7 +86,8 @@ class FrameworkApiContractsTest {
     @Test
     void providesBothHumanAndTypedFailureProjections() {
         FeatureMetadata metadata = new FeatureMetadata(
-                FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of()
+                FeatureId.of("demo"), "Demo", "1", Set.of(), Set.of(), Set.of(), Set.of(), Set.of(),
+                FeatureScope.NODE
         );
         FeatureFailure failure = new FeatureFailure("STARTUP", "initialize", Optional.of("boom"));
         FeatureSnapshot snapshot = new FeatureSnapshot(

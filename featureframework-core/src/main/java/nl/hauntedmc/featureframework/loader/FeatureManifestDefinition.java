@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.loader;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -11,6 +12,8 @@ public interface FeatureManifestDefinition<D extends ResolvedFeatureDefinition<?
     String featureName();
 
     FeatureStartupPhase startupPhase();
+
+    FeatureScope scope();
 
     D descriptor(Set<String> requiredFeatureDependencies);
 

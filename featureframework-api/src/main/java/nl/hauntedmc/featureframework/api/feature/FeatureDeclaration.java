@@ -28,6 +28,9 @@ public @interface FeatureDeclaration {
      */
     FeatureStartupPhase startupPhase() default FeatureStartupPhase.CORE;
 
+    /** Widest observable boundary; coordination details remain an implementation concern. */
+    FeatureScope scope();
+
     /** Whether a newly created configuration enables this feature. */
     boolean enabledByDefault() default false;
 

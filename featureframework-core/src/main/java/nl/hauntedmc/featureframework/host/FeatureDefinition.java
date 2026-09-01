@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.host;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.feature.Feature;
 import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.loader.FeatureManifestDefinition;
@@ -28,6 +29,7 @@ public final class FeatureDefinition<F extends Feature, C>
     private final Class<? extends F> implementationType;
     private final Function<C, ? extends F> constructor;
     private final FeatureStartupPhase startupPhase;
+    private final FeatureScope scope;
     private final boolean enabledByDefault;
     private final Set<FeatureRole> roles;
     private final Set<String> requiredFeatures;
@@ -48,6 +50,7 @@ public final class FeatureDefinition<F extends Feature, C>
         implementationType = Objects.requireNonNull(builder.implementationType, "implementationType");
         constructor = Objects.requireNonNull(builder.constructor, "constructor");
         startupPhase = builder.startupPhase;
+        scope = Objects.requireNonNull(builder.scope, "scope");
         enabledByDefault = builder.enabledByDefault;
         requiredFeatures = immutableText(builder.requiredFeatures, "requiredFeatures");
         optionalFeatures = withoutRequired(
@@ -94,6 +97,7 @@ public final class FeatureDefinition<F extends Feature, C>
     public Class<? extends F> implementationType() { return implementationType; }
     public Function<C, ? extends F> constructor() { return constructor; }
     @Override public FeatureStartupPhase startupPhase() { return startupPhase; }
+    @Override public FeatureScope scope() { return scope; }
     public boolean enabledByDefault() { return enabledByDefault; }
     public Set<String> requiredFeatures() { return requiredFeatures; }
     public Set<String> optionalFeatureDependencies() { return optionalFeatures; }
@@ -138,6 +142,7 @@ public final class FeatureDefinition<F extends Feature, C>
         private final Class<? extends F> implementationType;
         private final Function<C, ? extends F> constructor;
         private FeatureStartupPhase startupPhase = FeatureStartupPhase.CORE;
+        private FeatureScope scope = FeatureScope.NODE;
         private boolean enabledByDefault;
         private final Set<FeatureRole> roles = new LinkedHashSet<>();
         private final Set<String> requiredFeatures = new LinkedHashSet<>();
@@ -169,6 +174,11 @@ public final class FeatureDefinition<F extends Feature, C>
          */
         public Builder<F, C> startupPhase(FeatureStartupPhase value) {
             startupPhase = Objects.requireNonNull(value, "value");
+            return this;
+        }
+
+        public Builder<F, C> scope(FeatureScope value) {
+            scope = Objects.requireNonNull(value, "value");
             return this;
         }
 

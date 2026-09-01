@@ -3,6 +3,7 @@ package nl.hauntedmc.featureframework.command;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureSnapshot;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 
 import java.util.Comparator;
 import java.util.List;
@@ -24,6 +25,7 @@ public final class FeatureCommandModel {
                 snapshot.metadata().displayName(),
                 loaded(snapshot),
                 snapshot.metadata().version(),
+                snapshot.metadata().scope(),
                 sorted(snapshot.metadata().requiredPlugins()),
                 snapshot.metadata().requiredFeatures().stream().map(FeatureId::value).sorted(String.CASE_INSENSITIVE_ORDER).toList()
         ));
@@ -99,6 +101,7 @@ public final class FeatureCommandModel {
             String name,
             boolean enabled,
             String version,
+            FeatureScope scope,
             List<String> pluginDependencies,
             List<String> featureDependencies
     ) { }

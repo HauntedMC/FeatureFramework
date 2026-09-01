@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.velocity.host;
 
+import com.velocitypowered.api.plugin.PluginManager;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
@@ -88,7 +89,7 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
                 (definition, config, messages, logger, scope) -> new VelocityFeatureContext<>(
                         builder.plugin, definition, config, messages, scope, logger,
                         capabilities, runtime.internalServices(), builder.proxy, files),
-                builder.proxy.getPluginManager()::isLoaded,
+                pluginName -> platformPluginAvailable(builder.proxy.getPluginManager(), pluginName),
                 builder.afterGraphMutation,
                 localization::reloadLocalization,
                 builder.afterHostResourcesReload,
@@ -175,6 +176,11 @@ public final class VelocityFeatureHost<P, V> implements FeatureFrameworkApi<V>, 
             registrations.add(registerBootstrap(registry, capability));
         }
         return List.copyOf(registrations);
+    }
+
+    static boolean platformPluginAvailable(PluginManager plugins, String declaredName) {
+        return plugins.isLoaded(Objects.requireNonNull(declaredName, "declaredName")
+                .trim().toLowerCase(Locale.ROOT));
     }
 
     private static <T> Registration registerBootstrap(

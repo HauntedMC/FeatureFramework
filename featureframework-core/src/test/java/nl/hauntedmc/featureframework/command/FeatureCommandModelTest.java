@@ -2,6 +2,7 @@ package nl.hauntedmc.featureframework.command;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureMetadata;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
 import nl.hauntedmc.featureframework.service.DefaultFeatureCatalog;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ class FeatureCommandModelTest {
         FeatureCommandModel.FeatureInfo available = model.info(" Beta ").orElseThrow();
 
         assertTrue(loaded.enabled());
+        assertEquals(FeatureScope.NETWORK, loaded.scope());
         assertEquals(List.of("core"), loaded.featureDependencies());
         assertFalse(available.enabled());
         assertEquals("Beta", available.name());
@@ -40,6 +42,7 @@ class FeatureCommandModelTest {
     private static FeatureMetadata metadata(
             FeatureId id, String name, String version, Set<FeatureId> dependencies, Set<String> plugins
     ) {
-        return new FeatureMetadata(id, name, version, dependencies, plugins, Set.of(), Set.of(), Set.of());
+        return new FeatureMetadata(id, name, version, dependencies, plugins, Set.of(), Set.of(), Set.of(),
+                id.value().equals("alpha") ? FeatureScope.NETWORK : FeatureScope.NODE);
     }
 }

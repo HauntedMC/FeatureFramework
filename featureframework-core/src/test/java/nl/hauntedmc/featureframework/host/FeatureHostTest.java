@@ -177,6 +177,37 @@ class FeatureHostTest {
         assertTrue(observedOutcomes.stream().noneMatch(FeatureFrameworkOperationOutcome::isFailure));
     }
 
+    @Test
+    void disabledFeatureDoesNotCreatePlatformResourcesDuringPreparation() {
+        FrameworkLogger logger = FrameworkLogger.noop();
+        ConfigService files = new ConfigService(temporaryDirectory, logger, getClass().getClassLoader());
+        DefaultFeatureConfiguration configuration = new DefaultFeatureConfiguration(files, logger);
+        DefaultCapabilityRegistry capabilities = new DefaultCapabilityRegistry(
+                getClass().getPackageName(), getClass().getClassLoader());
+        FeatureRuntime<FeatureId, DefaultCapabilityRegistry> runtime =
+                new FeatureRuntime<>("disabled-host", capabilities);
+        FeatureDefinition<TestFeature, TestContext> disabled =
+                FeatureDefinition.<TestFeature, TestContext>builder(
+                        "Disabled", "1.0.0", ProviderFeature.class,
+                        context -> new ProviderFeature(context, new ArrayList<>()))
+                        .build();
+        FeatureHost<String, TestFeature, TestContext> host = FeatureHost.builder(
+                        "disabled-host", "1.0.0", "test", runtime, configuration,
+                        FeatureCollection.of(disabled))
+                .contextFactory(descriptor -> {
+                    throw new AssertionError("disabled feature requested platform resources");
+                })
+                .logger(logger)
+                .build();
+
+        host.start();
+
+        assertEquals(RuntimeState.READY, host.state());
+        assertEquals(FeatureState.DISABLED,
+                host.features().find(FeatureId.of("Disabled")).orElseThrow().state());
+        host.stop();
+    }
+
     private static TestContext context(
             ResolvedFeatureDefinition<TestFeature, TestContext> descriptor,
             DefaultFeatureConfiguration configuration,

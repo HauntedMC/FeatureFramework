@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.processor;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
+import nl.hauntedmc.featureframework.api.feature.FeatureScope;
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 import nl.hauntedmc.featureframework.host.FeatureDefinition;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,8 @@ class FeatureCatalogProcessorTest {
     void generatesCatalogForFeaturesInTheBootstrapPackage() throws IOException {
         Compilation compilation = compile("""
                 package sample;
-                                import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+                import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+                import nl.hauntedmc.featureframework.api.feature.FeatureScope;
                 import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
                 class Context { }
                 abstract class Base implements nl.hauntedmc.featureframework.feature.Feature {
@@ -43,9 +45,9 @@ class FeatureCatalogProcessorTest {
                 }
                 @GenerateFeatureCatalog(generatedClassName = "sample.Catalog", featurePackage = "sample")
                 class Bootstrap { }
-                @FeatureDeclaration(name = "Provider", version = "1.0.0", providesCapabilities = Contract.class)
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Provider", version = "1.0.0", providesCapabilities = Contract.class)
                 final class Provider extends Base { public Provider(Context context) { super(context); } }
-                @FeatureDeclaration(name = "Consumer", version = "1.0.0", requiresCapabilities = Contract.class, requiresFeatures = "Provider")
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "1.0.0", requiresCapabilities = Contract.class, requiresFeatures = "Provider")
                 final class Consumer extends Base { public Consumer(Context context) { super(context); } }
                 interface Contract { }
                 """);
@@ -62,6 +64,7 @@ class FeatureCatalogProcessorTest {
         Compilation compilation = compile("""
                 package sample;
                 import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+                import nl.hauntedmc.featureframework.api.feature.FeatureScope;
                 import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
                 class Context { }
                 abstract class Base implements nl.hauntedmc.featureframework.feature.Feature {
@@ -77,7 +80,7 @@ class FeatureCatalogProcessorTest {
                 }
                 @GenerateFeatureCatalog(generatedClassName = "sample.Catalog", featurePackage = "sample")
                 class Bootstrap { }
-                @FeatureDeclaration(name = "Consumer", version = "1.0.0", requiresCapabilities = Contract.class)
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "1.0.0", requiresCapabilities = Contract.class)
                 final class Consumer extends Base { public Consumer(Context context) { super(context); } }
                 interface Contract { }
                 """);
@@ -95,7 +98,7 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Consumer", version = "1.0.0",
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "1.0.0",
                         optionallyUsesCapabilities = OptionalCapability.class, optionallyUsesInternalServices = OptionalService.class)
                 final class Consumer extends Base { public Consumer(Context context) { super(context); } }
                 interface OptionalCapability { }
@@ -115,7 +118,7 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Consumer", version = "1.0.0",
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "1.0.0",
                         requiresCapabilities = BootstrapCapability.class)
                 final class Consumer extends Base { public Consumer(Context context) { super(context); } }
                 interface BootstrapCapability { }
@@ -134,11 +137,11 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Provider", version = "1.2.3", startupPhase = FeatureStartupPhase.DEFERRED, enabledByDefault = true, roles = FeatureRole.CAPABILITY_PROVIDER,
+                @FeatureDeclaration(name = "Provider", version = "1.2.3", startupPhase = FeatureStartupPhase.DEFERRED, scope = FeatureScope.NETWORK, enabledByDefault = true, roles = FeatureRole.CAPABILITY_PROVIDER,
                         requiresPlugins = "bridge", providesCapabilities = ProvidedCapability.class,
                         providesInternalServices = ProvidedService.class)
                 final class Provider extends Base { public Provider(Context context) { super(context); } }
-                @FeatureDeclaration(name = "Consumer", version = "2.0.0", startupPhase = FeatureStartupPhase.SECURITY,
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "2.0.0", startupPhase = FeatureStartupPhase.SECURITY,
                         roles = {FeatureRole.CAPABILITY_CONSUMER, FeatureRole.OPERATOR_FACING}, requiresFeatures = "Provider",
                         requiresCapabilities = BootstrapCapability.class, optionallyUsesCapabilities = OptionalCapability.class,
                         requiresInternalServices = ProvidedService.class, optionallyUsesInternalServices = OptionalService.class)
@@ -167,6 +170,8 @@ class FeatureCatalogProcessorTest {
             FeatureDefinition<?, ?> provider = definitions.getLast();
             assertEquals(FeatureStartupPhase.SECURITY, consumer.startupPhase());
             assertEquals(FeatureStartupPhase.DEFERRED, provider.startupPhase());
+            assertEquals(FeatureScope.NODE, consumer.scope());
+            assertEquals(FeatureScope.NETWORK, provider.scope());
             assertEquals(Set.of(FeatureRole.CAPABILITY_CONSUMER, FeatureRole.OPERATOR_FACING), consumer.roles());
             assertEquals(Set.of("Provider"), consumer.requiredFeatures());
             assertEquals(Set.of("sample.BootstrapCapability"), typeNames(consumer.requiredCapabilities()));
@@ -192,7 +197,7 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Provider", version = "1.0.0", roles = FeatureRole.EXTENSION_PROVIDER)
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Provider", version = "1.0.0", roles = FeatureRole.EXTENSION_PROVIDER)
                 final class Provider extends Base { public Provider(Context context) { super(context); } }
                 """
         ));
@@ -210,7 +215,7 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Declared", version = "1.0.0")
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Declared", version = "1.0.0")
                 final class Declared extends Base { public Declared(Context context) { super(context); } }
                 final class Omitted extends Base { public Omitted(Context context) { super(context); } }
                 """
@@ -229,8 +234,9 @@ class FeatureCatalogProcessorTest {
     private static String source(String catalog, String features) {
         return """
                 package sample;
-                                import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
+                import nl.hauntedmc.featureframework.api.feature.FeatureDeclaration;
                 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
+                import nl.hauntedmc.featureframework.api.feature.FeatureScope;
                 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
                 import nl.hauntedmc.featureframework.api.feature.GenerateFeatureCatalog;
                 class Context { }
