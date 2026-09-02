@@ -38,7 +38,7 @@ class ReplicaAuthorityWatchdogTest {
     Path temp;
 
     @Test
-    void blockedRenewalCannotKeepLeaderOnlyPlacementAlivePastSafetyCutoff() throws Exception {
+    void blockedRenewalAndLateSuccessCannotKeepLeaderOnlyPlacementAlivePastSafetyCutoff() throws Exception {
         Files.writeString(temp.resolve("config.yml"), "authoritative");
         BlockingLeaseCoordinator leases = new BlockingLeaseCoordinator();
         StaticRepository repository = new StaticRepository(generation());
@@ -64,7 +64,19 @@ class ReplicaAuthorityWatchdogTest {
             assertTrue(host.reconcileCalls.get() >= 1,
                     "authority cutoff must reconcile the live graph even while Redis renewal is blocked");
 
-            leases.completeBlockedRenewalAsLost();
+            int reconcilesAfterCutoff = host.reconcileCalls.get();
+            leases.completeBlockedRenewalAsLateSuccess(Duration.ofSeconds(5));
+            await(() -> leases.acquireCalls.get() > 1);
+
+            ActivationDecision afterLateSuccess = host.activationPolicy.evaluate(
+                    leaderOnlyMetadata(), FeatureActivationPhase.ACTIVATION);
+            assertFalse(afterLateSuccess.allowed(),
+                    "a renewal result received after the safety cutoff must never resurrect authority");
+            assertEquals(FeatureSuppressionReason.AUTHORITY_UNAVAILABLE,
+                    afterLateSuccess.suppression().orElseThrow().reason());
+            assertEquals(ReplicaStatus.State.UNAVAILABLE, controller.status().state());
+            assertEquals(reconcilesAfterCutoff, host.reconcileCalls.get(),
+                    "discarding the stale renewal response must not transiently re-enable the graph");
         }
     }
 
@@ -116,6 +128,7 @@ class ReplicaAuthorityWatchdogTest {
     }
 
     private static final class BlockingLeaseCoordinator implements ReplicaLeaseCoordinator {
+        private final AtomicInteger acquireCalls = new AtomicInteger();
         private final AtomicInteger renewCalls = new AtomicInteger();
         private final CompletableFuture<Optional<ReplicaAuthority>> blockedRenewal = new CompletableFuture<>();
         private ReplicaAuthority current;
@@ -126,6 +139,7 @@ class ReplicaAuthorityWatchdogTest {
                 String owner,
                 Duration ttl
         ) {
+            acquireCalls.incrementAndGet();
             if (current != null) return CompletableFuture.completedFuture(Optional.empty());
             current = new ReplicaAuthority(group.authorityResource(), owner, 1, Instant.now().plus(ttl));
             return CompletableFuture.completedFuture(Optional.of(current));
@@ -143,9 +157,10 @@ class ReplicaAuthorityWatchdogTest {
             return CompletableFuture.completedFuture(true);
         }
 
-        void completeBlockedRenewalAsLost() {
-            current = null;
-            blockedRenewal.complete(Optional.empty());
+        synchronized void completeBlockedRenewalAsLateSuccess(Duration ttl) {
+            current = new ReplicaAuthority(
+                    current.resource(), current.owner(), current.fencingToken(), Instant.now().plus(ttl));
+            blockedRenewal.complete(Optional.of(current));
         }
     }
 
