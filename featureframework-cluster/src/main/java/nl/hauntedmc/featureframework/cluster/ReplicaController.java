@@ -176,12 +176,8 @@ public final class ReplicaController implements AutoCloseable {
 
         if (remote == null) {
             if (role() == ReplicaRole.FOLLOWER) {
-                ConfigGeneration local = compatibleLkg().orElseThrow(() -> new IllegalStateException(
-                        "Replica group not initialized. Start configured leader " + group.configuredLeader() + " first."));
-                materializer.materialize(local);
-                appliedGeneration = local;
-                setStatus(ReplicaStatus.State.READY, "Started from LKG while group has no active remote generation");
-                return;
+                throw new IllegalStateException(
+                        "Replica group not initialized. Start configured leader " + group.configuredLeader() + " first.");
             }
             if (authority.get() == null) {
                 throw new IllegalStateException("Configured leader cannot initialize the replica group without authority");
@@ -197,7 +193,8 @@ public final class ReplicaController implements AutoCloseable {
             if (!local.isEmpty() && !materializer.matches(remote)) {
                 startupRollbackGeneration = remote;
                 appliedGeneration = remote;
-                setStatus(ReplicaStatus.State.BOOTSTRAPPING, "Leader local configuration will be validated as startup candidate");
+                setStatus(ReplicaStatus.State.BOOTSTRAPPING,
+                        "Leader local configuration will be validated as startup candidate");
                 return;
             }
         }
@@ -207,10 +204,13 @@ public final class ReplicaController implements AutoCloseable {
         setStatus(ReplicaStatus.State.READY, null);
     }
 
+    /** Installs lifecycle and write policies on the already constructed host before host start. */
     public synchronized void attach(ReplicaHostControl host) {
         ensureOpen();
         if (this.host != null) throw new IllegalStateException("Replica controller is already attached to a host");
-        this.host = Objects.requireNonNull(host, "host");
+        ReplicaHostControl candidate = Objects.requireNonNull(host, "host");
+        candidate.installReplicaPolicies(activationPolicy(), configMutationPolicy());
+        this.host = candidate;
     }
 
     /** Completes first-generation/startup-candidate publication and starts renewal/polling. */
@@ -330,7 +330,8 @@ public final class ReplicaController implements AutoCloseable {
         long safeNanos = leaseTtl.minus(safetyMargin).toNanos();
         long elapsed = Math.max(0L, nanoTime.getAsLong() - lastSuccessfulRenewalNanos);
         if (elapsed >= safeNanos && authority.compareAndSet(current, null)) {
-            setStatus(ReplicaStatus.State.UNAVAILABLE, "Authority renewal unproven inside TTL safety window: " + failure);
+            setStatus(ReplicaStatus.State.UNAVAILABLE,
+                    "Authority renewal unproven inside TTL safety window: " + failure);
             ReplicaHostControl currentHost = host;
             if (currentHost != null) currentHost.reconcileReplicaGraph();
         }
@@ -338,7 +339,9 @@ public final class ReplicaController implements AutoCloseable {
 
     private void safePollTick() {
         try { pollTick(); }
-        catch (Throwable failure) { setStatus(ReplicaStatus.State.OUT_OF_SYNC, "Replica poll failed: " + failure.getMessage()); }
+        catch (Throwable failure) {
+            setStatus(ReplicaStatus.State.OUT_OF_SYNC, "Replica poll failed: " + failure.getMessage());
+        }
     }
 
     private synchronized void pollTick() {
@@ -347,32 +350,40 @@ public final class ReplicaController implements AutoCloseable {
         if (remote == null) return;
         if (!compatibility.isCompatible(remote.manifest())) {
             setStatus(ReplicaStatus.State.OUT_OF_SYNC,
-                    "Active generation requires config compatibility " + remote.manifest().configCompatibilityVersion());
+                    "Active generation requires config compatibility "
+                            + remote.manifest().configCompatibilityVersion());
             return;
         }
         long applied = appliedGeneration == null ? 0L : appliedGeneration.manifest().generation();
-        if (remote.manifest().generation() > applied) applyRemote(remote);
-        else if (role() == ReplicaRole.FOLLOWER && appliedGeneration != null && !materializer.matches(appliedGeneration)) {
+        if (remote.manifest().generation() > applied) {
+            applyRemote(remote);
+        } else if (role() == ReplicaRole.FOLLOWER && appliedGeneration != null
+                && !materializer.matches(appliedGeneration)) {
             materializer.backupDrift();
             materializer.materialize(appliedGeneration);
             if (host != null && !host.reconcileReplicaGraph()) {
-                setStatus(ReplicaStatus.State.OUT_OF_SYNC, "Follower drift repair could not reload previous graph");
+                setStatus(ReplicaStatus.State.OUT_OF_SYNC,
+                        "Follower drift repair could not reload previous graph");
                 return;
             }
-            setStatus(ReplicaStatus.State.DRIFTED, "Follower filesystem drift was backed up and repaired");
+            setStatus(ReplicaStatus.State.DRIFTED,
+                    "Follower filesystem drift was backed up and repaired");
         }
     }
 
     private void applyRemote(ConfigGeneration remote) {
         ConfigGeneration previous = appliedGeneration;
-        if (previous != null && !materializer.matches(previous) && role() == ReplicaRole.FOLLOWER) materializer.backupDrift();
+        if (previous != null && !materializer.matches(previous) && role() == ReplicaRole.FOLLOWER) {
+            materializer.backupDrift();
+        }
         materializer.materialize(remote);
         if (host != null && !host.reconcileReplicaGraph()) {
             if (previous != null) {
                 materializer.materialize(previous);
                 host.reconcileReplicaGraph();
             }
-            setStatus(ReplicaStatus.State.OUT_OF_SYNC, "Rejected generation " + remote.manifest().generation());
+            setStatus(ReplicaStatus.State.OUT_OF_SYNC,
+                    "Rejected generation " + remote.manifest().generation());
             return;
         }
         appliedGeneration = remote;
@@ -416,7 +427,9 @@ public final class ReplicaController implements AutoCloseable {
     private Optional<ConfigGeneration> compatibleLkg() {
         try {
             return lkg.load().filter(value -> compatibility.isCompatible(value.manifest()));
-        } catch (RuntimeException invalid) { return Optional.empty(); }
+        } catch (RuntimeException invalid) {
+            return Optional.empty();
+        }
     }
 
     private void requireCompatible(ConfigGeneration generation) {
@@ -439,9 +452,12 @@ public final class ReplicaController implements AutoCloseable {
     private void ensureLeaderAuthority() {
         ensureOpen();
         if (mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) {
-            throw new IllegalStateException("Only the configured replica-group leader may publish configuration");
+            throw new IllegalStateException(
+                    "Only the configured replica-group leader may publish configuration");
         }
-        if (authority.get() == null) throw new IllegalStateException("Configured leader does not hold fenced authority");
+        if (authority.get() == null) {
+            throw new IllegalStateException("Configured leader does not hold fenced authority");
+        }
     }
 
     private void recordNodeStateBestEffort() {
@@ -455,7 +471,8 @@ public final class ReplicaController implements AutoCloseable {
     private void setStatus(ReplicaStatus.State state, String detail) {
         long generation = appliedGeneration == null ? 0L : appliedGeneration.manifest().generation();
         status.set(new ReplicaStatus(role(), state, Optional.ofNullable(authority.get()),
-                generation <= 0 ? OptionalLong.empty() : OptionalLong.of(generation), Optional.ofNullable(detail)));
+                generation <= 0 ? OptionalLong.empty() : OptionalLong.of(generation),
+                Optional.ofNullable(detail)));
     }
 
     private void refreshStatusAuthority() {
@@ -464,7 +481,9 @@ public final class ReplicaController implements AutoCloseable {
                 current.appliedGeneration(), current.detail()));
     }
 
-    private void ensureOpen() { if (closed.get()) throw new IllegalStateException("Replica controller is closed"); }
+    private void ensureOpen() {
+        if (closed.get()) throw new IllegalStateException("Replica controller is closed");
+    }
 
     private static <T> T join(java.util.concurrent.CompletionStage<T> stage) {
         return Objects.requireNonNull(stage, "stage").toCompletableFuture().join();
@@ -474,6 +493,14 @@ public final class ReplicaController implements AutoCloseable {
     public synchronized void close() {
         if (!closed.compareAndSet(false, true)) return;
         scheduler.shutdownNow();
+        ConfigGeneration rollback = startupRollbackGeneration;
+        startupRollbackGeneration = null;
+        if (rollback != null) {
+            try {
+                materializer.materialize(rollback);
+                appliedGeneration = rollback;
+            } catch (RuntimeException ignored) { }
+        }
         ReplicaAuthority current = authority.getAndSet(null);
         if (current != null && leases != null) {
             try { join(leases.release(current)); } catch (RuntimeException ignored) { }
@@ -496,7 +523,12 @@ public final class ReplicaController implements AutoCloseable {
         private Duration pollInterval = DEFAULT_POLL_INTERVAL;
         private LongSupplier nanoTime = System::nanoTime;
 
-        private Builder(ReplicaMode mode, Path dataDirectory, ReplicaNodeIdentity node, ConfigCompatibility compatibility) {
+        private Builder(
+                ReplicaMode mode,
+                Path dataDirectory,
+                ReplicaNodeIdentity node,
+                ConfigCompatibility compatibility
+        ) {
             this.mode = Objects.requireNonNull(mode, "mode");
             this.dataDirectory = Objects.requireNonNull(dataDirectory, "dataDirectory");
             this.node = Objects.requireNonNull(node, "node");
@@ -506,18 +538,35 @@ public final class ReplicaController implements AutoCloseable {
         private Builder group(ReplicaGroupIdentity value) { group = value; return this; }
         private Builder generations(ReplicaGenerationRepository value) { generations = value; return this; }
         private Builder leases(ReplicaLeaseCoordinator value) { leases = value; return this; }
-        public Builder managedFiles(ManagedFileSet value) { managedFiles = Objects.requireNonNull(value, "managedFiles"); return this; }
-        public Builder bootId(String value) { bootId = Objects.requireNonNull(value, "bootId").trim(); return this; }
+        public Builder managedFiles(ManagedFileSet value) {
+            managedFiles = Objects.requireNonNull(value, "managedFiles");
+            return this;
+        }
+        public Builder bootId(String value) {
+            bootId = Objects.requireNonNull(value, "bootId").trim();
+            if (bootId.isEmpty()) throw new IllegalArgumentException("bootId must not be blank");
+            return this;
+        }
         public Builder leaseTiming(Duration ttl, Duration renew, Duration safety) {
             leaseTtl = positive(ttl, "ttl");
             renewInterval = positive(renew, "renew");
             safetyMargin = positive(safety, "safety");
-            if (renewInterval.compareTo(leaseTtl) >= 0) throw new IllegalArgumentException("renew interval must be less than TTL");
-            if (safetyMargin.compareTo(leaseTtl) >= 0) throw new IllegalArgumentException("safety margin must be less than TTL");
+            if (renewInterval.compareTo(leaseTtl) >= 0) {
+                throw new IllegalArgumentException("renew interval must be less than TTL");
+            }
+            if (safetyMargin.compareTo(leaseTtl) >= 0) {
+                throw new IllegalArgumentException("safety margin must be less than TTL");
+            }
             return this;
         }
-        public Builder pollInterval(Duration value) { pollInterval = positive(value, "pollInterval"); return this; }
-        Builder nanoTime(LongSupplier value) { nanoTime = Objects.requireNonNull(value, "nanoTime"); return this; }
+        public Builder pollInterval(Duration value) {
+            pollInterval = positive(value, "pollInterval");
+            return this;
+        }
+        Builder nanoTime(LongSupplier value) {
+            nanoTime = Objects.requireNonNull(value, "nanoTime");
+            return this;
+        }
 
         public ReplicaController build() {
             if (mode == ReplicaMode.REPLICATED) {
@@ -530,7 +579,9 @@ public final class ReplicaController implements AutoCloseable {
 
         private static Duration positive(Duration value, String field) {
             Duration duration = Objects.requireNonNull(value, field);
-            if (duration.isZero() || duration.isNegative()) throw new IllegalArgumentException(field + " must be positive");
+            if (duration.isZero() || duration.isNegative()) {
+                throw new IllegalArgumentException(field + " must be positive");
+            }
             return duration;
         }
     }
