@@ -334,7 +334,7 @@ public final class ReplicaController implements AutoCloseable {
         ReplicaAuthority current = authority.get();
         if (current == null) {
             acquireAuthorityIfPossible();
-            reconcileHostIfStarted();
+            if (authority.get() != null) reconcileHostIfStarted();
             return;
         }
         Optional<ReplicaAuthority> renewed = join(leases.renew(current, leaseTtl));
@@ -346,10 +346,11 @@ public final class ReplicaController implements AutoCloseable {
             }
             return;
         }
+        boolean restored = authority.get() == null;
         lastSuccessfulRenewalNanos = nanoTime.getAsLong();
         authority.set(renewed.get());
         refreshStatusAfterAuthorityProof();
-        reconcileHostIfStarted();
+        if (restored) reconcileHostIfStarted();
     }
 
     private void safeAuthorityWatchdogTick() {
