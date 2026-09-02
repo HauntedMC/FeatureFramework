@@ -27,10 +27,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -327,7 +325,6 @@ class ReplicaControllerTest {
         private FeatureActivationPolicy activationPolicy;
         private ConfigMutationPolicy mutationPolicy;
         private final AtomicInteger reconcileCalls = new AtomicInteger();
-        private volatile boolean reconcileResult = true;
 
         @Override
         public void installReplicaPolicies(
@@ -341,7 +338,7 @@ class ReplicaControllerTest {
         @Override
         public boolean reconcileReplicaGraph() {
             reconcileCalls.incrementAndGet();
-            return reconcileResult;
+            return true;
         }
     }
 
