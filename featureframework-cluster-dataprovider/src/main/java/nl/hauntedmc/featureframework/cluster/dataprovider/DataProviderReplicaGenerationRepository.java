@@ -13,18 +13,35 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 /** Raw-SQL MySQL generation store. It never creates or mutates schema implicitly. */
 public final class DataProviderReplicaGenerationRepository implements ReplicaGenerationRepository {
+    private static final Map<String, Set<String>> REQUIRED_SCHEMA = Map.of(
+            "ff_replica_group", Set.of(
+                    "namespace", "application_id", "group_id", "active_generation", "active_manifest_hash",
+                    "highest_fencing_token", "updated_at"),
+            "ff_config_generation", Set.of(
+                    "namespace", "application_id", "group_id", "generation", "publisher_node",
+                    "publisher_boot_id", "fencing_token", "application_version", "config_compatibility_version",
+                    "created_at", "source_generation", "manifest_hash"),
+            "ff_config_file", Set.of(
+                    "namespace", "application_id", "group_id", "generation", "path", "kind", "sha256",
+                    "size", "raw_contents"),
+            "ff_replica_node_state", Set.of(
+                    "namespace", "application_id", "group_id", "node_id", "applied_generation", "status",
+                    "detail", "last_seen")
+    );
+
     private final RelationalDataAccess sql;
 
     public DataProviderReplicaGenerationRepository(RelationalDataAccess sql) {
@@ -35,13 +52,24 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
     public CompletionStage<Optional<ConfigGeneration>> loadActive(ReplicaGroupIdentity group) {
         Objects.requireNonNull(group, "group");
         return sql.queryForSingleOptional(
-                "SELECT active_generation FROM ff_replica_group WHERE namespace=? AND application_id=? AND group_id=?",
+                "SELECT active_generation,active_manifest_hash FROM ff_replica_group "
+                        + "WHERE namespace=? AND application_id=? AND group_id=?",
                 group.namespace(), group.applicationId(), group.groupId()
         ).thenCompose(row -> {
-            if (row.isEmpty() || row.get().get("active_generation") == null) {
+            if (row.isEmpty() || column(row.get(), "active_generation") == null) {
                 return java.util.concurrent.CompletableFuture.completedFuture(Optional.empty());
             }
-            return loadGeneration(group, ((Number) row.get().get("active_generation")).longValue());
+            long generation = ((Number) column(row.get(), "active_generation")).longValue();
+            String expectedHash = Objects.toString(column(row.get(), "active_manifest_hash"), "");
+            return loadGeneration(group, generation).thenApply(loaded -> {
+                ConfigGeneration active = loaded.orElseThrow(() -> new IllegalStateException(
+                        "Replica group points to missing active generation " + generation));
+                if (!active.manifest().manifestHash().equalsIgnoreCase(expectedHash)) {
+                    throw new IllegalStateException(
+                            "Replica group active manifest hash does not match generation " + generation);
+                }
+                return Optional.of(active);
+            });
         });
     }
 
@@ -82,21 +110,36 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
         );
     }
 
-    /** Verifies that all four version-1 control-plane tables exist; it never applies DDL. */
+    /** Verifies the complete version-1 table/column contract; it never applies DDL. */
     public CompletionStage<Void> validateSchema() {
-        List<String> names = List.of("ff_replica_group", "ff_config_generation", "ff_config_file", "ff_replica_node_state");
+        List<String> tables = REQUIRED_SCHEMA.keySet().stream().sorted().toList();
         return sql.queryForList(
-                "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() "
+                "SELECT TABLE_NAME,COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() "
                         + "AND TABLE_NAME IN (?,?,?,?)",
-                names.get(0), names.get(1), names.get(2), names.get(3)
+                tables.get(0), tables.get(1), tables.get(2), tables.get(3)
         ).thenAccept(rows -> {
-            java.util.Set<String> present = rows.stream()
-                    .map(row -> Objects.toString(row.get("TABLE_NAME"), Objects.toString(row.get("table_name"), "")))
-                    .collect(java.util.stream.Collectors.toSet());
-            if (!present.containsAll(names)) {
-                java.util.Set<String> missing = new java.util.LinkedHashSet<>(names);
-                missing.removeAll(present);
-                throw new IllegalStateException("FeatureFramework replica schema v1 is not installed; missing " + missing);
+            Map<String, Set<String>> present = new LinkedHashMap<>();
+            for (Map<String, Object> row : rows) {
+                String table = Objects.toString(column(row, "TABLE_NAME"), "").toLowerCase(java.util.Locale.ROOT);
+                String name = Objects.toString(column(row, "COLUMN_NAME"), "").toLowerCase(java.util.Locale.ROOT);
+                if (!table.isBlank() && !name.isBlank()) {
+                    present.computeIfAbsent(table, ignored -> new LinkedHashSet<>()).add(name);
+                }
+            }
+            List<String> problems = new ArrayList<>();
+            for (Map.Entry<String, Set<String>> required : REQUIRED_SCHEMA.entrySet()) {
+                Set<String> available = present.get(required.getKey());
+                if (available == null) {
+                    problems.add(required.getKey() + " (missing table)");
+                    continue;
+                }
+                Set<String> missing = new LinkedHashSet<>(required.getValue());
+                missing.removeAll(available);
+                if (!missing.isEmpty()) problems.add(required.getKey() + " missing columns " + missing);
+            }
+            if (!problems.isEmpty()) {
+                throw new IllegalStateException(
+                        "FeatureFramework replica schema v1 is not installed or incompatible: " + problems);
             }
         });
     }
@@ -153,8 +196,11 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
             insert.setString(index++, manifest.applicationVersion());
             insert.setString(index++, manifest.configCompatibilityVersion());
             insert.setTimestamp(index++, Timestamp.from(manifest.createdAt()));
-            if (manifest.sourceGeneration().isPresent()) insert.setLong(index++, manifest.sourceGeneration().getAsLong());
-            else insert.setObject(index++, null);
+            if (manifest.sourceGeneration().isPresent()) {
+                insert.setLong(index++, manifest.sourceGeneration().getAsLong());
+            } else {
+                insert.setObject(index++, null);
+            }
             insert.setString(index, manifest.manifestHash());
             insert.executeUpdate();
         }
@@ -185,7 +231,9 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
             update.setString(4, group.namespace());
             update.setString(5, group.applicationId());
             update.setString(6, group.groupId());
-            if (update.executeUpdate() != 1) throw new IllegalStateException("Replica group activation update failed");
+            if (update.executeUpdate() != 1) {
+                throw new IllegalStateException("Replica group activation update failed");
+            }
         }
         return published;
     }
@@ -233,9 +281,16 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
         }
         ConfigManifest manifest = new ConfigManifest(
                 header.protocolVersion(), group, generation, header.publisherNode(), header.publisherBootId(),
-                header.fencingToken(), header.applicationVersion(), header.configCompatibilityVersion(), header.createdAt(),
-                header.sourceGeneration(), manifestFiles, header.manifestHash());
+                header.fencingToken(), header.applicationVersion(), header.configCompatibilityVersion(),
+                header.createdAt(), header.sourceGeneration(), manifestFiles, header.manifestHash());
         return Optional.of(new ConfigGeneration(manifest, contents));
+    }
+
+    private static Object column(Map<String, Object> row, String name) {
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(name)) return entry.getValue();
+        }
+        return null;
     }
 
     private static int bindGroup(PreparedStatement statement, ReplicaGroupIdentity group) throws Exception {
