@@ -19,7 +19,8 @@ public record FeatureMetadata(
         Set<String> requiredResourceExtensions,
         Set<String> providedCapabilities,
         Set<FeatureRole> roles,
-        FeatureScope scope
+        FeatureScope scope,
+        FeaturePlacement placement
 ) {
     public FeatureMetadata {
         Objects.requireNonNull(id, "id");
@@ -32,6 +33,23 @@ public record FeatureMetadata(
         providedCapabilities = providedCapabilities == null ? Set.of() : Set.copyOf(providedCapabilities);
         roles = roles == null ? Set.of() : Set.copyOf(roles);
         Objects.requireNonNull(scope, "scope");
+        placement = placement == null ? FeaturePlacement.ALL_NODES : placement;
+    }
+
+    /** Compatibility constructor for metadata that predates explicit replica placement. */
+    public FeatureMetadata(
+            FeatureId id,
+            String displayName,
+            String version,
+            Set<FeatureId> requiredFeatures,
+            Set<String> requiredPlugins,
+            Set<String> requiredResourceExtensions,
+            Set<String> providedCapabilities,
+            Set<FeatureRole> roles,
+            FeatureScope scope
+    ) {
+        this(id, displayName, version, requiredFeatures, requiredPlugins, requiredResourceExtensions,
+                providedCapabilities, roles, scope, FeaturePlacement.ALL_NODES);
     }
 
     private static String requireText(String value, String field) {

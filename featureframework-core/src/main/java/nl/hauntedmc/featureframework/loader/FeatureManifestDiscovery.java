@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.loader;
 
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,8 +17,7 @@ import java.util.stream.Collectors;
 
 /** Validates and materializes an explicit feature inventory without knowing any concrete feature. */
 public final class FeatureManifestDiscovery {
-    private FeatureManifestDiscovery() {
-    }
+    private FeatureManifestDiscovery() { }
 
     public static <D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>> Result<D, E> discover(
             Collection<E> manifest,
@@ -41,29 +41,36 @@ public final class FeatureManifestDiscovery {
         List<Conflict> conflicts = new ArrayList<>();
         Map<String, Discovered<D, E>> byNormalizedKey = new LinkedHashMap<>();
         for (E definition : definitions) {
-            Set<String> dependencies = resolveDependencies(
-                    definition, capabilityProviders, internalProviders, bootstrap);
-            D descriptor = Objects.requireNonNull(
-                    definition.descriptor(dependencies), "definition descriptor");
+            Set<String> dependencies = resolveDependencies(definition, capabilityProviders, internalProviders, bootstrap);
+            D descriptor = Objects.requireNonNull(definition.descriptor(dependencies), "definition descriptor");
             String normalized = descriptor.registryName().toLowerCase(Locale.ROOT);
             Discovered<D, E> previous = byNormalizedKey.get(normalized);
             if (previous != null) {
-                conflicts.add(new Conflict(
-                        descriptor.registryName(),
-                        descriptor.implementationType(),
-                        previous.descriptor().implementationType()
-                ));
+                conflicts.add(new Conflict(descriptor.registryName(), descriptor.implementationType(),
+                        previous.descriptor().implementationType()));
                 continue;
             }
             Discovered<D, E> item = new Discovered<>(
-                    descriptor,
-                    definition,
-                    publicDescriptor(descriptor, definition, namespace)
-            );
+                    descriptor, definition, publicDescriptor(descriptor, definition, namespace));
             byNormalizedKey.put(normalized, item);
             discovered.add(item);
         }
+        validatePlacementDependencies(byNormalizedKey);
         return new Result<>(List.copyOf(discovered), List.copyOf(conflicts));
+    }
+
+    private static <D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>>
+    void validatePlacementDependencies(Map<String, Discovered<D, E>> discovered) {
+        for (Discovered<D, E> item : discovered.values()) {
+            if (item.definition().placement() != FeaturePlacement.ALL_NODES) continue;
+            for (String dependency : item.descriptor().featureDependencies()) {
+                Discovered<D, E> provider = discovered.get(dependency.toLowerCase(Locale.ROOT));
+                if (provider != null && provider.definition().placement() == FeaturePlacement.GROUP_LEADER_ONLY) {
+                    throw new IllegalStateException("ALL_NODES feature " + item.definition().featureName()
+                            + " cannot require GROUP_LEADER_ONLY feature " + provider.definition().featureName());
+                }
+            }
+        }
     }
 
     private static <D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>>
@@ -94,13 +101,11 @@ public final class FeatureManifestDiscovery {
         for (E definition : definitions) {
             LinkedHashSet<Class<?>> referenced = new LinkedHashSet<>(internal
                     ? definition.requiredInternalServices() : definition.requiredCapabilities());
-            referenced.addAll(internal
-                    ? definition.optionalInternalServices() : definition.optionalCapabilities());
+            referenced.addAll(internal ? definition.optionalInternalServices() : definition.optionalCapabilities());
             for (Class<?> type : referenced) {
                 if (!providers.containsKey(type) && !bootstrap.contains(type)) {
                     throw new IllegalStateException("Feature " + definition.featureName() + " references "
-                            + (internal ? "internal service" : "capability")
-                            + " without a provider: " + type.getName());
+                            + (internal ? "internal service" : "capability") + " without a provider: " + type.getName());
                 }
             }
         }
@@ -141,25 +146,15 @@ public final class FeatureManifestDiscovery {
             String namespace
     ) {
         Set<FeatureId> dependencies = descriptor.featureDependencies().stream()
-                .map(FeatureId::of)
-                .collect(Collectors.toUnmodifiableSet());
+                .map(FeatureId::of).collect(Collectors.toUnmodifiableSet());
         Set<String> capabilities = definition.providedCapabilities().stream()
-                .map(type -> capabilityId(namespace, type))
-                .collect(Collectors.toUnmodifiableSet());
+                .map(type -> capabilityId(namespace, type)).collect(Collectors.toUnmodifiableSet());
         Set<String> resources = definition.requiredResourceExtensions().stream()
-                .map(Class::getName)
-                .collect(Collectors.toUnmodifiableSet());
+                .map(Class::getName).collect(Collectors.toUnmodifiableSet());
         return new nl.hauntedmc.featureframework.api.feature.FeatureMetadata(
-                FeatureId.of(descriptor.registryName()),
-                descriptor.featureName(),
-                descriptor.featureVersion(),
-                dependencies,
-                descriptor.pluginDependencies(),
-                resources,
-                capabilities,
-                definition.roles(),
-                definition.scope()
-        );
+                FeatureId.of(descriptor.registryName()), descriptor.featureName(), descriptor.featureVersion(),
+                dependencies, descriptor.pluginDependencies(), resources, capabilities, definition.roles(),
+                definition.scope(), definition.placement());
     }
 
     private static String capabilityId(String namespace, Class<?> capability) {
@@ -178,15 +173,12 @@ public final class FeatureManifestDiscovery {
             D descriptor,
             E definition,
             nl.hauntedmc.featureframework.api.feature.FeatureMetadata publicDescriptor
-    ) {
-    }
+    ) { }
 
-    public record Conflict(String registryName, Class<?> rejectedType, Class<?> existingType) {
-    }
+    public record Conflict(String registryName, Class<?> rejectedType, Class<?> existingType) { }
 
     public record Result<D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>>(
             List<Discovered<D, E>> discovered,
             List<Conflict> conflicts
-    ) {
-    }
+    ) { }
 }

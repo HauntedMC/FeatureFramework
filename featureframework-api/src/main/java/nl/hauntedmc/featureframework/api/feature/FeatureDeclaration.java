@@ -31,6 +31,9 @@ public @interface FeatureDeclaration {
     /** Widest observable boundary; coordination details remain an implementation concern. */
     FeatureScope scope();
 
+    /** Replica placement for this feature. */
+    FeaturePlacement placement() default FeaturePlacement.ALL_NODES;
+
     /** Whether a newly created configuration enables this feature. */
     boolean enabledByDefault() default false;
 
