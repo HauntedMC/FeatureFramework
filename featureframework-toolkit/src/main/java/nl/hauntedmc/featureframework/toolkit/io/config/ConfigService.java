@@ -20,8 +20,8 @@ public final class ConfigService {
     private final Path dataDir;
     private final FrameworkLogger logger;
     private final ClassLoader resources;
-    private final ConfigMutationPolicy mutationPolicy;
     private final ConcurrentHashMap<Path, YamlFile> cache = new ConcurrentHashMap<>();
+    private volatile ConfigMutationPolicy mutationPolicy;
 
     public ConfigService(ToolkitContext context) {
         this(Objects.requireNonNull(context.getDataDirectory(), "dataDirectory"),
@@ -53,6 +53,11 @@ public final class ConfigService {
         this(dataDir, FrameworkLogger.from(logger), resources);
     }
 
+    /** Installs the host mutation policy. Existing cached YAML handles observe the new policy immediately. */
+    public void installMutationPolicy(ConfigMutationPolicy policy) {
+        mutationPolicy = Objects.requireNonNull(policy, "policy");
+    }
+
     public YamlFile open(String relativePath, boolean copyDefaultsIfPresent) {
         Path relative = checkedRelative(relativePath);
         Path absolute = dataDir.resolve(relative).normalize();
@@ -60,7 +65,7 @@ public final class ConfigService {
             try {
                 Files.createDirectories(path.getParent());
                 if (Files.notExists(path)) {
-                    mutationPolicy.checkMutation(relative, copyDefaultsIfPresent ? "create from defaults" : "create");
+                    checkMutation(relative, copyDefaultsIfPresent ? "create from defaults" : "create");
                     if (copyDefaultsIfPresent) {
                         try (InputStream input = resources.getResourceAsStream(relativePath)) {
                             if (input != null) {
@@ -77,7 +82,7 @@ public final class ConfigService {
                     }
                 }
                 if (!Files.isRegularFile(path)) throw new IllegalStateException("Config path is not a regular file: " + path);
-                return new YamlFile(path, relative, logger, mutationPolicy);
+                return new YamlFile(path, relative, logger, this::checkMutation);
             } catch (IOException exception) {
                 throw new IllegalStateException("Failed to open YAML file: " + path, exception);
             }
@@ -105,7 +110,7 @@ public final class ConfigService {
             cached.replaceWithEmptyDocument();
             return;
         }
-        mutationPolicy.checkMutation(relative, "replace with empty document");
+        checkMutation(relative, "replace with empty document");
         Path temporary = null;
         try {
             Files.createDirectories(absolute.getParent());
@@ -138,7 +143,7 @@ public final class ConfigService {
 
     public void deleteOptional(String relativePath) throws IOException {
         Path relative = checkedRelative(relativePath);
-        mutationPolicy.checkMutation(relative, "delete optional file");
+        checkMutation(relative, "delete optional file");
         Path absolute = dataDir.resolve(relative).normalize();
         Files.deleteIfExists(absolute);
         cache.remove(absolute);
@@ -161,6 +166,10 @@ public final class ConfigService {
         Path absolute = dataDir.resolve(relative).normalize();
         if (!absolute.startsWith(dataDir)) throw new IllegalArgumentException("Config path escapes data directory: " + relativePath);
         return relative;
+    }
+
+    private void checkMutation(Path relativePath, String operation) {
+        mutationPolicy.checkMutation(relativePath, operation);
     }
 
     public ConfigView view(String relativePath, boolean copyDefaultsIfPresent) {
