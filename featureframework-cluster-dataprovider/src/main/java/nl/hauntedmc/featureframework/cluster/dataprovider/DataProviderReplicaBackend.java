@@ -24,6 +24,10 @@ public final class DataProviderReplicaBackend implements AutoCloseable {
         this.leases = leases;
     }
 
+    /**
+     * Opens the isolated MySQL/Redis backend and verifies that the explicit replica schema is installed.
+     * The scope is closed again if registration or validation fails.
+     */
     public static DataProviderReplicaBackend open(
             DataProviderAPI api,
             String mysqlConnection,
@@ -36,9 +40,12 @@ public final class DataProviderReplicaBackend implements AutoCloseable {
                     DatabaseType.MYSQL, text(mysqlConnection, "mysqlConnection"), RelationalDatabaseProvider.class);
             KeyValueDatabaseProvider redis = scope.registerDatabaseOrThrow(
                     DatabaseType.REDIS, text(redisConnection, "redisConnection"), KeyValueDatabaseProvider.class);
+            DataProviderReplicaGenerationRepository generations =
+                    new DataProviderReplicaGenerationRepository(relational.getDataAccess());
+            generations.validateSchema().toCompletableFuture().join();
             return new DataProviderReplicaBackend(
                     scope,
-                    new DataProviderReplicaGenerationRepository(relational.getDataAccess()),
+                    generations,
                     new DataProviderReplicaLeaseCoordinator(redis.getCoordinationDataAccess())
             );
         } catch (RuntimeException failure) {
