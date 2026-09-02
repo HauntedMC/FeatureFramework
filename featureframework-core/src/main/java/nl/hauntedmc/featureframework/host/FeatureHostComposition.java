@@ -1,6 +1,7 @@
 package nl.hauntedmc.featureframework.host;
 
 import nl.hauntedmc.featureframework.api.RuntimeState;
+import nl.hauntedmc.featureframework.api.feature.FeatureActivationPolicy;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver;
@@ -29,12 +30,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-/**
- * Shared composition engine for platform feature hosts.
- *
- * <p>Paper and Velocity supply only native factories and platform hooks. Scope caching, context
- * creation, host construction, configuration reload wiring and graph ownership live here once.</p>
- */
+/** Shared composition engine for platform feature hosts. */
 public final class FeatureHostComposition<
         V,
         F extends LifecycleFeature<C>,
@@ -48,67 +44,38 @@ public final class FeatureHostComposition<
     private final FeatureHost<V, F, C> host;
 
     public FeatureHostComposition(
-            String hostName,
-            V version,
-            String capabilityNamespace,
+            String hostName, V version, String capabilityNamespace,
             FeatureRuntime<FeatureId, ? extends DefaultCapabilityRegistry> runtime,
-            FeatureConfigurationRoot<?> configuration,
-            FeatureCollection<F, C> features,
+            FeatureConfigurationRoot<?> configuration, FeatureCollection<F, C> features,
             Function<String, ? extends CFG> configFactory,
             Function<String, ? extends LOC> localizationFactory,
             Function<String, ? extends LOG> loggerFactory,
             Function<ResolvedFeatureDefinition<F, C>, ? extends R> resourcesFactory,
             FeatureScopeFactory.ContextAssembler<F, C, CFG, LOC, LOG, R> contextAssembler,
-            Predicate<String> pluginAvailable,
-            Runnable afterGraphMutation,
-            Runnable reloadLocalization,
-            Runnable afterHostResourcesReload,
-            FrameworkLogger logger
+            Predicate<String> pluginAvailable, Runnable afterGraphMutation, Runnable reloadLocalization,
+            Runnable afterHostResourcesReload, FrameworkLogger logger
     ) {
-        this(
-                hostName,
-                version,
-                capabilityNamespace,
-                runtime,
-                configuration,
-                features,
-                configFactory,
-                localizationFactory,
-                loggerFactory,
-                resourcesFactory,
-                contextAssembler,
-                pluginAvailable,
-                afterGraphMutation,
-                reloadLocalization,
-                afterHostResourcesReload,
-                logger,
-                FeatureFrameworkObserver.noop()
-        );
+        this(hostName, version, capabilityNamespace, runtime, configuration, features, configFactory,
+                localizationFactory, loggerFactory, resourcesFactory, contextAssembler, pluginAvailable,
+                afterGraphMutation, reloadLocalization, afterHostResourcesReload, logger,
+                FeatureFrameworkObserver.noop());
     }
 
     public FeatureHostComposition(
-            String hostName,
-            V version,
-            String capabilityNamespace,
+            String hostName, V version, String capabilityNamespace,
             FeatureRuntime<FeatureId, ? extends DefaultCapabilityRegistry> runtime,
-            FeatureConfigurationRoot<?> configuration,
-            FeatureCollection<F, C> features,
+            FeatureConfigurationRoot<?> configuration, FeatureCollection<F, C> features,
             Function<String, ? extends CFG> configFactory,
             Function<String, ? extends LOC> localizationFactory,
             Function<String, ? extends LOG> loggerFactory,
             Function<ResolvedFeatureDefinition<F, C>, ? extends R> resourcesFactory,
             FeatureScopeFactory.ContextAssembler<F, C, CFG, LOC, LOG, R> contextAssembler,
-            Predicate<String> pluginAvailable,
-            Runnable afterGraphMutation,
-            Runnable reloadLocalization,
-            Runnable afterHostResourcesReload,
-            FrameworkLogger logger,
-            FeatureFrameworkObserver observer
+            Predicate<String> pluginAvailable, Runnable afterGraphMutation, Runnable reloadLocalization,
+            Runnable afterHostResourcesReload, FrameworkLogger logger, FeatureFrameworkObserver observer
     ) {
         Objects.requireNonNull(runtime, "runtime");
         Objects.requireNonNull(configuration, "configuration");
-        scopes = new FeatureScopeFactory<>(
-                configFactory, localizationFactory, loggerFactory, resourcesFactory, contextAssembler);
+        scopes = new FeatureScopeFactory<>(configFactory, localizationFactory, loggerFactory, resourcesFactory, contextAssembler);
         Runnable reloadResources = () -> {
             configuration.reloadConfig();
             Objects.requireNonNull(reloadLocalization, "reloadLocalization").run();
@@ -125,6 +92,7 @@ public final class FeatureHostComposition<
                 .build();
     }
 
+    public void activationPolicy(FeatureActivationPolicy policy) { host.activationPolicy(policy); }
     public LOC localization(String featureName) { return scopes.localization(featureName); }
     public CFG config(String featureName) { return scopes.config(featureName); }
     public LOG logger(String featureName) { return scopes.logger(featureName); }
