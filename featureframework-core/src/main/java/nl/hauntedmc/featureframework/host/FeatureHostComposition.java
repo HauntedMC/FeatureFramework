@@ -21,6 +21,7 @@ import nl.hauntedmc.featureframework.operation.reset.FeatureFileResetResponse;
 import nl.hauntedmc.featureframework.operation.softreload.FeatureSoftReloadResponse;
 import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
+import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMutationPolicy;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.util.List;
@@ -41,6 +42,7 @@ public final class FeatureHostComposition<
         R extends FeatureLifecycleResources> implements AutoCloseable {
 
     private final FeatureScopeFactory<F, C, CFG, LOC, LOG, R> scopes;
+    private final FeatureConfigurationRoot<?> configuration;
     private final FeatureHost<V, F, C> host;
 
     public FeatureHostComposition(
@@ -74,14 +76,14 @@ public final class FeatureHostComposition<
             Runnable afterHostResourcesReload, FrameworkLogger logger, FeatureFrameworkObserver observer
     ) {
         Objects.requireNonNull(runtime, "runtime");
-        Objects.requireNonNull(configuration, "configuration");
+        this.configuration = Objects.requireNonNull(configuration, "configuration");
         scopes = new FeatureScopeFactory<>(configFactory, localizationFactory, loggerFactory, resourcesFactory, contextAssembler);
         Runnable reloadResources = () -> {
-            configuration.reloadConfig();
+            this.configuration.reloadConfig();
             Objects.requireNonNull(reloadLocalization, "reloadLocalization").run();
             Objects.requireNonNull(afterHostResourcesReload, "afterHostResourcesReload").run();
         };
-        host = FeatureHost.builder(hostName, version, capabilityNamespace, runtime, configuration, features)
+        host = FeatureHost.builder(hostName, version, capabilityNamespace, runtime, this.configuration, features)
                 .contextFactory(scopes::createContext)
                 .pluginAvailable(Objects.requireNonNull(pluginAvailable, "pluginAvailable"))
                 .afterGraphMutation(Objects.requireNonNull(afterGraphMutation, "afterGraphMutation"))
@@ -91,6 +93,18 @@ public final class FeatureHostComposition<
                 .observer(Objects.requireNonNull(observer, "observer"))
                 .build();
     }
+
+    /** Installs replica lifecycle and write policies after host construction but before host start. */
+    public void installReplicaPolicies(
+            FeatureActivationPolicy activationPolicy,
+            ConfigMutationPolicy mutationPolicy
+    ) {
+        host.activationPolicy(Objects.requireNonNull(activationPolicy, "activationPolicy"));
+        configuration.files().installMutationPolicy(Objects.requireNonNull(mutationPolicy, "mutationPolicy"));
+    }
+
+    /** Reconciles the running graph after authority or authoritative configuration changes. */
+    public boolean reconcileReplicaGraph() { return host.reloadGraph().success(); }
 
     public void activationPolicy(FeatureActivationPolicy policy) { host.activationPolicy(policy); }
     public LOC localization(String featureName) { return scopes.localization(featureName); }
