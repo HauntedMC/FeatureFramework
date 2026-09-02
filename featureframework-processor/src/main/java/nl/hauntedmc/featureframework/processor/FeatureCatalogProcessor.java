@@ -104,6 +104,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     version,
                     FeatureStartupPhase.valueOf(enumName(values, "startupPhase")),
                     enumName(values, "scope"),
+                    enumName(values, "placement"),
                     bool(values, "enabledByDefault"),
                     enumNames(values, "roles"),
                     texts(values, "requiresFeatures"),
@@ -130,9 +131,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     || type.getKind() != ElementKind.CLASS
                     || type.getModifiers().contains(Modifier.ABSTRACT)
                     || !inPackage(type, config.featurePackage())
-                    || !types().isAssignable(types().erasure(type.asType()), types().erasure(baseType))) {
-                continue;
-            }
+                    || !types().isAssignable(types().erasure(type.asType()), types().erasure(baseType))) continue;
             if (!hasAnnotation(type, DECLARATION)) {
                 valid &= invalid(type, "Concrete feature " + type.getQualifiedName() + " extending "
                         + baseType + " must declare @FeatureDeclaration");
@@ -192,14 +191,28 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         for (Entry entry : entries) {
             valid &= references(entries, entry, entry.requiredFeatures(), "required feature");
             valid &= references(entries, entry, entry.optionalFeatures(), "optional feature");
+            valid &= validDirectPlacement(entries, entry);
             valid &= providers(entry, entry.requiresCapabilities(), capabilities, config.bootstrapCapabilities(), "capability");
             valid &= providers(entry, entry.requiresInternalServices(), internalServices, Set.of(), "internal service");
         }
         return valid;
     }
 
+    private boolean validDirectPlacement(Collection<Entry> entries, Entry owner) {
+        if (!"ALL_NODES".equals(owner.placement())) return true;
+        boolean valid = true;
+        for (String required : owner.requiredFeatures()) {
+            Entry dependency = entries.stream().filter(entry -> entry.name().equalsIgnoreCase(required)).findFirst().orElse(null);
+            if (dependency != null && "GROUP_LEADER_ONLY".equals(dependency.placement())) {
+                valid &= invalid(owner.element(), "ALL_NODES feature cannot require GROUP_LEADER_ONLY feature: " + dependency.name());
+            }
+        }
+        return valid;
+    }
+
     private boolean references(Collection<Entry> entries, Entry owner, List<String> references, String kind) {
-        Set<String> known = entries.stream().map(entry -> entry.name().toLowerCase(Locale.ROOT)).collect(java.util.stream.Collectors.toSet());
+        Set<String> known = entries.stream().map(entry -> entry.name().toLowerCase(Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
         boolean valid = true;
         for (String reference : references) {
             if (reference.equalsIgnoreCase(owner.name())) valid &= invalid(owner.element(), "Feature cannot declare itself as " + kind);
@@ -214,9 +227,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
         Set<String> available = new HashSet<>(providers.keySet());
         bootstrap.forEach(type -> available.add(key(type)));
         for (TypeMirror reference : references) {
-            if (!available.contains(key(reference))) {
-                valid &= invalid(owner.element(), "No provider declared for " + kind + " " + reference);
-            }
+            if (!available.contains(key(reference))) valid &= invalid(owner.element(), "No provider declared for " + kind + " " + reference);
         }
         return valid;
     }
@@ -279,13 +290,14 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                     + "java.util.function.Function<" + contextType + ", ? extends " + featureType + "> constructor, "
                     + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase startupPhase, "
                     + "nl.hauntedmc.featureframework.api.feature.FeatureScope scope, "
+                    + "nl.hauntedmc.featureframework.api.feature.FeaturePlacement placement, "
                     + "boolean enabledByDefault, nl.hauntedmc.featureframework.api.feature.FeatureRole[] roles, String[] requiredFeatures, "
                     + "String[] optionalFeatures, String[] plugins, Class<?>[] requiredResources, Class<?>[] optionalResources, "
-                    + "Class<?>[] requiredCapabilities, Class<?>[] optionalCapabilities, "
-                    + "Class<?>[] providedCapabilities, Class<?>[] requiredServices, Class<?>[] optionalServices, Class<?>[] providedServices) {\n");
+                    + "Class<?>[] requiredCapabilities, Class<?>[] optionalCapabilities, Class<?>[] providedCapabilities, "
+                    + "Class<?>[] requiredServices, Class<?>[] optionalServices, Class<?>[] providedServices) {\n");
             writer.write("        var builder = nl.hauntedmc.featureframework.host.FeatureDefinition.<" + featureType + ", "
                     + contextType + ">builder(name, version, type, constructor).startupPhase(startupPhase)"
-                    + ".scope(scope)"
+                    + ".scope(scope).placement(placement)"
                     + ".roles(roles).requiresFeatures(requiredFeatures).optionallyUsesFeatures(optionalFeatures).requiresPlugins(plugins)"
                     + ".requiresResourceExtensions(requiredResources).optionallyUsesResourceExtensions(optionalResources)"
                     + ".requiresCapabilities(requiredCapabilities).optionallyUsesCapabilities(optionalCapabilities).providesCapabilities(providedCapabilities)"
@@ -299,6 +311,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
                 + ".class, " + entry.element().getQualifiedName() + "::new, "
                 + "nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase." + entry.startupPhase() + ", "
                 + "nl.hauntedmc.featureframework.api.feature.FeatureScope." + entry.scope() + ", "
+                + "nl.hauntedmc.featureframework.api.feature.FeaturePlacement." + entry.placement() + ", "
                 + entry.enabledByDefault() + ", " + enumArray("FeatureRole", entry.roles()) + ", " + stringArray(entry.requiredFeatures())
                 + ", " + stringArray(entry.optionalFeatures()) + ", " + stringArray(entry.plugins()) + ", "
                 + typeArray(entry.requiredResourceExtensions()) + ", " + typeArray(entry.optionalResourceExtensions()) + ", "
@@ -335,8 +348,7 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
     }
 
     private boolean hasAnnotation(Element element, String annotationType) {
-        return element.getAnnotationMirrors().stream()
-                .anyMatch(mirror -> mirror.getAnnotationType().toString().equals(annotationType));
+        return element.getAnnotationMirrors().stream().anyMatch(mirror -> mirror.getAnnotationType().toString().equals(annotationType));
     }
 
     private String text(Map<String, Object> values, String name, Element element) {
@@ -348,22 +360,12 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
 
     private boolean bool(Map<String, Object> values, String name) { return (Boolean) values.get(name); }
     private String enumName(Map<String, Object> values, String name) { return ((VariableElement) values.get(name)).getSimpleName().toString(); }
-
     private List<String> enumNames(Map<String, Object> values, String name) {
         return array(values, name).stream().map(value -> ((VariableElement) value).getSimpleName().toString()).toList();
     }
-
     private List<String> texts(Map<String, Object> values, String name) {
         return array(values, name).stream().map(Objects::toString).map(String::trim).toList();
     }
-
-    private TypeMirror type(Map<String, Object> values, String name, Element element) {
-        Object value = values.get(name);
-        if (value instanceof TypeMirror mirror) return mirror;
-        error(element, name + " must be a class literal");
-        return null;
-    }
-
     private List<TypeMirror> types(Map<String, Object> values, String name) {
         return array(values, name).stream().map(TypeMirror.class::cast).toList();
     }
@@ -387,16 +389,14 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
     private Types types() { return processingEnv.getTypeUtils(); }
     private String quote(String value) { return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""; }
 
-    private record Config(String generatedClassName, String featurePackage,
-                          Set<TypeMirror> bootstrapCapabilities) {}
+    private record Config(String generatedClassName, String featurePackage, Set<TypeMirror> bootstrapCapabilities) { }
 
     private record Entry(TypeElement element, String name, String version, FeatureStartupPhase startupPhase,
-                         String scope, boolean enabledByDefault,
-                         List<String> roles, List<String> requiredFeatures,
-                         List<String> optionalFeatures, List<String> plugins,
+                         String scope, String placement, boolean enabledByDefault,
+                         List<String> roles, List<String> requiredFeatures, List<String> optionalFeatures, List<String> plugins,
                          List<TypeMirror> requiredResourceExtensions, List<TypeMirror> optionalResourceExtensions,
-                         List<TypeMirror> requiresCapabilities,
-                         List<TypeMirror> optionalCapabilities, List<TypeMirror> providesCapabilities,
-                         List<TypeMirror> requiresInternalServices, List<TypeMirror> optionalInternalServices,
-                         List<TypeMirror> providesInternalServices, TypeMirror constructorContext) {}
+                         List<TypeMirror> requiresCapabilities, List<TypeMirror> optionalCapabilities,
+                         List<TypeMirror> providesCapabilities, List<TypeMirror> requiresInternalServices,
+                         List<TypeMirror> optionalInternalServices, List<TypeMirror> providesInternalServices,
+                         TypeMirror constructorContext) { }
 }

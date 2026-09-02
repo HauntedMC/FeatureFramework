@@ -10,6 +10,7 @@ public record FeatureSnapshot(
         FeatureMetadata metadata,
         boolean configuredEnabled,
         FeatureState state,
+        Optional<FeatureSuppression> suppression,
         Optional<String> failure,
         Optional<FeatureFailure> failureDetail,
         Set<FeatureId> unavailableDependencies,
@@ -21,6 +22,7 @@ public record FeatureSnapshot(
     public FeatureSnapshot {
         Objects.requireNonNull(metadata, "metadata");
         state = Objects.requireNonNull(state, "state");
+        suppression = suppression == null ? Optional.empty() : suppression;
         failure = failure == null ? Optional.empty() : failure.filter(value -> !value.isBlank());
         failureDetail = failureDetail == null ? Optional.empty() : failureDetail;
         unavailableDependencies = unavailableDependencies == null ? Set.of() : Set.copyOf(unavailableDependencies);
@@ -28,6 +30,29 @@ public record FeatureSnapshot(
         lastSuccessfulActivationAt = lastSuccessfulActivationAt == null ? Optional.empty() : lastSuccessfulActivationAt;
         if (generation < 0) throw new IllegalArgumentException("generation must be non-negative");
         observedAt = Objects.requireNonNull(observedAt, "observedAt");
+        if (state == FeatureState.SUPPRESSED && suppression.isEmpty()) {
+            throw new IllegalArgumentException("SUPPRESSED state requires suppression detail");
+        }
+        if (state != FeatureState.SUPPRESSED && suppression.isPresent()) {
+            throw new IllegalArgumentException("suppression detail is only valid for SUPPRESSED state");
+        }
+    }
+
+    /** Compatibility constructor for callers that do not project suppression. */
+    public FeatureSnapshot(
+            FeatureMetadata metadata,
+            boolean configuredEnabled,
+            FeatureState state,
+            Optional<String> failure,
+            Optional<FeatureFailure> failureDetail,
+            Set<FeatureId> unavailableDependencies,
+            Instant lastTransitionAt,
+            Optional<Instant> lastSuccessfulActivationAt,
+            long generation,
+            Instant observedAt
+    ) {
+        this(metadata, configuredEnabled, state, Optional.empty(), failure, failureDetail, unavailableDependencies,
+                lastTransitionAt, lastSuccessfulActivationAt, generation, observedAt);
     }
 
     /** Creates a snapshot from the typed failure projection used by framework hosts. */
@@ -46,6 +71,7 @@ public record FeatureSnapshot(
                 metadata,
                 configuredEnabled,
                 state,
+                Optional.empty(),
                 failureDetail == null ? Optional.empty() : failureDetail.flatMap(FeatureFailure::message),
                 failureDetail,
                 unavailableDependencies,
@@ -58,6 +84,10 @@ public record FeatureSnapshot(
 
     public boolean active() {
         return state == FeatureState.ACTIVE;
+    }
+
+    public boolean suppressed() {
+        return state == FeatureState.SUPPRESSED;
     }
 
     public boolean failed() {

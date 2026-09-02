@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.host;
 
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 import nl.hauntedmc.featureframework.api.feature.FeatureScope;
@@ -30,6 +31,7 @@ public final class FeatureDefinition<F extends Feature, C>
     private final Function<C, ? extends F> constructor;
     private final FeatureStartupPhase startupPhase;
     private final FeatureScope scope;
+    private final FeaturePlacement placement;
     private final boolean enabledByDefault;
     private final Set<FeatureRole> roles;
     private final Set<String> requiredFeatures;
@@ -51,6 +53,7 @@ public final class FeatureDefinition<F extends Feature, C>
         constructor = Objects.requireNonNull(builder.constructor, "constructor");
         startupPhase = builder.startupPhase;
         scope = Objects.requireNonNull(builder.scope, "scope");
+        placement = Objects.requireNonNull(builder.placement, "placement");
         enabledByDefault = builder.enabledByDefault;
         requiredFeatures = immutableText(builder.requiredFeatures, "requiredFeatures");
         optionalFeatures = withoutRequired(
@@ -98,16 +101,13 @@ public final class FeatureDefinition<F extends Feature, C>
     public Function<C, ? extends F> constructor() { return constructor; }
     @Override public FeatureStartupPhase startupPhase() { return startupPhase; }
     @Override public FeatureScope scope() { return scope; }
+    @Override public FeaturePlacement placement() { return placement; }
     public boolean enabledByDefault() { return enabledByDefault; }
     public Set<String> requiredFeatures() { return requiredFeatures; }
     public Set<String> optionalFeatureDependencies() { return optionalFeatures; }
     public Set<String> pluginDependencies() { return pluginDependencies; }
 
-    @Override
-    public Set<FeatureRole> roles() {
-        return roles;
-    }
-
+    @Override public Set<FeatureRole> roles() { return roles; }
     @Override public Set<Class<?>> requiredCapabilities() { return requiredCapabilities; }
     @Override public Set<Class<?>> optionalCapabilities() { return optionalCapabilities; }
     @Override public Set<Class<?>> providedCapabilities() { return providedCapabilities; }
@@ -131,7 +131,8 @@ public final class FeatureDefinition<F extends Feature, C>
                 optionalFeatures,
                 pluginDependencies,
                 requiredResourceExtensions,
-                optionalResourceExtensions
+                optionalResourceExtensions,
+                placement
         );
     }
 
@@ -143,6 +144,7 @@ public final class FeatureDefinition<F extends Feature, C>
         private final Function<C, ? extends F> constructor;
         private FeatureStartupPhase startupPhase = FeatureStartupPhase.CORE;
         private FeatureScope scope = FeatureScope.NODE;
+        private FeaturePlacement placement = FeaturePlacement.ALL_NODES;
         private boolean enabledByDefault;
         private final Set<FeatureRole> roles = new LinkedHashSet<>();
         private final Set<String> requiredFeatures = new LinkedHashSet<>();
@@ -169,9 +171,6 @@ public final class FeatureDefinition<F extends Feature, C>
             this.constructor = constructor;
         }
 
-        /**
-         * Sets a readable startup phase for an otherwise independent feature.
-         */
         public Builder<F, C> startupPhase(FeatureStartupPhase value) {
             startupPhase = Objects.requireNonNull(value, "value");
             return this;
@@ -182,74 +181,25 @@ public final class FeatureDefinition<F extends Feature, C>
             return this;
         }
 
-        public Builder<F, C> enabledByDefault() {
-            enabledByDefault = true;
+        public Builder<F, C> placement(FeaturePlacement value) {
+            placement = Objects.requireNonNull(value, "value");
             return this;
         }
 
-        public Builder<F, C> roles(FeatureRole... values) {
-            addAll(roles, values, "roles");
-            return this;
-        }
-
-        public Builder<F, C> requiresFeatures(String... values) {
-            addAll(requiredFeatures, values, "requiredFeatures");
-            return this;
-        }
-
-        public Builder<F, C> optionallyUsesFeatures(String... values) {
-            addAll(optionalFeatures, values, "optionalFeatures");
-            return this;
-        }
-
-        public Builder<F, C> requiresPlugins(String... values) {
-            addAll(pluginDependencies, values, "pluginDependencies");
-            return this;
-        }
-
-        public Builder<F, C> requiresCapabilities(Class<?>... values) {
-            addAll(requiredCapabilities, values, "requiredCapabilities");
-            return this;
-        }
-
-        public Builder<F, C> optionallyUsesCapabilities(Class<?>... values) {
-            addAll(optionalCapabilities, values, "optionalCapabilities");
-            return this;
-        }
-
-        public Builder<F, C> providesCapabilities(Class<?>... values) {
-            addAll(providedCapabilities, values, "providedCapabilities");
-            return this;
-        }
-
-        public Builder<F, C> requiresInternalServices(Class<?>... values) {
-            addAll(requiredInternalServices, values, "requiredInternalServices");
-            return this;
-        }
-
-        public Builder<F, C> optionallyUsesInternalServices(Class<?>... values) {
-            addAll(optionalInternalServices, values, "optionalInternalServices");
-            return this;
-        }
-
-        public Builder<F, C> providesInternalServices(Class<?>... values) {
-            addAll(providedInternalServices, values, "providedInternalServices");
-            return this;
-        }
-
-        public Builder<F, C> requiresResourceExtensions(Class<?>... values) {
-            addAll(requiredResourceExtensions, values, "requiredResourceExtensions");
-            return this;
-        }
-
-        public Builder<F, C> optionallyUsesResourceExtensions(Class<?>... values) {
-            addAll(optionalResourceExtensions, values, "optionalResourceExtensions");
-            return this;
-        }
-
-        public FeatureDefinition<F, C> build() {
-            return new FeatureDefinition<>(this);
-        }
+        public Builder<F, C> enabledByDefault() { enabledByDefault = true; return this; }
+        public Builder<F, C> roles(FeatureRole... values) { addAll(roles, values, "roles"); return this; }
+        public Builder<F, C> requiresFeatures(String... values) { addAll(requiredFeatures, values, "requiredFeatures"); return this; }
+        public Builder<F, C> optionallyUsesFeatures(String... values) { addAll(optionalFeatures, values, "optionalFeatures"); return this; }
+        public Builder<F, C> requiresPlugins(String... values) { addAll(pluginDependencies, values, "pluginDependencies"); return this; }
+        public Builder<F, C> requiresCapabilities(Class<?>... values) { addAll(requiredCapabilities, values, "requiredCapabilities"); return this; }
+        public Builder<F, C> optionallyUsesCapabilities(Class<?>... values) { addAll(optionalCapabilities, values, "optionalCapabilities"); return this; }
+        public Builder<F, C> providesCapabilities(Class<?>... values) { addAll(providedCapabilities, values, "providedCapabilities"); return this; }
+        public Builder<F, C> requiresInternalServices(Class<?>... values) { addAll(requiredInternalServices, values, "requiredInternalServices"); return this; }
+        public Builder<F, C> optionallyUsesInternalServices(Class<?>... values) { addAll(optionalInternalServices, values, "optionalInternalServices"); return this; }
+        public Builder<F, C> providesInternalServices(Class<?>... values) { addAll(providedInternalServices, values, "providedInternalServices"); return this; }
+        public Builder<F, C> requiresResourceExtensions(Class<?>... values) { addAll(requiredResourceExtensions, values, "requiredResourceExtensions"); return this; }
+        public Builder<F, C> optionallyUsesResourceExtensions(Class<?>... values) { addAll(optionalResourceExtensions, values, "optionalResourceExtensions"); return this; }
+        public FeatureDefinition<F, C> build() { return new FeatureDefinition<>(this); }
     }
 
     private static Set<FeatureRole> effectiveRoles(
@@ -261,9 +211,7 @@ public final class FeatureDefinition<F extends Feature, C>
         EnumSet<FeatureRole> result = declared.isEmpty()
                 ? EnumSet.noneOf(FeatureRole.class) : EnumSet.copyOf(declared);
         if (!providedCapabilities.isEmpty()) result.add(FeatureRole.CAPABILITY_PROVIDER);
-        if (!requiredCapabilities.isEmpty() || !optionalCapabilities.isEmpty()) {
-            result.add(FeatureRole.CAPABILITY_CONSUMER);
-        }
+        if (!requiredCapabilities.isEmpty() || !optionalCapabilities.isEmpty()) result.add(FeatureRole.CAPABILITY_CONSUMER);
         return result.isEmpty() ? Set.of() : Collections.unmodifiableSet(result);
     }
 
@@ -278,9 +226,7 @@ public final class FeatureDefinition<F extends Feature, C>
 
     private static Set<Class<?>> immutableTypes(Set<Class<?>> values, String field) {
         LinkedHashSet<Class<?>> normalized = new LinkedHashSet<>();
-        for (Class<?> value : Objects.requireNonNull(values, field)) {
-            normalized.add(Objects.requireNonNull(value, field + " entry"));
-        }
+        for (Class<?> value : Objects.requireNonNull(values, field)) normalized.add(Objects.requireNonNull(value, field + " entry"));
         return Collections.unmodifiableSet(normalized);
     }
 
@@ -298,10 +244,7 @@ public final class FeatureDefinition<F extends Feature, C>
 
     private static void ensureDisjoint(Set<Class<?>> first, Set<Class<?>> second, String firstName, String secondName) {
         for (Class<?> type : first) {
-            if (second.contains(type)) {
-                throw new IllegalArgumentException(type.getName() + " cannot be both "
-                        + firstName + " and " + secondName);
-            }
+            if (second.contains(type)) throw new IllegalArgumentException(type.getName() + " cannot be both " + firstName + " and " + secondName);
         }
     }
 

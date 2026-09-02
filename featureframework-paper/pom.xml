@@ -11,6 +11,7 @@
     <description>Paper-specific adapters and reusable UI/runtime infrastructure.</description>
     <dependencies>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-core</artifactId><version>${project.version}</version></dependency>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-cluster</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>io.papermc.paper</groupId><artifactId>paper-api</artifactId><version>${paper.version}</version><scope>provided</scope></dependency>
         <dependency><groupId>com.mojang</groupId><artifactId>brigadier</artifactId><version>${brigadier.version}</version><scope>provided</scope></dependency>
         <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>

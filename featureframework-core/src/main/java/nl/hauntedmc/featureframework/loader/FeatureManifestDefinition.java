@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.loader;
 
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 import nl.hauntedmc.featureframework.api.feature.FeatureRole;
 import nl.hauntedmc.featureframework.api.feature.FeatureStartupPhase;
 import nl.hauntedmc.featureframework.api.feature.FeatureScope;
@@ -14,6 +15,8 @@ public interface FeatureManifestDefinition<D extends ResolvedFeatureDefinition<?
     FeatureStartupPhase startupPhase();
 
     FeatureScope scope();
+
+    default FeaturePlacement placement() { return FeaturePlacement.ALL_NODES; }
 
     D descriptor(Set<String> requiredFeatureDependencies);
 

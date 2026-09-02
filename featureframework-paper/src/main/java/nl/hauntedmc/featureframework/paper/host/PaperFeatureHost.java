@@ -2,10 +2,12 @@ package nl.hauntedmc.featureframework.paper.host;
 
 import nl.hauntedmc.featureframework.api.FeatureFrameworkApi;
 import nl.hauntedmc.featureframework.api.RuntimeState;
+import nl.hauntedmc.featureframework.api.feature.FeatureActivationPolicy;
 import nl.hauntedmc.featureframework.api.feature.FeatureCatalog;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObserver;
 import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
+import nl.hauntedmc.featureframework.cluster.ReplicaHostControl;
 import nl.hauntedmc.featureframework.config.DefaultFeatureConfiguration;
 import nl.hauntedmc.featureframework.config.FeatureConfigHandler;
 import nl.hauntedmc.featureframework.host.FeatureCollection;
@@ -32,6 +34,7 @@ import nl.hauntedmc.featureframework.runtime.FeatureRuntime;
 import nl.hauntedmc.featureframework.service.DefaultCapabilityRegistry;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
 import nl.hauntedmc.featureframework.service.Registration;
+import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMutationPolicy;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigService;
 import nl.hauntedmc.featureframework.toolkit.io.localization.Language;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
@@ -50,7 +53,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 
 /** Complete, dependency-clean Paper composition root. */
-public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrameworkApi<V>, AutoCloseable {
+public final class PaperFeatureHost<P extends Plugin, V>
+        implements FeatureFrameworkApi<V>, ReplicaHostControl, AutoCloseable {
     private final FeatureRuntime<FeatureId, DefaultCapabilityRegistry> runtime;
     private final FeatureHostComposition<V, PaperFeature<P>, PaperFeatureContext<P>,
             FeatureConfigHandler, PaperLocalization, FeatureLogger, PaperFeatureResources> composition;
@@ -124,6 +128,16 @@ public final class PaperFeatureHost<P extends Plugin, V> implements FeatureFrame
     ) {
         return builder(plugin, plugin.getPluginMeta().getVersion(), apiRoot, features);
     }
+
+    @Override
+    public void installReplicaPolicies(
+            FeatureActivationPolicy activationPolicy,
+            ConfigMutationPolicy mutationPolicy
+    ) {
+        composition.installReplicaPolicies(activationPolicy, mutationPolicy);
+    }
+
+    @Override public boolean reconcileReplicaGraph() { return composition.reconcileReplicaGraph(); }
 
     public void start() { composition.start(); }
     public void stop() { composition.stop(); }
