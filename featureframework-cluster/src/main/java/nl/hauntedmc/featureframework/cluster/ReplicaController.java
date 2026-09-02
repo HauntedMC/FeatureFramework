@@ -56,6 +56,8 @@ public final class ReplicaController implements AutoCloseable {
     private final AtomicReference<ReplicaAuthority> authority = new AtomicReference<>();
     private final AtomicReference<ReplicaStatus> status;
     private final AtomicBoolean closed = new AtomicBoolean();
+    private final AtomicBoolean authorityMaintenanceStarted = new AtomicBoolean();
+    private final AtomicBoolean hostRuntimeStarted = new AtomicBoolean();
     private volatile long lastSuccessfulRenewalNanos;
     private volatile ConfigGeneration appliedGeneration;
     private volatile ConfigGeneration startupRollbackGeneration;
@@ -79,7 +81,7 @@ public final class ReplicaController implements AutoCloseable {
         safetyMargin = builder.safetyMargin;
         pollInterval = builder.pollInterval;
         nanoTime = builder.nanoTime;
-        scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        scheduler = Executors.newScheduledThreadPool(3, runnable -> {
             Thread thread = new Thread(runnable, "FeatureFramework-replica-" + node.nodeId());
             thread.setDaemon(true);
             return thread;
@@ -154,7 +156,10 @@ public final class ReplicaController implements AutoCloseable {
             return;
         }
 
-        if (role() == ReplicaRole.LEADER) acquireAuthorityIfPossible();
+        if (role() == ReplicaRole.LEADER) {
+            acquireAuthorityIfPossible();
+            if (authority.get() != null) startAuthorityMaintenance();
+        }
         ConfigGeneration remote = null;
         Throwable remoteFailure = null;
         try {
@@ -170,6 +175,7 @@ public final class ReplicaController implements AutoCloseable {
             }
             materializer.materialize(remote);
             appliedGeneration = remote;
+            if (role() == ReplicaRole.LEADER) startAuthorityMaintenance();
             setStatus(ReplicaStatus.State.READY, "Started from verified LKG while database is unavailable");
             return;
         }
@@ -182,12 +188,14 @@ public final class ReplicaController implements AutoCloseable {
             if (authority.get() == null) {
                 throw new IllegalStateException("Configured leader cannot initialize the replica group without authority");
             }
+            startAuthorityMaintenance();
             bootstrapPending = true;
             setStatus(ReplicaStatus.State.BOOTSTRAPPING, "Waiting to publish first configuration generation");
             return;
         }
 
         requireCompatible(remote);
+        if (role() == ReplicaRole.LEADER) startAuthorityMaintenance();
         if (role() == ReplicaRole.LEADER) {
             Map<String, byte[]> local = materializer.snapshot();
             if (!local.isEmpty() && !materializer.matches(remote)) {
@@ -213,17 +221,18 @@ public final class ReplicaController implements AutoCloseable {
         this.host = candidate;
     }
 
-    /** Completes first-generation/startup-candidate publication and starts renewal/polling. */
+    /** Completes first-generation/startup-candidate publication and starts polling. */
     public synchronized void afterHostStarted() {
         ensureOpen();
         if (host == null) throw new IllegalStateException("Attach the FeatureFramework host before afterHostStarted()");
+        if (!hostRuntimeStarted.compareAndSet(false, true)) {
+            throw new IllegalStateException("Replica host runtime has already been started");
+        }
         if (mode == ReplicaMode.STANDALONE) return;
         if (role() == ReplicaRole.LEADER && (bootstrapPending || startupRollbackGeneration != null)) {
             publishStartupCandidate();
         }
-        long renewMillis = Math.max(1L, renewInterval.toMillis());
         long pollMillis = Math.max(1L, pollInterval.toMillis());
-        scheduler.scheduleAtFixedRate(this::safeRenewTick, renewMillis, renewMillis, TimeUnit.MILLISECONDS);
         scheduler.scheduleAtFixedRate(this::safePollTick, pollMillis, pollMillis, TimeUnit.MILLISECONDS);
     }
 
@@ -299,11 +308,22 @@ public final class ReplicaController implements AutoCloseable {
         }
     }
 
+    private void startAuthorityMaintenance() {
+        if (mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER
+                || !authorityMaintenanceStarted.compareAndSet(false, true)) return;
+        long renewNanos = Math.max(1L, renewInterval.toNanos());
+        long halfSafety = Math.max(1L, safetyMargin.toNanos() / 2L);
+        long watchdogNanos = Math.max(1L, Math.min(renewNanos, halfSafety));
+        scheduler.scheduleAtFixedRate(this::safeRenewTick, renewNanos, renewNanos, TimeUnit.NANOSECONDS);
+        scheduler.scheduleAtFixedRate(
+                this::safeAuthorityWatchdogTick, watchdogNanos, watchdogNanos, TimeUnit.NANOSECONDS);
+    }
+
     private void safeRenewTick() {
         try { renewTick(); } catch (Throwable failure) { evaluateAuthorityWatchdog(failure); }
     }
 
-    private synchronized void renewTick() {
+    private void renewTick() {
         if (closed.get() || mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) return;
         ReplicaAuthority current = authority.get();
         if (current == null) {
@@ -312,26 +332,34 @@ public final class ReplicaController implements AutoCloseable {
             return;
         }
         Optional<ReplicaAuthority> renewed = join(leases.renew(current, leaseTtl));
+        if (closed.get()) return;
         if (renewed.isEmpty()) {
-            authority.set(null);
-            setStatus(ReplicaStatus.State.UNAVAILABLE, "Configured leader lost fenced authority");
-            if (host != null) host.reconcileReplicaGraph();
+            if (authority.compareAndSet(current, null)) {
+                setStatus(ReplicaStatus.State.UNAVAILABLE, "Configured leader lost fenced authority");
+                ReplicaHostControl currentHost = host;
+                if (currentHost != null) currentHost.reconcileReplicaGraph();
+            }
             return;
         }
-        authority.set(renewed.get());
         lastSuccessfulRenewalNanos = nanoTime.getAsLong();
-        refreshStatusAuthority();
+        authority.set(renewed.get());
+        refreshStatusAfterAuthorityProof();
+    }
+
+    private void safeAuthorityWatchdogTick() {
+        try { evaluateAuthorityWatchdog(null); } catch (Throwable ignored) { }
     }
 
     private void evaluateAuthorityWatchdog(Throwable failure) {
-        if (mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) return;
+        if (closed.get() || mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) return;
         ReplicaAuthority current = authority.get();
         if (current == null) return;
         long safeNanos = leaseTtl.minus(safetyMargin).toNanos();
         long elapsed = Math.max(0L, nanoTime.getAsLong() - lastSuccessfulRenewalNanos);
         if (elapsed >= safeNanos && authority.compareAndSet(current, null)) {
-            setStatus(ReplicaStatus.State.UNAVAILABLE,
-                    "Authority renewal unproven inside TTL safety window: " + failure);
+            String detail = "Authority renewal was not proven inside the TTL safety window";
+            if (failure != null) detail += ": " + failure;
+            setStatus(ReplicaStatus.State.UNAVAILABLE, detail);
             ReplicaHostControl currentHost = host;
             if (currentHost != null) currentHost.reconcileReplicaGraph();
         }
@@ -393,11 +421,25 @@ public final class ReplicaController implements AutoCloseable {
     }
 
     private void acquireAuthorityIfPossible() {
-        if (mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) return;
+        if (closed.get() || mode != ReplicaMode.REPLICATED || role() != ReplicaRole.LEADER) return;
         Optional<ReplicaAuthority> acquired = join(leases.acquire(group, owner, leaseTtl));
+        if (closed.get()) return;
         authority.set(acquired.orElse(null));
-        if (acquired.isPresent()) lastSuccessfulRenewalNanos = nanoTime.getAsLong();
-        refreshStatusAuthority();
+        if (acquired.isPresent()) {
+            lastSuccessfulRenewalNanos = nanoTime.getAsLong();
+            refreshStatusAfterAuthorityProof();
+        } else {
+            refreshStatusAuthority();
+        }
+    }
+
+    private void refreshStatusAfterAuthorityProof() {
+        ReplicaStatus current = status.get();
+        if (current.state() == ReplicaStatus.State.UNAVAILABLE && !bootstrapPending) {
+            setStatus(ReplicaStatus.State.READY, "Fenced authority restored");
+        } else {
+            refreshStatusAuthority();
+        }
     }
 
     private ConfigGeneration candidate(Map<String, byte[]> files, OptionalLong sourceGeneration) {
