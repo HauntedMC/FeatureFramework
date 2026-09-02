@@ -1,7 +1,12 @@
 package nl.hauntedmc.featureframework.host;
 
+import nl.hauntedmc.featureframework.api.feature.ActivationDecision;
+import nl.hauntedmc.featureframework.api.feature.FeatureActivationPhase;
+import nl.hauntedmc.featureframework.api.feature.FeatureActivationPolicy;
 import nl.hauntedmc.featureframework.api.feature.FeatureId;
 import nl.hauntedmc.featureframework.api.feature.FeatureState;
+import nl.hauntedmc.featureframework.api.feature.FeatureSuppression;
+import nl.hauntedmc.featureframework.api.feature.FeatureSuppressionReason;
 import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkObservationScope;
 import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationKind;
 import nl.hauntedmc.featureframework.api.observation.FeatureFrameworkOperationOutcome;
@@ -30,6 +35,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -51,6 +57,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     private final Map<String, FeatureDefaults> defaults = new LinkedHashMap<>();
     private final FeatureDependencyManager dependencyManager;
     private final FeatureFrameworkObservations observations;
+    private volatile FeatureActivationPolicy activationPolicy = FeatureActivationPolicy.allowAll();
 
     FeatureInstanceController(
             FeatureInventory<F, C> inventory,
@@ -79,6 +86,10 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         );
     }
 
+    void activationPolicy(FeatureActivationPolicy policy) {
+        activationPolicy = Objects.requireNonNull(policy, "policy");
+    }
+
     void prepareFeatureStorage() {
         for (ResolvedFeatureDefinition<F, C> descriptor : registry.getAvailableFeatures().values()) {
             prepareFeatureStorage(descriptor.registryName());
@@ -89,16 +100,24 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         String key = inventory.resolveFeatureKey(featureName);
         ResolvedFeatureDefinition<F, C> descriptor = key == null ? null : registry.getAvailableFeature(key);
         if (descriptor == null) return false;
+        FeatureId featureId = FeatureId.of(key);
         boolean enabled = configuration.isFeatureEnabled(key);
-        runtime.mutableFeatureCatalog().setConfiguredEnabled(FeatureId.of(key), enabled);
+        runtime.mutableFeatureCatalog().setConfiguredEnabled(featureId, enabled);
         if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()) {
             preparationFailures.remove(key);
             inventory.clearStorageFailure(key);
-            if (!registry.isFeatureLoaded(key)) {
-                runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
-            }
+            if (!registry.isFeatureLoaded(key)) runtime.mutableFeatureCatalog().transition(featureId, FeatureState.DISABLED);
             return true;
         }
+
+        ActivationDecision preparation = evaluate(descriptor, FeatureActivationPhase.PREPARATION);
+        if (!preparation.allowed()) {
+            preparationFailures.remove(key);
+            inventory.clearStorageFailure(key);
+            if (!registry.isFeatureLoaded(key)) runtime.mutableFeatureCatalog().suppress(featureId, preparation.suppression().orElseThrow());
+            return true;
+        }
+
         C context = null;
         try {
             context = contextFactory.apply(descriptor);
@@ -107,20 +126,17 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
             context.prepare(feature);
             preparationFailures.remove(key);
             inventory.clearStorageFailure(key);
-            if (!registry.isFeatureLoaded(key)) {
-                runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
-            }
+            if (!registry.isFeatureLoaded(key)) runtime.mutableFeatureCatalog().transition(featureId, FeatureState.DISABLED);
             return true;
         } catch (Throwable failure) {
             preparationFailures.add(key);
-            runtime.mutableFeatureCatalog().fail(FeatureId.of(key), "preparation", failure);
+            runtime.mutableFeatureCatalog().fail(featureId, "preparation", failure);
             logger.error("Failed to prepare feature '" + key + "'.", failure);
             return false;
         } finally {
             if (context != null) {
-                try {
-                    context.cleanup();
-                } catch (Throwable cleanupFailure) {
+                try { context.cleanup(); }
+                catch (Throwable cleanupFailure) {
                     logger.warn("Failed to clean preparation scope for '" + key + "'.", cleanupFailure);
                 }
             }
@@ -140,17 +156,11 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         return true;
     }
 
-    boolean loadFeature(String featureName) {
-        return loadFeature(featureName, null);
-    }
+    boolean loadFeature(String featureName) { return loadFeature(featureName, null); }
 
-    List<String> dependentFeatures(String featureName) {
-        return dependencyManager.getDependentFeatures(featureName);
-    }
+    List<String> dependentFeatures(String featureName) { return dependencyManager.getDependentFeatures(featureName); }
 
-    F loadedFeature(String key) {
-        return registry.getLoadedFeature(key);
-    }
+    F loadedFeature(String key) { return registry.getLoadedFeature(key); }
 
     Throwable stopAndRemove(String key) {
         F feature = registry.getLoadedFeature(key);
@@ -167,11 +177,8 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     }
 
     void completeDisable(String key, Throwable failure, String phase) {
-        if (failure == null) {
-            runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
-        } else {
-            runtime.mutableFeatureCatalog().fail(FeatureId.of(key), phase, failure);
-        }
+        if (failure == null) runtime.mutableFeatureCatalog().transition(FeatureId.of(key), FeatureState.DISABLED);
+        else runtime.mutableFeatureCatalog().fail(FeatureId.of(key), phase, failure);
     }
 
     FeatureReloadResponse reloadFeature(String featureName) {
@@ -180,13 +187,36 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
             return new FeatureReloadResponse(FeatureReloadResult.NOT_LOADED, featureName, Set.of());
         }
 
+        ResolvedFeatureDefinition<F, C> descriptor = registry.getAvailableFeature(key);
+        ActivationDecision decision = descriptor == null ? ActivationDecision.allow()
+                : evaluate(descriptor, FeatureActivationPhase.ACTIVATION);
+        if (!decision.allowed()) {
+            List<String> order = buildReloadOrder(key);
+            Throwable stopFailure = stopReloadGraph(order);
+            if (stopFailure != null) {
+                runtime.mutableFeatureCatalog().fail(FeatureId.of(key), "suppression-shutdown", stopFailure);
+                return new FeatureReloadResponse(FeatureReloadResult.FAILED, key, Set.copyOf(order));
+            }
+            FeatureSuppression rootSuppression = decision.suppression().orElseThrow();
+            for (String affected : order) {
+                ResolvedFeatureDefinition<F, C> affectedDescriptor = registry.getAvailableFeature(affected);
+                ActivationDecision affectedDecision = affectedDescriptor == null ? ActivationDecision.allow()
+                        : evaluate(affectedDescriptor, FeatureActivationPhase.ACTIVATION);
+                FeatureSuppression suppression = affected.equals(key)
+                        ? rootSuppression
+                        : affectedDecision.suppression().orElseGet(() -> new FeatureSuppression(
+                                FeatureSuppressionReason.DEPENDENCY_SUPPRESSED,
+                                "Required feature '" + key + "' is suppressed"));
+                runtime.mutableFeatureCatalog().suppress(FeatureId.of(affected), suppression);
+            }
+            logger.info("Suppressed feature graph rooted at '" + key + "' before resource reconstruction.");
+            java.util.LinkedHashSet<String> dependents = new java.util.LinkedHashSet<>(order);
+            dependents.remove(key);
+            return new FeatureReloadResponse(FeatureReloadResult.SUCCESS, key, Set.copyOf(dependents));
+        }
+
         FeatureGraphReloadTransaction.Result transaction = FeatureGraphReloadTransaction.execute(
-                key,
-                () -> buildReloadOrder(key),
-                this::captureReloadStates,
-                this::stopReloadGraph,
-                this::startReloadGraph
-        );
+                key, () -> buildReloadOrder(key), this::captureReloadStates, this::stopReloadGraph, this::startReloadGraph);
         if (transaction.success()) {
             logger.info("Reloaded feature graph rooted at '" + key + "': " + transaction.reloadOrder());
             return new FeatureReloadResponse(FeatureReloadResult.SUCCESS, key, transaction.reloadedDependents());
@@ -205,9 +235,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
 
         FeatureId featureId = FeatureId.of(key);
         FeatureFrameworkObservations.Operation observation = observations.start(
-                FeatureFrameworkOperationKind.FEATURE_LOAD,
-                featureId
-        );
+                FeatureFrameworkOperationKind.FEATURE_LOAD, featureId);
         FeatureFrameworkObservationScope scope = observation.openScope();
         try {
             if (registry.isFeatureLoaded(key) || preparationFailures.contains(key) || inventory.hasStorageFailure(key)) {
@@ -222,8 +250,26 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
 
             boolean enabled = configuration.isFeatureEnabled(key);
             runtime.mutableFeatureCatalog().setConfiguredEnabled(featureId, enabled);
-            if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()
-                    || !dependencyManager.areDependenciesMet(key)) {
+            if (!enabled || !inventory.missingPluginDependencies(key).isEmpty()) {
+                observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
+                return false;
+            }
+
+            if (!dependencyManager.areDependenciesMet(key)) {
+                Set<FeatureId> suppressed = suppressedDependencies(descriptor);
+                if (!suppressed.isEmpty()) {
+                    runtime.mutableFeatureCatalog().setUnavailableDependencies(featureId, suppressed);
+                    runtime.mutableFeatureCatalog().suppress(featureId, new FeatureSuppression(
+                            FeatureSuppressionReason.DEPENDENCY_SUPPRESSED,
+                            "Required feature dependency is suppressed: " + suppressed));
+                }
+                observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
+                return false;
+            }
+
+            ActivationDecision activation = evaluate(descriptor, FeatureActivationPhase.ACTIVATION);
+            if (!activation.allowed()) {
+                runtime.mutableFeatureCatalog().suppress(featureId, activation.suppression().orElseThrow());
                 observation.complete(FeatureFrameworkOperationOutcome.SKIPPED, null);
                 return false;
             }
@@ -255,10 +301,8 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
                     FeatureHostContext::cleanup,
                     () -> registry.deregisterLoadedFeature(key)
             );
-            observation.complete(
-                    loaded ? FeatureFrameworkOperationOutcome.SUCCESS : FeatureFrameworkOperationOutcome.FAILURE,
-                    startupFailure == null ? null : startupFailure[0]
-            );
+            observation.complete(loaded ? FeatureFrameworkOperationOutcome.SUCCESS : FeatureFrameworkOperationOutcome.FAILURE,
+                    startupFailure == null ? null : startupFailure[0]);
             return loaded;
         } catch (Throwable failure) {
             observation.complete(FeatureFrameworkOperationOutcome.FAILURE, failure);
@@ -268,15 +312,30 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
         }
     }
 
+    private ActivationDecision evaluate(ResolvedFeatureDefinition<F, C> descriptor, FeatureActivationPhase phase) {
+        var metadata = runtime.mutableFeatureCatalog().find(FeatureId.of(descriptor.registryName()))
+                .map(snapshot -> snapshot.metadata())
+                .orElseThrow(() -> new IllegalStateException("Missing public feature metadata: " + descriptor.registryName()));
+        return Objects.requireNonNull(activationPolicy.evaluate(metadata, phase), "activation policy decision");
+    }
+
+    private Set<FeatureId> suppressedDependencies(ResolvedFeatureDefinition<F, C> descriptor) {
+        Set<FeatureId> result = new LinkedHashSet<>();
+        for (String dependency : descriptor.featureDependencies()) {
+            FeatureId id = FeatureId.of(dependency);
+            runtime.mutableFeatureCatalog().find(id)
+                    .filter(snapshot -> snapshot.state() == FeatureState.SUPPRESSED)
+                    .ifPresent(snapshot -> result.add(id));
+        }
+        return Set.copyOf(result);
+    }
+
     List<String> buildReloadOrder(String root) {
         Set<String> affected = FeatureGraphLifecycle.dependentClosure(
                 root, dependencyManager::getDependentFeatures, registry::isFeatureLoaded);
         List<String> order = inventory.loadOrder(registry.getAvailableFeatures().keySet()).loadOrder().stream()
-                .filter(affected::contains)
-                .toList();
-        if (order.size() != affected.size()) {
-            throw new IllegalStateException("Reload graph contains a dependency cycle: " + affected);
-        }
+                .filter(affected::contains).toList();
+        if (order.size() != affected.size()) throw new IllegalStateException("Reload graph contains a dependency cycle: " + affected);
         return order;
     }
 
@@ -340,9 +399,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     }
 
     @SuppressWarnings("unchecked")
-    private static <T, E extends Throwable> T throwUnchecked(Throwable failure) throws E {
-        throw (E) failure;
-    }
+    private static <T, E extends Throwable> T throwUnchecked(Throwable failure) throws E { throw (E) failure; }
 
     private record FeatureDefaults(ConfigMap config, MessageMap messages) { }
 }

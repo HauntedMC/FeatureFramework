@@ -5,9 +5,9 @@ import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Objects;
@@ -20,18 +20,29 @@ public final class ConfigService {
     private final Path dataDir;
     private final FrameworkLogger logger;
     private final ClassLoader resources;
+    private final ConfigMutationPolicy mutationPolicy;
     private final ConcurrentHashMap<Path, YamlFile> cache = new ConcurrentHashMap<>();
 
     public ConfigService(ToolkitContext context) {
         this(Objects.requireNonNull(context.getDataDirectory(), "dataDirectory"),
                 context.getToolkitLogger() == null ? FrameworkLogger.noop() : context.getToolkitLogger(),
-                context.getResourceClassLoader());
+                context.getResourceClassLoader(), ConfigMutationPolicy.allowAll());
     }
 
     public ConfigService(Path dataDir, FrameworkLogger logger, ClassLoader resources) {
+        this(dataDir, logger, resources, ConfigMutationPolicy.allowAll());
+    }
+
+    public ConfigService(
+            Path dataDir,
+            FrameworkLogger logger,
+            ClassLoader resources,
+            ConfigMutationPolicy mutationPolicy
+    ) {
         this.dataDir = Objects.requireNonNull(dataDir, "dataDir").toAbsolutePath().normalize();
         this.logger = Objects.requireNonNull(logger, "logger");
         this.resources = resources == null ? ConfigService.class.getClassLoader() : resources;
+        this.mutationPolicy = Objects.requireNonNull(mutationPolicy, "mutationPolicy");
     }
 
     public ConfigService(Path dataDir, java.util.logging.Logger logger, ClassLoader resources) {
@@ -43,11 +54,13 @@ public final class ConfigService {
     }
 
     public YamlFile open(String relativePath, boolean copyDefaultsIfPresent) {
-        Path absolute = resolve(relativePath);
+        Path relative = checkedRelative(relativePath);
+        Path absolute = dataDir.resolve(relative).normalize();
         return cache.computeIfAbsent(absolute, path -> {
             try {
                 Files.createDirectories(path.getParent());
                 if (Files.notExists(path)) {
+                    mutationPolicy.checkMutation(relative, copyDefaultsIfPresent ? "create from defaults" : "create");
                     if (copyDefaultsIfPresent) {
                         try (InputStream input = resources.getResourceAsStream(relativePath)) {
                             if (input != null) {
@@ -63,10 +76,8 @@ public final class ConfigService {
                         logger.info("[FeatureFramework] Created empty file '" + relativePath + "'");
                     }
                 }
-                if (!Files.isRegularFile(path)) {
-                    throw new IllegalStateException("Config path is not a regular file: " + path);
-                }
-                return new YamlFile(path, logger);
+                if (!Files.isRegularFile(path)) throw new IllegalStateException("Config path is not a regular file: " + path);
+                return new YamlFile(path, relative, logger, mutationPolicy);
             } catch (IOException exception) {
                 throw new IllegalStateException("Failed to open YAML file: " + path, exception);
             }
@@ -83,26 +94,25 @@ public final class ConfigService {
     public boolean isCached(String relativePath) { return cache.containsKey(resolve(relativePath)); }
     public int cachedFileCount() { return cache.size(); }
     public Set<Path> cachedPaths() { return Set.copyOf(cache.keySet()); }
-
-    /** Root directory used by this service. Administrative storage operations must remain below it. */
     public Path dataDirectory() { return dataDir; }
+    public ConfigMutationPolicy mutationPolicy() { return mutationPolicy; }
 
-    /** Replaces a YAML file with a valid empty document while keeping cached handles coherent. */
     public void replaceWithEmptyDocument(String relativePath) {
-        Path absolute = resolve(relativePath);
+        Path relative = checkedRelative(relativePath);
+        Path absolute = dataDir.resolve(relative).normalize();
         YamlFile cached = cache.get(absolute);
         if (cached != null) {
             cached.replaceWithEmptyDocument();
             return;
         }
+        mutationPolicy.checkMutation(relative, "replace with empty document");
         Path temporary = null;
         try {
             Files.createDirectories(absolute.getParent());
             temporary = Files.createTempFile(absolute.getParent(), "." + absolute.getFileName(), ".tmp");
             preservePosixPermissions(absolute, temporary);
-            try {
-                Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException ignored) {
+            try { Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
+            catch (AtomicMoveNotSupportedException ignored) {
                 Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
             }
             open(relativePath, false);
@@ -112,8 +122,7 @@ public final class ConfigService {
             if (temporary != null) {
                 try { Files.deleteIfExists(temporary); }
                 catch (IOException cleanupFailure) {
-                    logger.warn("[FeatureFramework] Could not remove temporary YAML '" + temporary + "'.",
-                            cleanupFailure);
+                    logger.warn("[FeatureFramework] Could not remove temporary YAML '" + temporary + "'.", cleanupFailure);
                 }
             }
         }
@@ -124,46 +133,34 @@ public final class ConfigService {
         try {
             Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(source);
             Files.setPosixFilePermissions(target, permissions);
-        } catch (IOException | UnsupportedOperationException ignored) {
-            // Non-POSIX filesystems keep their native permission behavior.
-        }
+        } catch (IOException | UnsupportedOperationException ignored) { }
     }
 
-    /**
-     * Removes a file and evicts its cached handle. This is intended for optional files that are
-     * rediscovered on reload; stable main config/message files should be replaced instead.
-     */
     public void deleteOptional(String relativePath) throws IOException {
-        Path absolute = resolve(relativePath);
+        Path relative = checkedRelative(relativePath);
+        mutationPolicy.checkMutation(relative, "delete optional file");
+        Path absolute = dataDir.resolve(relative).normalize();
         Files.deleteIfExists(absolute);
         cache.remove(absolute);
     }
 
-    /** Reloads a cached handle after an external atomic restore, if one exists. */
     public void reloadIfCached(String relativePath) {
         YamlFile cached = cache.get(resolve(relativePath));
         if (cached != null) cached.reload();
     }
 
-    /** Evicts an optional cached handle without changing the filesystem. */
-    public void evict(String relativePath) {
-        cache.remove(resolve(relativePath));
-    }
+    public void evict(String relativePath) { cache.remove(resolve(relativePath)); }
 
-    public Path resolve(String relativePath) {
+    public Path resolve(String relativePath) { return dataDir.resolve(checkedRelative(relativePath)).normalize(); }
+
+    private Path checkedRelative(String relativePath) {
         Objects.requireNonNull(relativePath, "relativePath");
-        if (relativePath.isBlank()) {
-            throw new IllegalArgumentException("Config path must not be blank");
-        }
-        Path relative = Path.of(relativePath);
-        if (relative.isAbsolute()) {
-            throw new IllegalArgumentException("Config path must be relative: " + relativePath);
-        }
+        if (relativePath.isBlank()) throw new IllegalArgumentException("Config path must not be blank");
+        Path relative = Path.of(relativePath).normalize();
+        if (relative.isAbsolute()) throw new IllegalArgumentException("Config path must be relative: " + relativePath);
         Path absolute = dataDir.resolve(relative).normalize();
-        if (!absolute.startsWith(dataDir)) {
-            throw new IllegalArgumentException("Config path escapes data directory: " + relativePath);
-        }
-        return absolute;
+        if (!absolute.startsWith(dataDir)) throw new IllegalArgumentException("Config path escapes data directory: " + relativePath);
+        return relative;
     }
 
     public ConfigView view(String relativePath, boolean copyDefaultsIfPresent) {
