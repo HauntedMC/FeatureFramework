@@ -18,6 +18,7 @@ If FeatureFramework is new to you, read the [feature mental model](concepts/FEAT
 - [Text, formatting, and safe player input](toolkits/TEXT-AND-FORMATTING.md)
 - [Configuration and localization](guides/CONFIGURATION-AND-LOCALIZATION.md)
 - [Programmatic message themes](guides/THEMES.md)
+- [Static replica groups](guides/REPLICA-GROUPS.md) — leader-only placement, immutable configuration generations, fencing, LKG, drift repair, and operational behavior.
 
 ## Guides and reference
 
