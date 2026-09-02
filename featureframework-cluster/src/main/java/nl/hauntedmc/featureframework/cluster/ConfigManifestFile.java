@@ -10,6 +10,9 @@ public record ConfigManifestFile(
         String sha256,
         long size
 ) implements Comparable<ConfigManifestFile> {
+    /** Maximum managed relative path length supported by the v1 MySQL control-plane schema. */
+    public static final int MAX_PATH_LENGTH = 255;
+
     public ConfigManifestFile {
         path = normalizePath(path);
         kind = requireText(kind, "kind");
@@ -27,6 +30,9 @@ public record ConfigManifestFile(
         Path pathValue = Path.of(normalized);
         if (pathValue.isAbsolute() || normalized.startsWith("../") || normalized.contains("/../")) {
             throw new IllegalArgumentException("path must remain relative to the application data directory: " + value);
+        }
+        if (normalized.length() > MAX_PATH_LENGTH) {
+            throw new IllegalArgumentException("path must be at most " + MAX_PATH_LENGTH + " characters");
         }
         return normalized;
     }
