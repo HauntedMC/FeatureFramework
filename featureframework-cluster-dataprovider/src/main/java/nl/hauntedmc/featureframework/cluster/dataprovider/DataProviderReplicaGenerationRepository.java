@@ -114,28 +114,43 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
     public CompletionStage<Void> validateSchema() {
         List<String> tables = REQUIRED_SCHEMA.keySet().stream().sorted().toList();
         return sql.queryForList(
-                "SELECT TABLE_NAME,COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() "
+                "SELECT TABLE_NAME,COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH "
+                        + "FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() "
                         + "AND TABLE_NAME IN (?,?,?,?)",
                 tables.get(0), tables.get(1), tables.get(2), tables.get(3)
         ).thenAccept(rows -> {
-            Map<String, Set<String>> present = new LinkedHashMap<>();
+            Map<String, Map<String, ColumnShape>> present = new LinkedHashMap<>();
             for (Map<String, Object> row : rows) {
                 String table = Objects.toString(column(row, "TABLE_NAME"), "").toLowerCase(java.util.Locale.ROOT);
                 String name = Objects.toString(column(row, "COLUMN_NAME"), "").toLowerCase(java.util.Locale.ROOT);
+                String dataType = Objects.toString(column(row, "DATA_TYPE"), "").toLowerCase(java.util.Locale.ROOT);
+                Object maximum = column(row, "CHARACTER_MAXIMUM_LENGTH");
+                Long maximumLength = maximum instanceof Number number ? number.longValue() : null;
                 if (!table.isBlank() && !name.isBlank()) {
-                    present.computeIfAbsent(table, ignored -> new LinkedHashSet<>()).add(name);
+                    present.computeIfAbsent(table, ignored -> new LinkedHashMap<>())
+                            .put(name, new ColumnShape(dataType, maximumLength));
                 }
             }
             List<String> problems = new ArrayList<>();
             for (Map.Entry<String, Set<String>> required : REQUIRED_SCHEMA.entrySet()) {
-                Set<String> available = present.get(required.getKey());
+                Map<String, ColumnShape> available = present.get(required.getKey());
                 if (available == null) {
                     problems.add(required.getKey() + " (missing table)");
                     continue;
                 }
                 Set<String> missing = new LinkedHashSet<>(required.getValue());
-                missing.removeAll(available);
+                missing.removeAll(available.keySet());
                 if (!missing.isEmpty()) problems.add(required.getKey() + " missing columns " + missing);
+            }
+            Map<String, ColumnShape> fileColumns = present.get("ff_config_file");
+            if (fileColumns != null) {
+                ColumnShape path = fileColumns.get("path");
+                if (path != null && (!"varchar".equals(path.dataType())
+                        || path.maximumLength() == null
+                        || path.maximumLength() < ConfigManifestFile.MAX_PATH_LENGTH)) {
+                    problems.add("ff_config_file.path must be VARCHAR("
+                            + ConfigManifestFile.MAX_PATH_LENGTH + ") or wider");
+                }
             }
             if (!problems.isEmpty()) {
                 throw new IllegalStateException(
@@ -299,4 +314,6 @@ public final class DataProviderReplicaGenerationRepository implements ReplicaGen
         statement.setString(3, group.groupId());
         return 4;
     }
+
+    private record ColumnShape(String dataType, Long maximumLength) { }
 }
