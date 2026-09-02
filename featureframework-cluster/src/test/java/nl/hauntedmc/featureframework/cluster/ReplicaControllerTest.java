@@ -134,8 +134,10 @@ class ReplicaControllerTest {
             controller.afterHostStarted();
 
             repository.seed(generation(2, "two", "1", OptionalLong.empty()), true);
-            await(() -> fileEquals(temp.resolve("config.yml"), "two"));
-            assertTrue(host.reconcileCalls.get() >= 1);
+            await(() -> fileEquals(temp.resolve("config.yml"), "two")
+                    && host.reconcileCalls.get() >= 1
+                    && controller.status().appliedGeneration().orElse(0L) == 2L);
+            assertEquals(ReplicaStatus.State.READY, controller.status().state());
 
             Files.writeString(temp.resolve("config.yml"), "manual-drift");
             await(() -> fileEquals(temp.resolve("config.yml"), "two")
