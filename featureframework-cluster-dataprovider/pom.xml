@@ -8,6 +8,7 @@
     </parent>
     <artifactId>featureframework-cluster-dataprovider</artifactId>
     <name>FeatureFramework Cluster DataProvider</name>
+    <description>Raw-SQL and fenced Redis backend for FeatureFramework static replica groups.</description>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
@@ -49,19 +50,19 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <profiles>
-        <profile>
-            <id>integration-tests</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <artifactId>maven-failsafe-plugin</artifactId>
-                        <executions>
-                            <execution><goals><goal>integration-test</goal><goal>verify</goal></goals></execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
