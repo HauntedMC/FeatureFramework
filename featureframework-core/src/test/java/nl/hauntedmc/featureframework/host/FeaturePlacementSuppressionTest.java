@@ -56,11 +56,11 @@ class FeaturePlacementSuppressionTest {
                     contextConstructions.incrementAndGet();
                     throw new AssertionError("suppressed feature requested a runtime context/resource scope");
                 })
-                .activationPolicy((metadata, phase) -> ActivationDecision.suppress(
-                        FeatureSuppressionReason.GROUP_LEADER_ONLY,
-                        "Follower is not eligible for leader-only placement"))
                 .logger(logger)
                 .build();
+        host.activationPolicy((metadata, phase) -> ActivationDecision.suppress(
+                FeatureSuppressionReason.GROUP_LEADER_ONLY,
+                "Follower is not eligible for leader-only placement"));
 
         host.start();
 
