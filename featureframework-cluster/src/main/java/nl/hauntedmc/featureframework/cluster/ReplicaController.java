@@ -132,6 +132,10 @@ public final class ReplicaController implements AutoCloseable {
                 return ActivationDecision.suppress(FeatureSuppressionReason.AUTHORITY_UNAVAILABLE,
                         "Configured leader cannot currently prove fenced authority");
             }
+            if (phase == FeatureActivationPhase.ACTIVATION && !hostRuntimeStarted.get()) {
+                return ActivationDecision.suppress(FeatureSuppressionReason.CONFIGURATION_UNAVAILABLE,
+                        "Leader-only activation waits until host startup has completed");
+            }
             if (bootstrapPending && phase == FeatureActivationPhase.ACTIVATION) {
                 return ActivationDecision.suppress(FeatureSuppressionReason.CONFIGURATION_UNAVAILABLE,
                         "Replica group has not published its first configuration generation yet");
@@ -231,6 +235,8 @@ public final class ReplicaController implements AutoCloseable {
         if (mode == ReplicaMode.STANDALONE) return;
         if (role() == ReplicaRole.LEADER && (bootstrapPending || startupRollbackGeneration != null)) {
             publishStartupCandidate();
+        } else if (role() == ReplicaRole.LEADER) {
+            host.reconcileReplicaGraph();
         }
         long pollMillis = Math.max(1L, pollInterval.toMillis());
         scheduler.scheduleAtFixedRate(this::safePollTick, pollMillis, pollMillis, TimeUnit.MILLISECONDS);
@@ -328,7 +334,7 @@ public final class ReplicaController implements AutoCloseable {
         ReplicaAuthority current = authority.get();
         if (current == null) {
             acquireAuthorityIfPossible();
-            if (authority.get() != null && host != null) host.reconcileReplicaGraph();
+            reconcileHostIfStarted();
             return;
         }
         Optional<ReplicaAuthority> renewed = join(leases.renew(current, leaseTtl));
@@ -336,14 +342,14 @@ public final class ReplicaController implements AutoCloseable {
         if (renewed.isEmpty()) {
             if (authority.compareAndSet(current, null)) {
                 setStatus(ReplicaStatus.State.UNAVAILABLE, "Configured leader lost fenced authority");
-                ReplicaHostControl currentHost = host;
-                if (currentHost != null) currentHost.reconcileReplicaGraph();
+                reconcileHostIfStarted();
             }
             return;
         }
         lastSuccessfulRenewalNanos = nanoTime.getAsLong();
         authority.set(renewed.get());
         refreshStatusAfterAuthorityProof();
+        reconcileHostIfStarted();
     }
 
     private void safeAuthorityWatchdogTick() {
@@ -360,9 +366,13 @@ public final class ReplicaController implements AutoCloseable {
             String detail = "Authority renewal was not proven inside the TTL safety window";
             if (failure != null) detail += ": " + failure;
             setStatus(ReplicaStatus.State.UNAVAILABLE, detail);
-            ReplicaHostControl currentHost = host;
-            if (currentHost != null) currentHost.reconcileReplicaGraph();
+            reconcileHostIfStarted();
         }
+    }
+
+    private void reconcileHostIfStarted() {
+        ReplicaHostControl currentHost = host;
+        if (hostRuntimeStarted.get() && currentHost != null) currentHost.reconcileReplicaGraph();
     }
 
     private void safePollTick() {
