@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS ff_config_file (
     application_id VARCHAR(128) NOT NULL,
     group_id VARCHAR(128) NOT NULL,
     generation BIGINT UNSIGNED NOT NULL,
-    path VARCHAR(512) NOT NULL,
+    path VARCHAR(255) NOT NULL,
     kind VARCHAR(64) NOT NULL,
     sha256 CHAR(64) NOT NULL,
     size BIGINT UNSIGNED NOT NULL,
