@@ -74,10 +74,15 @@ class DataProviderReplicaBackendIT {
             assertEquals(2L, second.manifest().generation());
             assertEquals("two", text(second.file("config.yml")));
 
-            CompletionException stale = assertThrows(CompletionException.class,
+            assertThrows(CompletionException.class,
                     () -> repository.publish(GROUP,
                             candidate("stale", OptionalLong.empty(), 9), 9).toCompletableFuture().join());
-            assertTrue(rootMessage(stale).contains("fencing"));
+            ConfigGeneration afterStale = repository.loadActive(GROUP).toCompletableFuture().join().orElseThrow();
+            assertEquals(2L, afterStale.manifest().generation(),
+                    "stale fencing token must not advance the active generation");
+            assertEquals("two", text(afterStale.file("config.yml")));
+            assertTrue(repository.loadGeneration(GROUP, 3).toCompletableFuture().join().isEmpty(),
+                    "stale fencing token must not leave a partial immutable generation");
 
             ConfigGeneration rollback = repository.publish(GROUP,
                     candidate("one", OptionalLong.of(1), 10), 10).toCompletableFuture().join();
@@ -211,11 +216,5 @@ class DataProviderReplicaBackendIT {
 
     private static String text(byte[] value) {
         return new String(value, StandardCharsets.UTF_8);
-    }
-
-    private static String rootMessage(Throwable throwable) {
-        Throwable current = throwable;
-        while (current.getCause() != null) current = current.getCause();
-        return String.valueOf(current.getMessage()).toLowerCase(java.util.Locale.ROOT);
     }
 }
