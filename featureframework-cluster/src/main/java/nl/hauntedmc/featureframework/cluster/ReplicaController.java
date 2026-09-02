@@ -346,11 +346,12 @@ public final class ReplicaController implements AutoCloseable {
             }
             return;
         }
-        boolean restored = authority.get() == null;
+        ReplicaAuthority renewedAuthority = renewed.get();
+        if (!authority.compareAndSet(current, renewedAuthority)) {
+            return;
+        }
         lastSuccessfulRenewalNanos = nanoTime.getAsLong();
-        authority.set(renewed.get());
         refreshStatusAfterAuthorityProof();
-        if (restored) reconcileHostIfStarted();
     }
 
     private void safeAuthorityWatchdogTick() {
