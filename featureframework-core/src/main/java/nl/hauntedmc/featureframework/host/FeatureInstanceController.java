@@ -358,7 +358,15 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
     }
 
     boolean startReloadGraph(List<String> order, Map<String, Optional<SnapshotState>> states) {
-        return FeatureGraphLifecycle.start(order, key -> loadFeature(key, states.get(key).orElse(null)));
+        return FeatureGraphLifecycle.start(order, key -> {
+            if (loadFeature(key, states.get(key).orElse(null))) return true;
+            // Replica placement can legitimately change while a graph is being reloaded.
+            // A feature denied by that policy has completed its transition when it is suppressed;
+            // it is not a failed replacement graph.
+            return runtime.mutableFeatureCatalog().find(FeatureId.of(key))
+                    .map(snapshot -> snapshot.state() == FeatureState.SUPPRESSED)
+                    .orElse(false);
+        });
     }
 
     private void captureDefaults(String key, F feature) {
