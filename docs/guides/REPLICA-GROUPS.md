@@ -63,6 +63,16 @@ controller.afterHostStarted();
 
 `attach()` installs both the activation policy and the configuration mutation policy on the already constructed host. No separate host-bootstrap framework is required.
 
+For leader-only work that is not a feature, register a `ReplicaLeaderService`. It starts only after host startup,
+initial generation readiness, and fenced authority; it stops before leader-only feature reconciliation when authority
+is lost:
+
+```java
+ReplicaLeaderServiceRegistration registration = controller.registerLeaderService(myIngress);
+// Close registration before releasing the service's owning application state.
+registration.close();
+```
+
 Close the controller during application shutdown after the host is no longer accepting application work. A held authority lease is released best-effort.
 
 ## Durable control plane

@@ -199,6 +199,59 @@ class ReplicaControllerTest {
     }
 
     @Test
+    void leaderServiceFollowsHostReadinessAuthorityAndRegistrationLifetime() throws Exception {
+        InMemoryRepository repository = new InMemoryRepository();
+        repository.seed(generation(1, "authoritative", "1", OptionalLong.empty()), true);
+        Files.writeString(temp.resolve("config.yml"), "authoritative");
+        InMemoryLeases leases = new InMemoryLeases();
+        FakeHost host = new FakeHost();
+        CountingLeaderService service = new CountingLeaderService();
+
+        try (ReplicaController controller = ReplicaController.replicated(
+                temp, new ReplicaNodeIdentity("proxy-01"), GROUP, COMPATIBILITY, repository, leases)
+                .leaseTiming(Duration.ofMillis(100), Duration.ofMillis(10), Duration.ofMillis(20))
+                .pollInterval(Duration.ofSeconds(5))
+                .build()) {
+            controller.prepareBeforeHost();
+            controller.attach(host);
+            ReplicaLeaderServiceRegistration registration = controller.registerLeaderService(service);
+            assertEquals(0, service.starts.get(), "services wait for host startup");
+
+            controller.afterHostStarted();
+            assertEquals(1, service.starts.get());
+
+            leases.loseOnRenew = true;
+            await(() -> controller.status().state() == ReplicaStatus.State.UNAVAILABLE);
+            assertEquals(1, service.stops.get(), "authority loss stops the service");
+
+            registration.close();
+            leases.loseOnRenew = false;
+            await(() -> leases.acquireCalls.get() > 1);
+            Thread.sleep(30L);
+            assertEquals(1, service.starts.get(), "closed registrations never restart");
+        }
+    }
+
+    @Test
+    void standaloneLeaderServiceStartsAfterHostStartupAndStopsOnClose() {
+        FakeHost host = new FakeHost();
+        CountingLeaderService service = new CountingLeaderService();
+
+        try (ReplicaController controller = ReplicaController.standalone(
+                temp, new ReplicaNodeIdentity("proxy-01"), COMPATIBILITY).build()) {
+            controller.prepareBeforeHost();
+            controller.attach(host);
+            controller.registerLeaderService(service);
+            assertEquals(0, service.starts.get());
+
+            controller.afterHostStarted();
+            assertEquals(1, service.starts.get());
+        }
+
+        assertEquals(1, service.stops.get());
+    }
+
+    @Test
     void followerWritePolicyProtectsOnlyManagedPaths() {
         InMemoryRepository repository = new InMemoryRepository();
         repository.seed(generation(1, "authoritative", "1", OptionalLong.empty()), true);
@@ -384,6 +437,14 @@ class ReplicaControllerTest {
             if (owned) current = null;
             return CompletableFuture.completedFuture(owned);
         }
+    }
+
+    private static final class CountingLeaderService implements ReplicaLeaderService {
+        private final AtomicInteger starts = new AtomicInteger();
+        private final AtomicInteger stops = new AtomicInteger();
+
+        @Override public void start() { starts.incrementAndGet(); }
+        @Override public void stop() { stops.incrementAndGet(); }
     }
 
     private static final class InMemoryRepository implements ReplicaGenerationRepository {

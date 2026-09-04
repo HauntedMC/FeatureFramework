@@ -58,6 +58,7 @@ public final class ReplicaController implements AutoCloseable {
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicBoolean authorityMaintenanceStarted = new AtomicBoolean();
     private final AtomicBoolean hostRuntimeStarted = new AtomicBoolean();
+    private final List<LeaderServiceRegistration> leaderServices = new ArrayList<>();
     private volatile long lastSuccessfulRenewalNanos;
     private volatile ConfigGeneration appliedGeneration;
     private volatile ConfigGeneration startupRollbackGeneration;
@@ -116,6 +117,19 @@ public final class ReplicaController implements AutoCloseable {
             : group.isConfiguredLeader(node) ? ReplicaRole.LEADER : ReplicaRole.FOLLOWER; }
     public ReplicaStatus status() { return status.get(); }
     public ManagedFileSet managedFiles() { return managedFiles; }
+
+    /**
+     * Registers application-owned work that is active only on the configured leader while it holds
+     * fenced authority. Closing the returned registration stops the service and prevents restarts.
+     */
+    public synchronized ReplicaLeaderServiceRegistration registerLeaderService(ReplicaLeaderService service) {
+        ensureOpen();
+        LeaderServiceRegistration registration = new LeaderServiceRegistration(
+                Objects.requireNonNull(service, "service"));
+        leaderServices.add(registration);
+        reconcileLeaderServices();
+        return registration;
+    }
 
     public FeatureActivationPolicy activationPolicy() {
         return (metadata, phase) -> {
@@ -232,12 +246,16 @@ public final class ReplicaController implements AutoCloseable {
         if (!hostRuntimeStarted.compareAndSet(false, true)) {
             throw new IllegalStateException("Replica host runtime has already been started");
         }
-        if (mode == ReplicaMode.STANDALONE) return;
+        if (mode == ReplicaMode.STANDALONE) {
+            reconcileLeaderServices();
+            return;
+        }
         if (role() == ReplicaRole.LEADER && (bootstrapPending || startupRollbackGeneration != null)) {
             publishStartupCandidate();
         } else if (role() == ReplicaRole.LEADER) {
             host.reconcileReplicaGraph();
         }
+        reconcileLeaderServices();
         long pollMillis = Math.max(1L, pollInterval.toMillis());
         scheduler.scheduleAtFixedRate(this::safePollTick, pollMillis, pollMillis, TimeUnit.MILLISECONDS);
     }
@@ -334,16 +352,16 @@ public final class ReplicaController implements AutoCloseable {
         ReplicaAuthority current = authority.get();
         if (current == null) {
             acquireAuthorityIfPossible();
-            if (authority.get() != null) reconcileHostIfStarted();
+            if (authority.get() != null) {
+                reconcileHostIfStarted();
+                reconcileLeaderServices();
+            }
             return;
         }
         Optional<ReplicaAuthority> renewed = join(leases.renew(current, leaseTtl));
         if (closed.get()) return;
         if (renewed.isEmpty()) {
-            if (authority.compareAndSet(current, null)) {
-                setStatus(ReplicaStatus.State.UNAVAILABLE, "Configured leader lost fenced authority");
-                reconcileHostIfStarted();
-            }
+            withdrawAuthority(current, "Configured leader lost fenced authority");
             return;
         }
         ReplicaAuthority renewedAuthority = renewed.get();
@@ -352,6 +370,7 @@ public final class ReplicaController implements AutoCloseable {
         }
         lastSuccessfulRenewalNanos = nanoTime.getAsLong();
         refreshStatusAfterAuthorityProof();
+        reconcileLeaderServices();
     }
 
     private void safeAuthorityWatchdogTick() {
@@ -364,12 +383,19 @@ public final class ReplicaController implements AutoCloseable {
         if (current == null) return;
         long safeNanos = leaseTtl.minus(safetyMargin).toNanos();
         long elapsed = Math.max(0L, nanoTime.getAsLong() - lastSuccessfulRenewalNanos);
-        if (elapsed >= safeNanos && authority.compareAndSet(current, null)) {
+        if (elapsed >= safeNanos) {
             String detail = "Authority renewal was not proven inside the TTL safety window";
             if (failure != null) detail += ": " + failure;
-            setStatus(ReplicaStatus.State.UNAVAILABLE, detail);
-            reconcileHostIfStarted();
+            withdrawAuthority(current, detail);
         }
+    }
+
+    private void withdrawAuthority(ReplicaAuthority current, String detail) {
+        if (!authority.compareAndSet(current, null)) return;
+        RuntimeException serviceFailure = stopLeaderServices();
+        setStatus(ReplicaStatus.State.UNAVAILABLE, detail);
+        reconcileHostIfStarted();
+        if (serviceFailure != null) throw serviceFailure;
     }
 
     private void reconcileHostIfStarted() {
@@ -452,6 +478,41 @@ public final class ReplicaController implements AutoCloseable {
         } else {
             refreshStatusAuthority();
         }
+    }
+
+    private synchronized void reconcileLeaderServices() {
+        if (!leaderServicesEligible()) {
+            RuntimeException failure = stopLeaderServices();
+            if (failure != null) throw failure;
+            return;
+        }
+        for (LeaderServiceRegistration registration : List.copyOf(leaderServices)) {
+            registration.startIfNecessary();
+        }
+    }
+
+    private boolean leaderServicesEligible() {
+        if (!hostRuntimeStarted.get()) return false;
+        return mode == ReplicaMode.STANDALONE
+                || (role() == ReplicaRole.LEADER && authority.get() != null && !bootstrapPending);
+    }
+
+    private synchronized RuntimeException stopLeaderServices() {
+        RuntimeException failure = null;
+        for (LeaderServiceRegistration registration : List.copyOf(leaderServices)) {
+            try {
+                registration.stopIfRunning();
+            } catch (RuntimeException exception) {
+                if (failure == null) failure = exception;
+                else failure.addSuppressed(exception);
+            }
+        }
+        return failure;
+    }
+
+    private synchronized void unregisterLeaderService(LeaderServiceRegistration registration) {
+        if (!leaderServices.remove(registration)) return;
+        registration.closeRegistration();
     }
 
     private ConfigGeneration candidate(Map<String, byte[]> files, OptionalLong sourceGeneration) {
@@ -546,6 +607,7 @@ public final class ReplicaController implements AutoCloseable {
     @Override
     public synchronized void close() {
         if (!closed.compareAndSet(false, true)) return;
+        stopLeaderServices();
         scheduler.shutdownNow();
         ConfigGeneration rollback = startupRollbackGeneration;
         startupRollbackGeneration = null;
@@ -558,6 +620,39 @@ public final class ReplicaController implements AutoCloseable {
         ReplicaAuthority current = authority.getAndSet(null);
         if (current != null && leases != null) {
             try { join(leases.release(current)); } catch (RuntimeException ignored) { }
+        }
+    }
+
+    private final class LeaderServiceRegistration implements ReplicaLeaderServiceRegistration {
+        private final ReplicaLeaderService service;
+        private boolean active;
+        private boolean registrationClosed;
+
+        private LeaderServiceRegistration(ReplicaLeaderService service) {
+            this.service = service;
+        }
+
+        private void startIfNecessary() {
+            if (registrationClosed || active) return;
+            service.start();
+            active = true;
+        }
+
+        private void stopIfRunning() {
+            if (!active) return;
+            active = false;
+            service.stop();
+        }
+
+        private void closeRegistration() {
+            if (registrationClosed) return;
+            registrationClosed = true;
+            stopIfRunning();
+        }
+
+        @Override
+        public void close() {
+            unregisterLeaderService(this);
         }
     }
 
