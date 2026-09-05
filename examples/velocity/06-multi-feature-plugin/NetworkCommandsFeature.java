@@ -13,6 +13,6 @@ public final class NetworkCommandsFeature extends VelocityFeature<Object> {
     private ServerDirectoryApi directory;
 
     public NetworkCommandsFeature(VelocityFeatureContext<Object> context) { super(context); }
-    @Override public void initialize() { directory = requireCapability(ServerDirectoryApi.class); }
+    @Override public void initialize() { directory = services().require(ServerDirectoryApi.class); }
     @Override public void disable() { directory = null; }
 }

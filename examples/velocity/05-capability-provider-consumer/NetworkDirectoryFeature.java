@@ -21,7 +21,7 @@ public final class NetworkDirectoryFeature extends VelocityFeature<Object> {
                 .flatMap(player -> player.getCurrentServer()
                         .map(connection -> connection.getServerInfo().getName()));
 
-        context().services().registerService(NetworkPlayerApi.class, players);
+        services().publish(NetworkPlayerApi.class, players);
     }
 
     @Override

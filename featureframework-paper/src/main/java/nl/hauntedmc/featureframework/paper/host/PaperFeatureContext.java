@@ -31,7 +31,7 @@ public final class PaperFeatureContext<P extends Plugin>
             ConfigService files
     ) {
         super(plugin, definition, config, localization, resources, logger,
-                capabilities, internalServices, resources.capabilities());
+                capabilities, internalServices, resources.serviceManager(), resources.ownership());
         this.files = Objects.requireNonNull(files, "files");
         definition.requiredResourceExtensions().forEach(type -> {
             if (!resources.extensions().contains(type)) {

@@ -194,8 +194,41 @@ public final class FeatureCatalogProcessor extends AbstractProcessor {
             valid &= validDirectPlacement(entries, entry);
             valid &= providers(entry, entry.requiresCapabilities(), capabilities, config.bootstrapCapabilities(), "capability");
             valid &= providers(entry, entry.requiresInternalServices(), internalServices, Set.of(), "internal service");
+            valid &= validStartupPhases(entries, entry, capabilities, internalServices);
         }
         return valid;
+    }
+
+    private boolean validStartupPhases(
+            Collection<Entry> entries,
+            Entry consumer,
+            Map<String, Entry> capabilityProviders,
+            Map<String, Entry> internalServiceProviders
+    ) {
+        boolean valid = true;
+        for (String required : consumer.requiredFeatures()) {
+            Entry provider = entries.stream()
+                    .filter(entry -> entry.name().equalsIgnoreCase(required))
+                    .findFirst().orElse(null);
+            valid &= validStartupPhase(consumer, provider, "feature " + required);
+        }
+        for (TypeMirror required : consumer.requiresCapabilities()) {
+            valid &= validStartupPhase(consumer, capabilityProviders.get(key(required)), "capability " + required);
+        }
+        for (TypeMirror required : consumer.requiresInternalServices()) {
+            valid &= validStartupPhase(
+                    consumer, internalServiceProviders.get(key(required)), "internal service " + required);
+        }
+        return valid;
+    }
+
+    private boolean validStartupPhase(Entry consumer, Entry provider, String dependency) {
+        if (provider == null || provider == consumer
+                || provider.startupPhase().compareTo(consumer.startupPhase()) <= 0) {
+            return true;
+        }
+        return invalid(consumer.element(), dependency + " is provided by " + provider.name() + " in later startup phase "
+                + provider.startupPhase() + "; " + consumer.name() + " starts in " + consumer.startupPhase());
     }
 
     private boolean validDirectPlacement(Collection<Entry> entries, Entry owner) {

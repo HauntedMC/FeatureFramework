@@ -16,6 +16,6 @@ public final class ChatFeature extends PaperFeature<Plugin> {
         super(context);
     }
 
-    @Override public void initialize() { profiles = requireCapability(PlayerProfileApi.class); }
+    @Override public void initialize() { profiles = services().require(PlayerProfileApi.class); }
     @Override public void disable() { profiles = null; }
 }

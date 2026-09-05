@@ -11,7 +11,7 @@ NetworkCommandsFeature
     requires NetworkPlayerApi
 ```
 
-`NetworkPlayerApi` is deliberately small. `NetworkDirectoryFeature` implements it using `ProxyServer` and registers the implementation with the feature service manager. `NetworkCommandsFeature` only knows the contract and resolves it with `requireCapability(...)`.
+`NetworkPlayerApi` is deliberately small. `NetworkDirectoryFeature` implements it using `ProxyServer` and publishes it with `services().publish(...)`. `NetworkCommandsFeature` only knows the contract and resolves it with `services().require(...)`.
 
 `ProxyPlugin.java` passes the generated catalog to a normal ready-to-use `VelocityFeatureHost`.
 

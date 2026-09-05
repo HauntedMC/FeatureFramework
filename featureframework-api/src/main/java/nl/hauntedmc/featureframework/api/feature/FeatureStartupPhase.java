@@ -3,9 +3,9 @@ package nl.hauntedmc.featureframework.api.feature;
 /**
  * A readable startup phase for otherwise independent features.
  *
- * <p>Constants are declared in lifecycle order. Required feature and capability relationships
- * always take precedence; a phase only provides deterministic ordering when no such relationship
- * exists.</p>
+ * <p>Constants are declared in lifecycle order. A feature may only require providers in its own
+ * phase or an earlier phase. This keeps the declared lifecycle truthful and makes invalid startup
+ * graphs fail during discovery instead of relying on a hidden ordering exception.</p>
  */
 public enum FeatureStartupPhase {
     /** Foundational features that establish shared state or essential capabilities. */

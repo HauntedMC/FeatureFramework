@@ -18,7 +18,7 @@ public final class ChatFeature extends PaperFeature<Plugin> {
     @Override
     public void initialize() {
         logger().info("Chat started after its required Profiles feature");
-        findInternalService(Object.class); // Optional lookups are allowed; real code would use a meaningful contract.
+        services().reference(Object.class).get(); // Resolve per operation; use a meaningful contract in real code.
     }
 
     @Override public void disable() { }

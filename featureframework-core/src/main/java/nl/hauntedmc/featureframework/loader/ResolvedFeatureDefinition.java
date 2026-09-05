@@ -21,51 +21,13 @@ public class ResolvedFeatureDefinition<F extends Feature, C> {
     private final Set<String> pluginDependencies;
     private final Set<Class<?>> requiredResourceExtensions;
     private final Set<Class<?>> optionalResourceExtensions;
+    private final Set<Class<?>> requiredCapabilities;
+    private final Set<Class<?>> optionalCapabilities;
+    private final Set<Class<?>> providedCapabilities;
+    private final Set<Class<?>> requiredInternalServices;
+    private final Set<Class<?>> optionalInternalServices;
+    private final Set<Class<?>> providedInternalServices;
     private final FeaturePlacement placement;
-
-    public ResolvedFeatureDefinition(
-            String registryName,
-            String featureName,
-            String featureVersion,
-            Class<? extends F> implementationType,
-            Function<C, ? extends F> constructor,
-            Set<String> featureDependencies,
-            Set<String> pluginDependencies
-    ) {
-        this(registryName, featureName, featureVersion, implementationType, constructor, featureDependencies,
-                Set.of(), pluginDependencies, Set.of(), Set.of(), FeaturePlacement.ALL_NODES);
-    }
-
-    public ResolvedFeatureDefinition(
-            String registryName,
-            String featureName,
-            String featureVersion,
-            Class<? extends F> implementationType,
-            Function<C, ? extends F> constructor,
-            Set<String> featureDependencies,
-            Set<String> optionalFeatureDependencies,
-            Set<String> pluginDependencies
-    ) {
-        this(registryName, featureName, featureVersion, implementationType, constructor, featureDependencies,
-                optionalFeatureDependencies, pluginDependencies, Set.of(), Set.of(), FeaturePlacement.ALL_NODES);
-    }
-
-    public ResolvedFeatureDefinition(
-            String registryName,
-            String featureName,
-            String featureVersion,
-            Class<? extends F> implementationType,
-            Function<C, ? extends F> constructor,
-            Set<String> featureDependencies,
-            Set<String> optionalFeatureDependencies,
-            Set<String> pluginDependencies,
-            Set<Class<?>> requiredResourceExtensions,
-            Set<Class<?>> optionalResourceExtensions
-    ) {
-        this(registryName, featureName, featureVersion, implementationType, constructor, featureDependencies,
-                optionalFeatureDependencies, pluginDependencies, requiredResourceExtensions,
-                optionalResourceExtensions, FeaturePlacement.ALL_NODES);
-    }
 
     public ResolvedFeatureDefinition(
             String registryName,
@@ -78,7 +40,13 @@ public class ResolvedFeatureDefinition<F extends Feature, C> {
             Set<String> pluginDependencies,
             Set<Class<?>> requiredResourceExtensions,
             Set<Class<?>> optionalResourceExtensions,
-            FeaturePlacement placement
+            FeaturePlacement placement,
+            Set<Class<?>> requiredCapabilities,
+            Set<Class<?>> optionalCapabilities,
+            Set<Class<?>> providedCapabilities,
+            Set<Class<?>> requiredInternalServices,
+            Set<Class<?>> optionalInternalServices,
+            Set<Class<?>> providedInternalServices
     ) {
         this.registryName = requireText(registryName, "registryName");
         this.featureName = requireText(featureName, "featureName");
@@ -94,6 +62,13 @@ public class ResolvedFeatureDefinition<F extends Feature, C> {
         optionalResources.removeAll(this.requiredResourceExtensions);
         this.optionalResourceExtensions = Collections.unmodifiableSet(optionalResources);
         this.placement = placement == null ? FeaturePlacement.ALL_NODES : placement;
+        this.requiredCapabilities = immutableTypes(requiredCapabilities);
+        this.optionalCapabilities = withoutRequiredTypes(immutableTypes(optionalCapabilities), this.requiredCapabilities);
+        this.providedCapabilities = immutableTypes(providedCapabilities);
+        this.requiredInternalServices = immutableTypes(requiredInternalServices);
+        this.optionalInternalServices = withoutRequiredTypes(
+                immutableTypes(optionalInternalServices), this.requiredInternalServices);
+        this.providedInternalServices = immutableTypes(providedInternalServices);
     }
 
     public String registryName() { return registryName; }
@@ -106,6 +81,12 @@ public class ResolvedFeatureDefinition<F extends Feature, C> {
     public Set<Class<?>> requiredResourceExtensions() { return requiredResourceExtensions; }
     public Set<Class<?>> optionalResourceExtensions() { return optionalResourceExtensions; }
     public FeaturePlacement placement() { return placement; }
+    public Set<Class<?>> requiredCapabilities() { return requiredCapabilities; }
+    public Set<Class<?>> optionalCapabilities() { return optionalCapabilities; }
+    public Set<Class<?>> providedCapabilities() { return providedCapabilities; }
+    public Set<Class<?>> requiredInternalServices() { return requiredInternalServices; }
+    public Set<Class<?>> optionalInternalServices() { return optionalInternalServices; }
+    public Set<Class<?>> providedInternalServices() { return providedInternalServices; }
 
     public F create(C context) {
         F feature = constructor.apply(Objects.requireNonNull(context, "context"));
@@ -121,6 +102,13 @@ public class ResolvedFeatureDefinition<F extends Feature, C> {
         if (optional.isEmpty() || required.isEmpty()) return optional;
         LinkedHashSet<String> result = new LinkedHashSet<>(optional);
         result.removeIf(candidate -> required.stream().anyMatch(candidate::equalsIgnoreCase));
+        return result.isEmpty() ? Set.of() : Collections.unmodifiableSet(result);
+    }
+
+    private static Set<Class<?>> withoutRequiredTypes(Set<Class<?>> optional, Set<Class<?>> required) {
+        if (optional.isEmpty() || required.isEmpty()) return optional;
+        LinkedHashSet<Class<?>> result = new LinkedHashSet<>(optional);
+        result.removeAll(required);
         return result.isEmpty() ? Set.of() : Collections.unmodifiableSet(result);
     }
 

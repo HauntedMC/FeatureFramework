@@ -32,7 +32,9 @@ validates the constructor, identity, provider graph, and declared relationships 
 - required, optional, or provided capabilities;
 - required, optional, or provided internal services.
 
-Declarations can also specify a readable `FeatureStartupPhase` when there is no real dependency but deterministic ordering is still useful. Dependencies remain the correct mechanism for a real lifecycle requirement.
+Declarations also specify a readable `FeatureStartupPhase`. Required providers must be in the same
+or an earlier phase; discovery rejects a graph that contradicts its declared lifecycle order.
+Dependencies remain the correct mechanism for ordering within a phase.
 
 ### Feature implementation
 
@@ -47,7 +49,8 @@ The important lifecycle methods are:
 
 ### Feature context
 
-The context gives one feature access to its plugin, config, localization, logger, resource managers, capabilities, and services. Velocity contexts also expose `ProxyServer`.
+The context gives one feature access to its plugin, config, localization, logger, resource managers,
+and a declaration-aware `services()` boundary. Velocity contexts also expose `ProxyServer`.
 
 This is preferable to reaching into application-wide static managers because it makes ownership and dependencies visible.
 

@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.loader;
 
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 import nl.hauntedmc.featureframework.feature.Feature;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,8 @@ class ResolvedFeatureDefinitionTest {
                 ignored -> feature,
                 Set.of("demo", "Required"),
                 Set.of("required", "Optional"),
-                Set.of("Plugin")
+                Set.of("Plugin"), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of()
         );
 
         assertEquals(Set.of("Required"), descriptor.featureDependencies());
@@ -32,11 +34,15 @@ class ResolvedFeatureDefinitionTest {
     @Test
     void rejectsBlankMetadataAndNullConstructionResults() {
         assertThrows(IllegalArgumentException.class, () -> new ResolvedFeatureDefinition<>(
-                " ", "Demo", "1", Feature.class, ignored -> mock(Feature.class), Set.of(), Set.of()
+                " ", "Demo", "1", Feature.class, ignored -> mock(Feature.class),
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of()
         ));
 
         ResolvedFeatureDefinition<Feature, String> descriptor = new ResolvedFeatureDefinition<>(
-                "demo", "Demo", "1", Feature.class, ignored -> null, Set.of(), Set.of()
+                "demo", "Demo", "1", Feature.class, ignored -> null,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of()
         );
         assertThrows(IllegalStateException.class, () -> descriptor.create("context"));
     }

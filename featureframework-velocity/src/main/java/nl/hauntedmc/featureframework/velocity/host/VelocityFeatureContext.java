@@ -33,7 +33,7 @@ public final class VelocityFeatureContext<P>
             ConfigService files
     ) {
         super(plugin, definition, config, localization, resources, logger,
-                capabilities, internalServices, resources.capabilities());
+                capabilities, internalServices, resources.serviceManager(), resources.ownership());
         this.proxy = Objects.requireNonNull(proxy, "proxy");
         this.files = Objects.requireNonNull(files, "files");
         definition.requiredResourceExtensions().forEach(type -> {

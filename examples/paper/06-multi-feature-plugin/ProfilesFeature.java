@@ -21,7 +21,7 @@ public final class ProfilesFeature extends PaperFeature<Plugin> {
         PlayerProfileApi profiles = playerId -> plugin().getServer().getPlayer(playerId) == null
                 ? Optional.empty()
                 : Optional.of(plugin().getServer().getPlayer(playerId).getName());
-        context().services().registerService(PlayerProfileApi.class, profiles);
+        services().publish(PlayerProfileApi.class, profiles);
     }
 
     @Override public void disable() { }

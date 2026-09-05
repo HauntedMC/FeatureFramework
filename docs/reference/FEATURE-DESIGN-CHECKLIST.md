@@ -37,7 +37,10 @@ Use this before adding a new feature or reviewing one.
 - [ ] Consumers depend on the contract they need, not a convenient global manager.
 - [ ] Public capabilities are small and implementation-independent.
 - [ ] Internal services are not exposed as public extension APIs unnecessarily.
-- [ ] Optional lookups use `find...`; required lookups use `require...` and are declared in `@FeatureDeclaration`.
+- [ ] Required dependencies use `services().require(...)` and are declared as required.
+- [ ] Optional dependencies retain `ServiceRef<T>` or use `services().integrate(...)`; concrete optional providers are not cached across reloads.
+- [ ] Providers use `services().publish(...)`; feature code does not reach into raw service registries.
+- [ ] A required provider starts in the same or an earlier `FeatureStartupPhase`.
 
 ## Operations and tests
 

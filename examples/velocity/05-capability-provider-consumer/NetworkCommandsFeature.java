@@ -18,7 +18,7 @@ public final class NetworkCommandsFeature extends VelocityFeature<Object> {
 
     @Override
     public void initialize() {
-        players = requireCapability(NetworkPlayerApi.class);
+        players = services().require(NetworkPlayerApi.class);
         logger().info("Network player API resolved");
     }
 

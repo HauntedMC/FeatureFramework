@@ -1,10 +1,8 @@
 package nl.hauntedmc.featureframework.feature;
 
-import nl.hauntedmc.featureframework.api.service.CapabilityRegistry;
-import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
+import nl.hauntedmc.featureframework.service.FeatureServices;
 
-/** Runtime context contract that gives a feature access to its host's public and internal service registries. */
+/** Runtime context contract exposing the feature's declaration-aware service boundary. */
 public interface FeatureServiceContext extends FeatureContextMetadata {
-    CapabilityRegistry capabilities();
-    InternalServiceRegistry<?> internalServices();
+    FeatureServices featureServices();
 }

@@ -55,8 +55,26 @@ public final class FeatureManifestDiscovery {
             byNormalizedKey.put(normalized, item);
             discovered.add(item);
         }
+        validateStartupPhases(byNormalizedKey);
         validatePlacementDependencies(byNormalizedKey);
         return new Result<>(List.copyOf(discovered), List.copyOf(conflicts));
+    }
+
+    private static <D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>>
+    void validateStartupPhases(Map<String, Discovered<D, E>> discovered) {
+        for (Discovered<D, E> item : discovered.values()) {
+            for (String dependency : item.descriptor().featureDependencies()) {
+                Discovered<D, E> provider = discovered.get(dependency.toLowerCase(Locale.ROOT));
+                if (provider == null) continue;
+                if (provider.definition().startupPhase().compareTo(item.definition().startupPhase()) > 0) {
+                    throw new IllegalStateException("Feature " + item.definition().featureName()
+                            + " starts in " + item.definition().startupPhase()
+                            + " but requires " + provider.definition().featureName()
+                            + ", which starts later in " + provider.definition().startupPhase()
+                            + ". Move the provider to the same or an earlier startup phase.");
+                }
+            }
+        }
     }
 
     private static <D extends ResolvedFeatureDefinition<?, ?>, E extends FeatureManifestDefinition<D>>

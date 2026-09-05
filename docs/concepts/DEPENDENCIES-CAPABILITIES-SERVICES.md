@@ -37,7 +37,7 @@ The provider declares and registers the capability:
         providesCapabilities = PlayerProfileApi.class)
 
 // Provider initialize()
-context().services().registerService(PlayerProfileApi.class, profileService);
+services().publish(PlayerProfileApi.class, profileService);
 ```
 
 A required consumer declares and resolves it:
@@ -49,10 +49,27 @@ A required consumer declares and resolves it:
         requiresCapabilities = PlayerProfileApi.class)
 
 // Consumer initialize()
-PlayerProfileApi profiles = requireCapability(PlayerProfileApi.class);
+PlayerProfileApi profiles = services().require(PlayerProfileApi.class);
 ```
 
-For optional behavior, use `optionallyUsesCapabilities(...)` and `findCapability(...)`.
+For optional behavior, declare `optionallyUsesCapabilities(...)` and retain a reload-safe reference:
+
+```java
+ServiceRef<DiscordApi> discord = services().reference(DiscordApi.class);
+
+// Resolve once per independent operation; the provider may change during a feature reload.
+discord.get().ifPresent(api -> api.send(message));
+```
+
+When optional-provider availability should attach and detach resources, let the feature scope own
+the entire integration lifecycle:
+
+```java
+services().integrate(DiscordApi.class, api -> {
+    AutoCloseable subscription = api.subscribe(this::forwardMessage);
+    return subscription; // closed on provider replacement/removal and consumer shutdown
+});
+```
 
 Required capability relationships can also be used by manifest discovery to derive the feature dependency needed for lifecycle sequencing.
 
@@ -69,19 +86,37 @@ Internal services work similarly, but are intended for private collaboration ins
         providesInternalServices = ProfileStore.class)
 
 // Provider initialize()
-context().services().registerInternalService(ProfileStore.class, profileStore);
+services().publish(ProfileStore.class, profileStore);
 
 @FeatureDeclaration(name = "Chat", version = "1.0.0", requiresInternalServices = ProfileStore.class)
 
 // Consumer initialize()
-ProfileStore store = requireInternalService(ProfileStore.class);
+ProfileStore store = services().require(ProfileStore.class);
 ```
 
-Use `optionallyUsesInternalServices(...)` with `findInternalService(...)` for optional collaboration.
+Use `optionallyUsesInternalServices(...)` with the same `services().reference(...)` or
+`services().integrate(...)` operations for optional collaboration.
+
+## One guarded programming interface
+
+Feature implementations have one service boundary: `services()`.
+
+| Declaration | Valid operation | Meaning |
+|---|---|---|
+| `requiresCapabilities` / `requiresInternalServices` | `services().require(Type.class)` | provider must be active |
+| `optionallyUsesCapabilities` / `optionallyUsesInternalServices` | `services().reference(Type.class)` | reload-safe optional lookup |
+| optional declaration | `services().integrate(Type.class, factory)` | owned attach/detach lifecycle |
+| `providesCapabilities` / `providesInternalServices` | `services().publish(Type.class, provider)` | staged provider publication |
+
+The framework rejects an operation that disagrees with the declaration. A typo or undeclared
+cross-feature dependency therefore fails at the feature boundary instead of silently coupling two
+features through a global registry.
 
 ## Service lifetime
 
-Services registered through the feature service manager are removed when their provider stops. Do not keep implementation objects around after the provider feature has been disabled or recreated.
+Published services are staged during initialization, activated as one lifecycle step, and removed
+when their provider stops. Retain required services only while the consumer is active. For optional
+services, retain `ServiceRef<T>`, not the implementation returned by `get()`.
 
 ## Runtime operations
 

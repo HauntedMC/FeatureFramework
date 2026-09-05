@@ -70,7 +70,8 @@ class FeaturePlacementValidationTest {
             dependencies.addAll(discovered);
             return new ResolvedFeatureDefinition<>(
                     featureName, featureName, "1", TestFeature.class, ignored -> new TestFeature(),
-                    dependencies, optional, Set.of(), Set.of(), Set.of(), placement);
+                    dependencies, optional, Set.of(), Set.of(), Set.of(), placement,
+                    Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
         }
 
         @Override public Set<Class<?>> requiredCapabilities() { return Set.of(); }

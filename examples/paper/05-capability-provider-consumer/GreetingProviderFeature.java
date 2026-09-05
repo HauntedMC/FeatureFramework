@@ -18,7 +18,7 @@ public final class GreetingProviderFeature extends PaperFeature<Plugin> {
     @Override
     public void initialize() {
         GreetingApi greetings = playerId -> "Welcome, " + playerId;
-        context().services().registerService(GreetingApi.class, greetings);
+        services().publish(GreetingApi.class, greetings);
     }
 
     @Override

@@ -13,9 +13,9 @@ GreetingConsumerFeature
 
 1. `GreetingApi.java` is the small contract shared by both features.
 2. `GreetingProviderFeature` declares `providesCapabilities = GreetingApi.class`.
-3. `GreetingProviderFeature.initialize()` registers the implementation with `services().registerService(...)`.
+3. `GreetingProviderFeature.initialize()` publishes the implementation with `services().publish(...)`.
 4. `GreetingConsumerFeature` declares `requiresCapabilities = GreetingApi.class`.
-5. `GreetingConsumerFeature.initialize()` resolves it with `requireCapability(...)`.
+5. `GreetingConsumerFeature.initialize()` resolves it with `services().require(...)`.
 6. `MyPlugin.java` supplies the generated catalog to the host.
 
 The provider owns the registered service. When the provider stops, the framework removes it before provider state is torn down.

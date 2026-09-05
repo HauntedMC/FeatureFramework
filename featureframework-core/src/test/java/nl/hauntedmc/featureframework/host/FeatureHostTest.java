@@ -258,7 +258,7 @@ class FeatureHostTest {
         @Override
         public void initialize() {
             int generation = starts.incrementAndGet();
-            context().services().registerService(GreetingApi.class, () -> "hello-" + generation);
+            services().publish(GreetingApi.class, () -> "hello-" + generation);
             started("provider");
         }
     }
@@ -272,7 +272,7 @@ class FeatureHostTest {
 
         @Override
         public void initialize() {
-            requireCapability(GreetingApi.class);
+            services().require(GreetingApi.class);
             starts.incrementAndGet();
             started("consumer");
         }
@@ -290,7 +290,8 @@ class FeatureHostTest {
                 FeatureServiceManager<FeatureId> services
         ) {
             super(new Object(), descriptor, config, localization, resources, logger,
-                    runtime.capabilities(), runtime.internalServices(), services);
+                    runtime.capabilities(), runtime.internalServices(), services,
+                    new nl.hauntedmc.featureframework.resource.FeatureResourceOwner());
         }
     }
 

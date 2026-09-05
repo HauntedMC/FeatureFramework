@@ -12,6 +12,6 @@ public final class QueueFeature extends VelocityFeature<Object> {
     private ServerDirectoryApi directory;
 
     public QueueFeature(VelocityFeatureContext<Object> context) { super(context); }
-    @Override public void initialize() { directory = requireCapability(ServerDirectoryApi.class); }
+    @Override public void initialize() { directory = services().require(ServerDirectoryApi.class); }
     @Override public void disable() { directory = null; }
 }

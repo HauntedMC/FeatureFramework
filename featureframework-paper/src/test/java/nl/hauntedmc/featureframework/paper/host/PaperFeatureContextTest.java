@@ -9,6 +9,7 @@ import nl.hauntedmc.featureframework.paper.lifecycle.PaperFeatureResources;
 import nl.hauntedmc.featureframework.paper.localization.PaperLocalization;
 import nl.hauntedmc.featureframework.paper.log.FeatureLogger;
 import nl.hauntedmc.featureframework.resource.FeatureResourceExtensions;
+import nl.hauntedmc.featureframework.resource.FeatureResourceOwner;
 import nl.hauntedmc.featureframework.resource.ResourceKey;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
@@ -36,7 +37,8 @@ class PaperFeatureContextTest {
         InternalServiceRegistry<FeatureId> internalServices = mock();
         FeatureServiceManager<FeatureId> services = mock();
         ConfigService files = mock();
-        when(resources.capabilities()).thenReturn(services);
+        when(resources.serviceManager()).thenReturn(services);
+        when(resources.ownership()).thenReturn(new FeatureResourceOwner());
         when(resources.extensions()).thenReturn(new FeatureResourceExtensions());
 
         PaperFeatureContext<Plugin> context = new PaperFeatureContext<>(
@@ -46,14 +48,15 @@ class PaperFeatureContextTest {
         assertSame(plugin, context.plugin());
         assertSame(resources, context.resources());
         assertSame(localization, context.localization());
-        assertSame(services, context.services());
+        assertSame(services, context.serviceManager());
         assertSame(files, context.files());
     }
 
     @Test
     void rejectsAFeatureWhoseRequiredResourceExtensionIsUnavailable() {
         PaperFeatureResources resources = mock();
-        when(resources.capabilities()).thenReturn(mock());
+        when(resources.serviceManager()).thenReturn(mock());
+        when(resources.ownership()).thenReturn(new FeatureResourceOwner());
         when(resources.extensions()).thenReturn(new FeatureResourceExtensions());
 
         assertThrows(IllegalStateException.class, () -> context(resources, definition(Set.of(TestExtension.class))));
@@ -64,7 +67,8 @@ class PaperFeatureContextTest {
         FeatureResourceExtensions extensions = new FeatureResourceExtensions();
         extensions.register(ResourceKey.of(TestExtension.class), new TestExtension());
         PaperFeatureResources resources = mock();
-        when(resources.capabilities()).thenReturn(mock());
+        when(resources.serviceManager()).thenReturn(mock());
+        when(resources.ownership()).thenReturn(new FeatureResourceOwner());
         when(resources.extensions()).thenReturn(extensions);
 
         PaperFeatureContext<Plugin> context = context(resources, definition(Set.of(TestExtension.class)));
@@ -83,7 +87,9 @@ class PaperFeatureContextTest {
     private static ResolvedFeatureDefinition<Feature, Object> definition(Set<Class<?>> requiredExtensions) {
         return new ResolvedFeatureDefinition<>(
                 "test", "Test", "1.0.0", Feature.class, ignored -> mock(Feature.class),
-                Set.of(), Set.of(), Set.of(), requiredExtensions, Set.of());
+                Set.of(), Set.of(), Set.of(), requiredExtensions, Set.of(),
+                nl.hauntedmc.featureframework.api.feature.FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
     }
 
     private static final class TestExtension {

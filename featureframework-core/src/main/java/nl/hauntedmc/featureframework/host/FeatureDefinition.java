@@ -132,7 +132,13 @@ public final class FeatureDefinition<F extends Feature, C>
                 pluginDependencies,
                 requiredResourceExtensions,
                 optionalResourceExtensions,
-                placement
+                placement,
+                requiredCapabilities,
+                optionalCapabilities,
+                providedCapabilities,
+                requiredInternalServices,
+                optionalInternalServices,
+                providedInternalServices
         );
     }
 

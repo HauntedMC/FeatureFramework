@@ -83,7 +83,7 @@ public final class ContractBoardFeature extends PaperFeature<NetworkPlugin> {
         service = new ContractBoardService(
                 this, repository, cache, Duration.ofSeconds(ttlSeconds), maxReward, snapshotSize);
 
-        resources().capabilities().registerService(ContractBoardApi.class, service);
+        services().publish(ContractBoardApi.class, service);
         resources().commands().registerBrigadierCommand(new ContractCommand(this, service));
         resources().listeners().registerListener(new ContractJoinListener(this, service));
 

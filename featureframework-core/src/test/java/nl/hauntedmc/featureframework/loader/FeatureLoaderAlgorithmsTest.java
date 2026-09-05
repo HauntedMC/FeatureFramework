@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.loader;
 
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 import nl.hauntedmc.featureframework.feature.Feature;
 import nl.hauntedmc.featureframework.toolkit.io.config.ConfigMap;
 import nl.hauntedmc.featureframework.toolkit.io.localization.MessageMap;
@@ -117,7 +118,9 @@ class FeatureLoaderAlgorithmsTest {
         Map<String, ResolvedFeatureDefinition<TestFeature, Object>> descriptors = Map.of(
                 "A", descriptor("A", Set.of("B", "Absent"), Set.of()),
                 "B", new ResolvedFeatureDefinition<>("B", "B", "1", TestFeature.class,
-                        ignored -> new TestFeature(), Set.of("C"), Set.of(), Set.of("Vault")),
+                        ignored -> new TestFeature(), Set.of("C"), Set.of(), Set.of("Vault"),
+                        Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                        Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of()),
                 "C", descriptor("C")
         );
 
@@ -154,7 +157,8 @@ class FeatureLoaderAlgorithmsTest {
 
     private static ResolvedFeatureDefinition<TestFeature, Object> descriptor(String name, String displayName) {
         return new ResolvedFeatureDefinition<>(name, displayName, "1", TestFeature.class, ignored -> new TestFeature(),
-                Set.of(), Set.of(), Set.of());
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
     }
 
     private static ResolvedFeatureDefinition<TestFeature, Object> descriptor(
@@ -163,7 +167,8 @@ class FeatureLoaderAlgorithmsTest {
             Set<String> optional
     ) {
         return new ResolvedFeatureDefinition<>(name, name, "1", TestFeature.class, ignored -> new TestFeature(),
-                required, optional, Set.of());
+                required, optional, Set.of(), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of());
     }
 
     private static void assertBefore(List<String> order, String dependency, String dependent) {

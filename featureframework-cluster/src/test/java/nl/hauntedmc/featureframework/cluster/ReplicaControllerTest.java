@@ -185,7 +185,7 @@ class ReplicaControllerTest {
                 .build()) {
             controller.prepareBeforeHost();
             controller.attach(host);
-            leases.loseOnRenew = true;
+            leases.authorityUnavailable = true;
             controller.afterHostStarted();
 
             await(() -> controller.status().state() == ReplicaStatus.State.UNAVAILABLE);
@@ -220,12 +220,12 @@ class ReplicaControllerTest {
             controller.afterHostStarted();
             assertEquals(1, service.starts.get());
 
-            leases.loseOnRenew = true;
+            leases.authorityUnavailable = true;
             await(() -> controller.status().state() == ReplicaStatus.State.UNAVAILABLE);
             assertEquals(1, service.stops.get(), "authority loss stops the service");
 
             registration.close();
-            leases.loseOnRenew = false;
+            leases.authorityUnavailable = false;
             await(() -> leases.acquireCalls.get() > 1);
             Thread.sleep(30L);
             assertEquals(1, service.starts.get(), "closed registrations never restart");
@@ -401,7 +401,7 @@ class ReplicaControllerTest {
         private final AtomicInteger acquireCalls = new AtomicInteger();
         private long nextToken = 1;
         private ReplicaAuthority current;
-        private volatile boolean loseOnRenew;
+        private volatile boolean authorityUnavailable;
 
         @Override
         public synchronized CompletionStage<Optional<ReplicaAuthority>> acquire(
@@ -410,7 +410,7 @@ class ReplicaControllerTest {
                 Duration ttl
         ) {
             acquireCalls.incrementAndGet();
-            if (current != null) return CompletableFuture.completedFuture(Optional.empty());
+            if (authorityUnavailable || current != null) return CompletableFuture.completedFuture(Optional.empty());
             current = new ReplicaAuthority(group.authorityResource(), owner, nextToken++, Instant.now().plus(ttl));
             return CompletableFuture.completedFuture(Optional.of(current));
         }
@@ -420,7 +420,7 @@ class ReplicaControllerTest {
                 ReplicaAuthority authority,
                 Duration ttl
         ) {
-            if (loseOnRenew || current == null || current.fencingToken() != authority.fencingToken()
+            if (authorityUnavailable || current == null || current.fencingToken() != authority.fencingToken()
                     || !current.owner().equals(authority.owner())) {
                 current = null;
                 return CompletableFuture.completedFuture(Optional.empty());

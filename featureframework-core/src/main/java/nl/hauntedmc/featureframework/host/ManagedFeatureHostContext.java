@@ -12,7 +12,7 @@ import java.util.Objects;
  */
 public interface ManagedFeatureHostContext extends FeatureHostContext {
     FeatureLocalization localization();
-    FeatureServiceManager<FeatureId> services();
+    FeatureServiceManager<FeatureId> serviceManager();
 
     @Override
     default void prepare(Feature feature) {
@@ -25,12 +25,12 @@ public interface ManagedFeatureHostContext extends FeatureHostContext {
 
     @Override
     default void activateServices() {
-        services().activateServices();
+        serviceManager().activateServices();
     }
 
     @Override
     default void deactivateServices() {
-        services().deactivateServices();
+        serviceManager().deactivateServices();
     }
 
     @Override

@@ -62,7 +62,8 @@ public final class PaperFeatureResources implements FeatureLifecycleResources {
     public FeatureCommandManager commands() { return commandManager; }
     public FeatureListenerManager listeners() { return listenerManager; }
     public FeatureCacheManager caches() { return cacheManager; }
-    public FeatureServiceManager<FeatureId> capabilities() { return apiManager; }
+    /** Host lifecycle manager; feature implementations publish through {@code services()} instead. */
+    public FeatureServiceManager<FeatureId> serviceManager() { return apiManager; }
     public FeatureResourceOwner ownership() { return ownership; }
     public FeatureResourceExtensions extensions() { return extensions; }
     public synchronized FeatureResourceState state() { return lifecycle.state(); }

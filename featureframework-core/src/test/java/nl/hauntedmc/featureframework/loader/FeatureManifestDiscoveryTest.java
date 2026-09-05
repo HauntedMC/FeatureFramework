@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class FeatureManifestDiscoveryTest {
@@ -52,6 +53,18 @@ class FeatureManifestDiscoveryTest {
                 () -> FeatureManifestDiscovery.discover(List.of(first, second), Set.of(), "demo"));
     }
 
+    @Test
+    void rejectsARequiredProviderInALaterStartupPhase() {
+        Definition consumer = definition("consumer", FeatureStartupPhase.SECURITY, Set.of(Service.class), Set.of());
+        Definition provider = definition("provider", FeatureStartupPhase.CORE, Set.of(), Set.of(Service.class));
+
+        IllegalStateException failure = assertThrows(IllegalStateException.class,
+                () -> FeatureManifestDiscovery.discover(List.of(consumer, provider), Set.of(), "demo"));
+
+        assertTrue(failure.getMessage().contains("starts later"));
+        assertTrue(failure.getMessage().contains("provider"));
+    }
+
     private static Definition definition(
             String name, FeatureStartupPhase phase, Set<Class<?>> required, Set<Class<?>> provided) {
         return new Definition(name, phase, required, provided);
@@ -66,7 +79,9 @@ class FeatureManifestDiscoveryTest {
         @Override
         public ResolvedFeatureDefinition<TestFeature, Object> descriptor(Set<String> dependencies) {
             return new ResolvedFeatureDefinition<>(featureName, featureName, "1", TestFeature.class,
-                    ignored -> new TestFeature(), dependencies, Set.of());
+                    ignored -> new TestFeature(), dependencies, Set.of(), Set.of(), Set.of(), Set.of(),
+                    nl.hauntedmc.featureframework.api.feature.FeaturePlacement.ALL_NODES,
+                    requiredCapabilities, Set.of(), providedCapabilities, Set.of(), Set.of(), Set.of());
         }
 
         @Override public Set<Class<?>> optionalCapabilities() { return Set.of(); }

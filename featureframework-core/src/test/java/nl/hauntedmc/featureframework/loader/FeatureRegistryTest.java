@@ -1,5 +1,6 @@
 package nl.hauntedmc.featureframework.loader;
 
+import nl.hauntedmc.featureframework.api.feature.FeaturePlacement;
 import nl.hauntedmc.featureframework.feature.Feature;
 import org.junit.jupiter.api.Test;
 
@@ -44,7 +45,9 @@ class FeatureRegistryTest {
 
     private static ResolvedFeatureDefinition<Feature, String> descriptor(String name, Feature feature) {
         return new ResolvedFeatureDefinition<>(
-                name, name, "1", Feature.class, ignored -> feature, Set.of(), Set.of()
+                name, name, "1", Feature.class, ignored -> feature,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), FeaturePlacement.ALL_NODES,
+                Set.of(), Set.of(), Set.of(), Set.of(), Set.of(), Set.of()
         );
     }
 }

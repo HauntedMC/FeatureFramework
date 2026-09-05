@@ -137,11 +137,11 @@ class FeatureCatalogProcessorTest {
                 class Bootstrap { }
                 """,
                 """
-                @FeatureDeclaration(name = "Provider", version = "1.2.3", startupPhase = FeatureStartupPhase.DEFERRED, scope = FeatureScope.NETWORK, enabledByDefault = true, roles = FeatureRole.CAPABILITY_PROVIDER,
+                @FeatureDeclaration(name = "Provider", version = "1.2.3", startupPhase = FeatureStartupPhase.SECURITY, scope = FeatureScope.NETWORK, enabledByDefault = true, roles = FeatureRole.CAPABILITY_PROVIDER,
                         requiresPlugins = "bridge", providesCapabilities = ProvidedCapability.class,
                         providesInternalServices = ProvidedService.class)
                 final class Provider extends Base { public Provider(Context context) { super(context); } }
-                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "2.0.0", startupPhase = FeatureStartupPhase.SECURITY,
+                @FeatureDeclaration(scope = FeatureScope.NODE, name = "Consumer", version = "2.0.0", startupPhase = FeatureStartupPhase.DEFERRED,
                         roles = {FeatureRole.CAPABILITY_CONSUMER, FeatureRole.OPERATOR_FACING}, requiresFeatures = "Provider",
                         requiresCapabilities = BootstrapCapability.class, optionallyUsesCapabilities = OptionalCapability.class,
                         requiresInternalServices = ProvidedService.class, optionallyUsesInternalServices = OptionalService.class)
@@ -163,13 +163,13 @@ class FeatureCatalogProcessorTest {
                     .getMethod("definitions")
                     .invoke(null);
 
-            assertEquals(List.of("Consumer", "Provider"), definitions.stream()
+            assertEquals(List.of("Provider", "Consumer"), definitions.stream()
                     .map(FeatureDefinition::featureName)
                     .toList());
-            FeatureDefinition<?, ?> consumer = definitions.getFirst();
-            FeatureDefinition<?, ?> provider = definitions.getLast();
-            assertEquals(FeatureStartupPhase.SECURITY, consumer.startupPhase());
-            assertEquals(FeatureStartupPhase.DEFERRED, provider.startupPhase());
+            FeatureDefinition<?, ?> provider = definitions.getFirst();
+            FeatureDefinition<?, ?> consumer = definitions.getLast();
+            assertEquals(FeatureStartupPhase.DEFERRED, consumer.startupPhase());
+            assertEquals(FeatureStartupPhase.SECURITY, provider.startupPhase());
             assertEquals(FeatureScope.NODE, consumer.scope());
             assertEquals(FeatureScope.NETWORK, provider.scope());
             assertEquals(Set.of(FeatureRole.CAPABILITY_CONSUMER, FeatureRole.OPERATOR_FACING), consumer.roles());

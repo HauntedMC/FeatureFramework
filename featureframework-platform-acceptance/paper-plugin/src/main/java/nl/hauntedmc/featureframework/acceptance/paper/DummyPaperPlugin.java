@@ -118,7 +118,7 @@ public final class DummyPaperPlugin extends JavaPlugin {
                 "Provider listener was not tracked");
         require(resources.commands().getRegisteredBrigadierCommandCount() == 1,
                 "Provider command was not tracked");
-        require(resources.capabilities().getRegisteredServiceCount() == 1,
+        require(resources.serviceManager().getRegisteredServiceCount() == 1,
                 "Provider service was not tracked");
     }
 
@@ -139,9 +139,9 @@ public final class DummyPaperPlugin extends JavaPlugin {
                 "Command manager remained open after " + phase);
         require(resources.commands().getRegisteredBrigadierCommandCount() == 0,
                 "Commands remained registered after " + phase);
-        require(resources.capabilities().state() == FeatureResourceState.CLOSED,
+        require(resources.serviceManager().state() == FeatureResourceState.CLOSED,
                 "Service manager remained open after " + phase);
-        require(resources.capabilities().getRegisteredServiceCount() == 0,
+        require(resources.serviceManager().getRegisteredServiceCount() == 0,
                 "Services remained registered after " + phase);
     }
 
@@ -202,7 +202,7 @@ public final class DummyPaperPlugin extends JavaPlugin {
                     () -> { }, BukkitTime.ticks(200L), BukkitTime.ticks(200L));
             currentResources.listeners().registerListener(new AcceptanceListener());
             currentResources.commands().registerBrigadierCommand(new AcceptanceCommand());
-            context().services().registerService(GreetingApi.class, () -> "paper-" + generation);
+            services().publish(GreetingApi.class, () -> "paper-" + generation);
         }
 
         @Override public void disable() { requirePrimaryThread("Provider disable"); }
@@ -217,7 +217,7 @@ public final class DummyPaperPlugin extends JavaPlugin {
         @Override
         public void initialize() {
             requirePrimaryThread("Consumer initialize");
-            lastGreeting = requireCapability(GreetingApi.class).greeting();
+            lastGreeting = services().require(GreetingApi.class).greeting();
             starts.incrementAndGet();
         }
 

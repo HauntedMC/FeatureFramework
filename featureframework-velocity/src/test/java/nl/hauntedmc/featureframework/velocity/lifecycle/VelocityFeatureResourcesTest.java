@@ -33,7 +33,7 @@ class VelocityFeatureResourcesTest {
         assertSame(commands, resources.commands());
         assertSame(listeners, resources.listeners());
         assertSame(caches, resources.caches());
-        assertSame(services, resources.capabilities());
+        assertSame(services, resources.serviceManager());
         assertSame(ownership, resources.ownership());
         assertSame(extensions, resources.extensions());
     }

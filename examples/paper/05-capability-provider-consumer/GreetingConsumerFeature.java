@@ -19,7 +19,7 @@ public final class GreetingConsumerFeature extends PaperFeature<Plugin> {
 
     @Override
     public void initialize() {
-        greetings = requireCapability(GreetingApi.class);
+        greetings = services().require(GreetingApi.class);
         logger().info("Greeting API resolved");
     }
 

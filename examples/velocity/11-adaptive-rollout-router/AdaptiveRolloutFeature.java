@@ -93,7 +93,7 @@ public final class AdaptiveRolloutFeature extends VelocityFeature<RolloutProxyPl
                 health::ingest
         );
 
-        resources().capabilities().registerService(RolloutRoutingApi.class, policy);
+        services().publish(RolloutRoutingApi.class, policy);
         resources().listeners().registerListener(new RolloutListener(this, policy));
         resources().commands().registerBrigadierCommand(new RolloutCommand(this, policy));
         resources().tasks().scheduleRepeatingTask(

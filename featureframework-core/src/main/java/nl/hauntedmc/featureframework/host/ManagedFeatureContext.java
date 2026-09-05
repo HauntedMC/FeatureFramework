@@ -7,7 +7,9 @@ import nl.hauntedmc.featureframework.lifecycle.FeatureLifecycleResources;
 import nl.hauntedmc.featureframework.loader.ResolvedFeatureDefinition;
 import nl.hauntedmc.featureframework.localization.FeatureLocalization;
 import nl.hauntedmc.featureframework.service.FeatureServiceManager;
+import nl.hauntedmc.featureframework.service.FeatureServices;
 import nl.hauntedmc.featureframework.service.InternalServiceRegistry;
+import nl.hauntedmc.featureframework.resource.FeatureResourceOwner;
 import nl.hauntedmc.featureframework.toolkit.log.FrameworkLogger;
 
 import java.util.List;
@@ -32,9 +34,8 @@ public class ManagedFeatureContext<
     private final I localization;
     private final R resources;
     private final L logger;
-    private final CapabilityRegistry capabilities;
-    private final InternalServiceRegistry<FeatureId> internalServices;
-    private final FeatureServiceManager<FeatureId> services;
+    private final FeatureServiceManager<FeatureId> serviceManager;
+    private final FeatureServices featureServices;
 
     public ManagedFeatureContext(
             P plugin,
@@ -45,7 +46,8 @@ public class ManagedFeatureContext<
             L logger,
             CapabilityRegistry capabilities,
             InternalServiceRegistry<FeatureId> internalServices,
-            FeatureServiceManager<FeatureId> services
+            FeatureServiceManager<FeatureId> services,
+            FeatureResourceOwner ownership
     ) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
@@ -53,9 +55,11 @@ public class ManagedFeatureContext<
         this.localization = Objects.requireNonNull(localization, "localization");
         this.resources = Objects.requireNonNull(resources, "resources");
         this.logger = Objects.requireNonNull(logger, "logger");
-        this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
-        this.internalServices = Objects.requireNonNull(internalServices, "internalServices");
-        this.services = Objects.requireNonNull(services, "services");
+        this.serviceManager = Objects.requireNonNull(services, "services");
+        this.featureServices = new FeatureServices(
+                descriptor, Objects.requireNonNull(capabilities, "capabilities"),
+                Objects.requireNonNull(internalServices, "internalServices"), services,
+                Objects.requireNonNull(ownership, "ownership"));
     }
 
     public P plugin() { return plugin; }
@@ -71,8 +75,7 @@ public class ManagedFeatureContext<
     @Override public R lifecycle() { return resources; }
     public R resources() { return resources; }
     public L logger() { return logger; }
-    @Override public CapabilityRegistry capabilities() { return capabilities; }
-    @Override public InternalServiceRegistry<FeatureId> internalServices() { return internalServices; }
-    @Override public FeatureServiceManager<FeatureId> services() { return services; }
+    @Override public FeatureServiceManager<FeatureId> serviceManager() { return serviceManager; }
+    @Override public FeatureServices featureServices() { return featureServices; }
 
 }

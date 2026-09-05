@@ -19,7 +19,7 @@ public final class ServerDirectoryFeature extends VelocityFeature<Object> {
         ServerDirectoryApi directory = () -> context().proxy().getAllServers().stream()
                 .map(server -> server.getServerInfo().getName())
                 .collect(Collectors.toUnmodifiableSet());
-        context().services().registerService(ServerDirectoryApi.class, directory);
+        services().publish(ServerDirectoryApi.class, directory);
     }
 
     @Override public void disable() { }
