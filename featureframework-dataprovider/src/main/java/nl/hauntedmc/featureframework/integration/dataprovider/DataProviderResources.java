@@ -136,7 +136,7 @@ public class DataProviderResources implements AutoCloseable {
         try {
             scope = api.get().scope("feature." + featureName);
             initialized = true;
-            logger.info("DataProvider scope initialized for feature '" + featureName + "'");
+            logger.debug("DataProvider scope initialized for feature '" + featureName + "'");
             return true;
         } catch (RuntimeException failure) {
             logger.error("Could not create DataProvider scope for feature '" + featureName + "'", failure);
@@ -166,7 +166,7 @@ public class DataProviderResources implements AutoCloseable {
             Connection replacement = new Connection(type, connectionName, provider);
             Connection previous = connections.put(identifier, replacement);
             if (previous != null && previous != replacement) release(previous, identifier);
-            logger.info("Registered connection '" + identifier + "' (" + type + ") for feature '" + featureName + "'");
+            logger.debug("Registered connection '" + identifier + "' (" + type + ") for feature '" + featureName + "'");
             return Optional.of(provider);
         } catch (Exception failure) {
             logger.error("Failed to register connection '" + identifier + "' for feature '" + featureName + "'", failure);
@@ -362,6 +362,12 @@ public class DataProviderResources implements AutoCloseable {
     private record Connection(DatabaseType type, String connectionName, DatabaseProvider provider) { }
 
     private record FrameworkLoggerAdapter(FrameworkLogger logger) implements LoggerAdapter {
+        // Kept as an ordinary public method until DataProvider's binary-compatible debug hook is consumed.
+        // Once present on the runtime interface, normal invokeinterface dispatch resolves this method.
+        public void debug(String message) {
+            logger.debug(message);
+        }
+
         @Override public void log(LogLevel level, String message, Throwable failure) {
             switch (Objects.requireNonNull(level, "level")) {
                 case INFO -> logger.info(message);

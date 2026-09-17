@@ -80,11 +80,25 @@ public class ComponentLocalization implements FeatureLocalization {
 
     @Override
     public void reloadLocalization() {
+        reloadLocalization(true);
+    }
+
+    @Override
+    public void reloadLocalizationQuietly() {
+        reloadLocalization(false);
+    }
+
+    private void reloadLocalization(boolean announce) {
         staticPlayerMessages.clear();
         store.reload();
-        logger.info(store.isFramework()
+        String message = store.isFramework()
                 ? "Framework localization files reloaded."
-                : "Localization files reloaded for feature '" + store.featureName() + "'.");
+                : "Localization files reloaded for feature '" + store.featureName() + "'.";
+        if (announce) {
+            logger.info(message);
+        } else {
+            logger.debug(message);
+        }
     }
 
     @Override
