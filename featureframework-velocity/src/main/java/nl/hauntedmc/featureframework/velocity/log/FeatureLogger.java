@@ -34,7 +34,7 @@ public class FeatureLogger implements FrameworkLogger {
     public void error(String template, Object argument, Throwable failure) {
         error(replaceFirstPlaceholder(template, argument), failure);
     }
-    public void debug(String message) { debug(Component.text(message)); }
+    @Override public void debug(String message) { debug(Component.text(message)); }
     public void trace(String message) { trace(Component.text(message)); }
 
     private static String replaceFirstPlaceholder(String template, Object argument) {
