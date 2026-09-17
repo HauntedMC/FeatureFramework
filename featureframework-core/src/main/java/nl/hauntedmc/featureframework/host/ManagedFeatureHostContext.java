@@ -15,12 +15,17 @@ public interface ManagedFeatureHostContext extends FeatureHostContext {
     FeatureServiceManager<FeatureId> serviceManager();
 
     @Override
-    default void prepare(Feature feature) {
+    default void prepareStorage(Feature feature) {
         Objects.requireNonNull(feature, "feature");
         configHandler().injectDefaults(feature.defaultConfig());
         localization().registerDefaultMessages(feature.defaultMessages());
+    }
+
+    @Override
+    default void prepare(Feature feature) {
+        prepareStorage(feature);
         configHandler().reloadConfig();
-        localization().reloadLocalization();
+        localization().reloadLocalizationQuietly();
     }
 
     @Override
