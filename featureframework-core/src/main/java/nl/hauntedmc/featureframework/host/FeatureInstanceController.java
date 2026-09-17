@@ -123,7 +123,7 @@ final class FeatureInstanceController<F extends LifecycleFeature<C>, C extends F
             context = contextFactory.apply(descriptor);
             F feature = descriptor.create(context);
             captureDefaults(key, feature);
-            context.prepare(feature);
+            context.prepareStorage(feature);
             preparationFailures.remove(key);
             inventory.clearStorageFailure(key);
             if (!registry.isFeatureLoaded(key)) runtime.mutableFeatureCatalog().transition(featureId, FeatureState.DISABLED);
