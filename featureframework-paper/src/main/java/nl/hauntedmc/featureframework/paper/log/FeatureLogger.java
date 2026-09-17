@@ -16,6 +16,7 @@ public class FeatureLogger implements FrameworkLogger {
         this.prefix = "[" + Objects.requireNonNull(featureName, "featureName") + "] ";
     }
 
+    @Override public void debug(String message) { delegate.fine(prefix + message); }
     @Override public void info(String message) { delegate.info(prefix + message); }
     public void warning(String message) { delegate.warning(prefix + message); }
     public void severe(String message) { delegate.severe(prefix + message); }
