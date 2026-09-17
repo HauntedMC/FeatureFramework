@@ -6,6 +6,14 @@ import java.util.logging.Level;
 /** Minimal logging boundary that keeps shared framework code independent of a platform logger. */
 public interface FrameworkLogger {
 
+    /**
+     * Emits low-priority lifecycle diagnostics when the platform exposes a debug log level.
+     *
+     * <p>The default is intentionally a no-op so adding DEBUG remains binary-compatible for custom logger
+     * implementations compiled against older FeatureFramework versions.</p>
+     */
+    default void debug(String message) { }
+
     void info(String message);
 
     void warn(String message, Throwable failure);
@@ -19,6 +27,7 @@ public interface FrameworkLogger {
     static FrameworkLogger from(java.util.logging.Logger logger) {
         Objects.requireNonNull(logger, "logger");
         return new FrameworkLogger() {
+            @Override public void debug(String message) { logger.fine(message); }
             @Override public void info(String message) { logger.info(message); }
             @Override public void warn(String message, Throwable failure) { logger.log(Level.WARNING, message, failure); }
             @Override public void error(String message, Throwable failure) { logger.log(Level.SEVERE, message, failure); }
@@ -28,6 +37,7 @@ public interface FrameworkLogger {
     static FrameworkLogger from(org.slf4j.Logger logger) {
         Objects.requireNonNull(logger, "logger");
         return new FrameworkLogger() {
+            @Override public void debug(String message) { logger.debug(message); }
             @Override public void info(String message) { logger.info(message); }
             @Override public void warn(String message, Throwable failure) { logger.warn(message, failure); }
             @Override public void error(String message, Throwable failure) { logger.error(message, failure); }
