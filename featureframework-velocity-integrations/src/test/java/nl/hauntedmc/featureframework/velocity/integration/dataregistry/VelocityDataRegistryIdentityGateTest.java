@@ -96,8 +96,12 @@ class VelocityDataRegistryIdentityGateTest {
         NetworkSession replacementSession = mock(NetworkSession.class);
         when(replacementSession.matches(fixture.sessionFence)).thenReturn(false);
         when(replacementSession.fence()).thenReturn(replacementFence);
-        when(fixture.sessions.cached(fixture.playerId))
-                .thenReturn(Optional.of(fixture.session), Optional.of(replacementSession));
+        AtomicInteger sessionReads = new AtomicInteger();
+        when(fixture.sessions.cached(fixture.playerId)).thenAnswer(ignored ->
+                sessionReads.getAndIncrement() == 0
+                        ? Optional.of(fixture.session)
+                        : Optional.of(replacementSession)
+        );
         AtomicInteger executions = new AtomicInteger();
 
         VelocityDataRegistryIdentityGate.runWhenReady(
