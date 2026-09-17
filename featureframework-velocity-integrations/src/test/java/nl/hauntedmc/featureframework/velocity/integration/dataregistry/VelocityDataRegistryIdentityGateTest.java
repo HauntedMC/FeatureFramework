@@ -84,6 +84,26 @@ class VelocityDataRegistryIdentityGateTest {
     }
 
     @Test
+    void dropsReplacementConnectionWhenSessionWasNotPublishedYet() {
+        Fixture fixture = fixtureWithoutSession();
+        Player replacement = mock(Player.class);
+        when(replacement.getUniqueId()).thenReturn(fixture.playerId);
+        AtomicInteger executions = new AtomicInteger();
+
+        VelocityDataRegistryIdentityGate.runWhenReady(
+                fixture.context,
+                fixture.originatingPlayer,
+                ignored -> executions.incrementAndGet(),
+                "test operation"
+        );
+        fixture.completeReadiness();
+        fixture.currentPlayer.set(replacement);
+        fixture.runScheduled();
+
+        assertEquals(0, executions.get());
+    }
+
+    @Test
     void dropsCallbackWhenDataRegistrySessionFenceChanges() {
         Fixture fixture = fixtureWithSession();
         SessionFence replacementFence = new SessionFence(
