@@ -362,6 +362,12 @@ public class DataProviderResources implements AutoCloseable {
     private record Connection(DatabaseType type, String connectionName, DatabaseProvider provider) { }
 
     private record FrameworkLoggerAdapter(FrameworkLogger logger) implements LoggerAdapter {
+        // Kept as an ordinary public method until DataProvider's binary-compatible debug hook is consumed.
+        // Once present on the runtime interface, normal invokeinterface dispatch resolves this method.
+        public void debug(String message) {
+            logger.debug(message);
+        }
+
         @Override public void log(LogLevel level, String message, Throwable failure) {
             switch (Objects.requireNonNull(level, "level")) {
                 case INFO -> logger.info(message);
