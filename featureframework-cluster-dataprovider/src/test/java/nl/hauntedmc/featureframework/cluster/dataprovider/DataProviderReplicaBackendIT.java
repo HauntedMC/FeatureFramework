@@ -13,7 +13,7 @@ import nl.hauntedmc.featureframework.cluster.ReplicaStatus;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.MySQLContainer;
+import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
@@ -39,7 +39,7 @@ class DataProviderReplicaBackendIT {
             new ReplicaGroupIdentity("integration", "proxyfeatures", "proxy", "proxy-01");
 
     @Container
-    private static final MySQLContainer<?> MYSQL = new MySQLContainer<>(DockerImageName.parse("mysql:8.4"))
+    private static final MySQLContainer MYSQL = new MySQLContainer(DockerImageName.parse("mysql:8.4"))
             .withDatabaseName("featureframework")
             .withUsername("featureframework")
             .withPassword("featureframework-secret");

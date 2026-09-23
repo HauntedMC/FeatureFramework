@@ -7,7 +7,7 @@
     <parent>
         <groupId>nl.hauntedmc.platform</groupId>
         <artifactId>haunted-library-parent</artifactId>
-        <version>1.6.7</version>
+        <version>1.6.10</version>
         <relativePath/>
     </parent>
 
@@ -86,31 +86,11 @@
     </modules>
 
     <properties>
+        <!-- Versions of HauntedMC APIs this library builds against; application alignment lives in HauntedPlatform. -->
+        <haunted.dataprovider.version>3.4.3</haunted.dataprovider.version>
+        <haunted.dataregistry.version>1.18.4</haunted.dataregistry.version>
         <revision>2.2.0</revision>
         <project.build.outputTimestamp>2026-09-17T00:00:00Z</project.build.outputTimestamp>
-
-        <paper.version>26.2.build.65-beta</paper.version>
-        <velocity.version>4.1.0-SNAPSHOT</velocity.version>
-        <paper.runtime.version>26.2</paper.runtime.version>
-        <paper.runtime.build>65</paper.runtime.build>
-        <paper.runtime.sha256>d290ee2a3ae92fea10afb0c74f797023d74cfd72cbcee44314e0c50d5551f2c6</paper.runtime.sha256>
-        <velocity.runtime.build>9</velocity.runtime.build>
-        <velocity.runtime.sha256>635ffe27b4fe1b97e61479012121d4e7c61a9eec99e6bd5a1f923053c2a259ce</velocity.runtime.sha256>
-        <adventure.version>${haunted.adventure.version}</adventure.version>
-        <configurate.version>${haunted.configurate.version}</configurate.version>
-        <gson.version>${haunted.gson.version}</gson.version>
-        <slf4j.version>${haunted.slf4j.version}</slf4j.version>
-        <errorprone.annotations.version>${haunted.errorprone.version}</errorprone.annotations.version>
-        <brigadier.version>1.3.10</brigadier.version>
-        <placeholderapi.version>2.12.3</placeholderapi.version>
-        <viaversion.version>5.11.0</viaversion.version>
-        <dataregistry.version>1.18.4</dataregistry.version>
-        <dataprovider.version>3.4.3</dataprovider.version>
-        <jakarta.persistence.version>${haunted.jpa.version}</jakarta.persistence.version>
-
-        <junit.version>${haunted.junit.version}</junit.version>
-        <mockito.version>${haunted.mockito.version}</mockito.version>
-        <bytebuddy.version>1.17.7</bytebuddy.version>
     </properties>
 
     <repositories>
@@ -147,13 +127,13 @@
                     <version>${maven.surefire.version}</version>
                     <configuration>
                         <useModulePath>false</useModulePath>
-                        <argLine>@{argLine} -javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${bytebuddy.version}/byte-buddy-agent-${bytebuddy.version}.jar -Dnet.bytebuddy.experimental=true</argLine>
+                        <argLine>@{argLine} -javaagent:${settings.localRepository}/net/bytebuddy/byte-buddy-agent/${haunted.bytebuddy.version}/byte-buddy-agent-${haunted.bytebuddy.version}.jar -Dnet.bytebuddy.experimental=true</argLine>
                     </configuration>
                     <dependencies>
                         <dependency>
                             <groupId>net.bytebuddy</groupId>
                             <artifactId>byte-buddy-agent</artifactId>
-                            <version>${bytebuddy.version}</version>
+                            <version>${haunted.bytebuddy.version}</version>
                         </dependency>
                     </dependencies>
                 </plugin>
