@@ -33,7 +33,7 @@ trap cleanup EXIT
 
 fail() { echo "FeatureFramework acceptance failure: $*" >&2; exit 1; }
 require() { command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"; }
-property() { sed -n "s|.*<$1>\(.*\)</$1>.*|\1|p" "$root_directory/pom.xml" | head -n 1; }
+property() { (cd "$root_directory" && mvn -q help:evaluate -Dexpression="$1" -DforceStdout); }
 wait_for_log() {
     local file=$1 expected=$2 platform=$3 deadline=$((SECONDS + 180))
     while (( SECONDS < deadline )); do
@@ -69,8 +69,8 @@ run_paper() {
     local plugin="$acceptance_directory/paper-plugin/target/featureframework-acceptance-paper.jar"
     [[ -f "$plugin" ]] || fail "Missing dummy Paper plugin: $plugin"
     mkdir -p "$directory/plugins"
-    download_runtime paper "$(property paper.runtime.version)" "$(property paper.runtime.build)" \
-        "$(property paper.runtime.sha256)" "$directory/paper.jar"
+    download_runtime paper "$(property haunted.paper.runtime.version)" "$(property haunted.paper.runtime.build)" \
+        "$(property haunted.paper.runtime.sha256)" "$directory/paper.jar"
     cp "$plugin" "$directory/plugins/FeatureFrameworkAcceptancePaper.jar"
     printf '%s\n' 'eula=true' >"$directory/eula.txt"
     printf '%s\n' 'online-mode=false' 'spawn-protection=0' >"$directory/server.properties"
@@ -93,8 +93,8 @@ run_velocity() {
     local plugin="$acceptance_directory/velocity-plugin/target/featureframework-acceptance-velocity.jar"
     [[ -f "$plugin" ]] || fail "Missing dummy Velocity plugin: $plugin"
     mkdir -p "$directory/plugins"
-    download_runtime velocity "$(property velocity.version)" "$(property velocity.runtime.build)" \
-        "$(property velocity.runtime.sha256)" "$directory/velocity.jar"
+    download_runtime velocity "$(property haunted.velocity.version)" "$(property haunted.velocity.runtime.build)" \
+        "$(property haunted.velocity.runtime.sha256)" "$directory/velocity.jar"
     cp "$plugin" "$directory/plugins/FeatureFrameworkAcceptanceVelocity.jar"
     mkfifo "$directory/console.in"
     (cd "$directory" && exec java -Xms256M -Xmx768M -jar velocity.jar \

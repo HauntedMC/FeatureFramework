@@ -16,17 +16,15 @@ import java.util.function.Function;
  * This avoids class retransformation for common interface/class mocks under coverage agents
  * while keeping support for tests that rely on static mocking.
  *
- * Mockito's {@link MockMaker} SPI still exposes raw handler/settings parameters, so implementations
- * must mirror those raw signatures to override the interface methods.
+ * Mockito's {@link MockMaker} SPI uses typed handlers for mock creation.
  */
-@SuppressWarnings("rawtypes")
 public final class CoverageFriendlyMockMaker implements MockMaker {
 
     private final MockMaker subclass = new ByteBuddyMockMaker();
     private final MockMaker inline = new InlineByteBuddyMockMaker();
 
     @Override
-    public <T> T createMock(MockCreationSettings<T> settings, MockHandler handler) {
+    public <T> T createMock(MockCreationSettings<T> settings, MockHandler<T> handler) {
         Class<T> type = settings.getTypeToMock();
         if (isSubclassMockable(type)) {
             return subclass.createMock(settings, handler);
@@ -35,7 +33,7 @@ public final class CoverageFriendlyMockMaker implements MockMaker {
     }
 
     @Override
-    public <T> Optional<T> createSpy(MockCreationSettings<T> settings, MockHandler handler, T instance) {
+    public <T> Optional<T> createSpy(MockCreationSettings<T> settings, MockHandler<T> handler, T instance) {
         Class<T> type = settings.getTypeToMock();
         if (isSubclassMockable(type)) {
             return subclass.createSpy(settings, handler, instance);
@@ -44,14 +42,14 @@ public final class CoverageFriendlyMockMaker implements MockMaker {
     }
 
     @Override
-    public MockHandler getHandler(Object mock) {
-        MockHandler handler = subclass.getHandler(mock);
+    public MockHandler<?> getHandler(Object mock) {
+        MockHandler<?> handler = subclass.getHandler(mock);
         return handler != null ? handler : inline.getHandler(mock);
     }
 
     @Override
-    public void resetMock(Object mock, MockHandler newHandler, MockCreationSettings settings) {
-        MockHandler existing = subclass.getHandler(mock);
+    public void resetMock(Object mock, MockHandler<?> newHandler, MockCreationSettings<?> settings) {
+        MockHandler<?> existing = subclass.getHandler(mock);
         if (existing != null) {
             subclass.resetMock(mock, newHandler, settings);
             return;
@@ -72,7 +70,7 @@ public final class CoverageFriendlyMockMaker implements MockMaker {
     public <T> StaticMockControl<T> createStaticMock(
             Class<T> type,
             MockCreationSettings<T> settings,
-            MockHandler handler
+            MockHandler<T> handler
     ) {
         return inline.createStaticMock(type, settings, handler);
     }
