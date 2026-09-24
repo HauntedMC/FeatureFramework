@@ -4,7 +4,6 @@ set -euo pipefail
 readonly POM_FILE="pom.xml"
 readonly VERSION_PROPERTY="revision"
 readonly TIMESTAMP_PROPERTY="project.build.outputTimestamp"
-readonly VERSIONS_PLUGIN="org.codehaus.mojo:versions-maven-plugin:2.18.0"
 readonly MODULES=(
   featureframework-testkit
   featureframework-mockito-testkit
@@ -32,8 +31,8 @@ usage() {
   cat >&2 <<'USAGE'
 Usage: ./update_version.sh <major|minor|patch>
 
-Bumps FeatureFramework's reactor revision and reproducible-build timestamp, verifies the
-complete platform-acceptance gate, then creates a local release commit and annotated tag.
+Bumps FeatureFramework's reactor revision and reproducible-build timestamp, checks module
+versions, then leaves the changed files for review in a pull request.
 USAGE
 }
 
@@ -119,7 +118,7 @@ git rev-parse -q --verify "refs/tags/${new_tag}" >/dev/null 2>&1 && die "Tag ${n
 
 echo "Current version: ${current_version}"
 echo "Bumping to: ${new_version}"
-./mvnw -B -ntp "${VERSIONS_PLUGIN}:set-property" \
+./mvnw -B -ntp versions:set-property \
   -Dproperty="${VERSION_PROPERTY}" -DnewVersion="${new_version}" -DgenerateBackupPoms=false
 update_build_timestamp "$(date -u +%Y-%m-%dT00:00:00Z)"
 
@@ -130,13 +129,5 @@ for module in "${MODULES[@]}"; do
   [[ "$resolved" == "$new_version" ]] || die "Resolved ${module} version '${resolved}', expected '${new_version}'."
 done
 
-echo "==> Verifying FeatureFramework"
-./mvnw -B -ntp -Pplatform-acceptance verify
 git diff --check
-
-git add "$POM_FILE"
-git commit -m "Bump version to ${new_tag} for release"
-git tag --annotate "$new_tag" --message "Release ${new_tag}"
-
-echo "Version updated locally."
-echo "Next step: git push origin HEAD && git push origin ${new_tag}"
+echo "Version files prepared. Review and commit them in a pull request; publication will create the tag after verification."

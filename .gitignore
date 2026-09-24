@@ -41,3 +41,4 @@ comments.txt
 
 # Python scripts
 *.py
+!scripts/*.py
