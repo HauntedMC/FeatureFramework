@@ -1,44 +1,9 @@
-# Release Process
+# Release process
 
-This script releases FeatureFramework only. Consumer repositories update their own dependency properties and release
-versions separately.
+FeatureFramework publishes `featureframework-bom` for its own modules. DataProvider and DataRegistry API versions are selected in this repository after their releases exist.
 
-The reactor publishes `featureframework-theme-api` with the other framework artifacts. Publish FeatureFramework before
-any separately versioned theme adapter that targets the new API.
+Prepare a reviewed PR from a clean worktree with `./update_version.sh patch` (or `minor`/`major` for an intentional API change). The helper updates version metadata and leaves the changes for review. Merge only after the repository's CI passes. Do not create or push a release tag manually.
 
-For the 1.7.0 observability boundary, HauntedPlatform 1.3.0, DataProvider 3.3.0, and DataRegistry 1.15.0 must already be
-published. Publish FeatureFramework 1.7.0 before HauntedObservability 1.0.0. After HauntedObservability is published,
-align the ecosystem through HauntedPlatform 1.4.0 before ServerFeatures and ProxyFeatures adopt the observability runtime.
-FeatureFramework remains vendor-neutral and does not depend on HauntedObservability.
+A version change on `main` starts `.github/workflows/release.yml`. The workflow runs the `release,platform-acceptance` release profiles, deploys the verified Maven reactor with `deployAtEnd`, resolves the published coordinates from an empty Maven repository, and only then creates tag `vX.Y.Z` and a GitHub Release. The release dispatches HauntedPlatform's dependency reconciler, which proposes reviewed downstream PRs only after the package is available.
 
-## 1. Prepare
-
-- Work from a clean, reviewed branch.
-- Ensure Docker is available: the verification gate boots the packaged Paper and Velocity artifacts.
-
-## 2. Verify, Commit, and Tag
-
-Run from FeatureFramework:
-
-```bash
-./update_version.sh major
-./update_version.sh minor
-./update_version.sh patch
-```
-
-Choose one command. The script updates the FeatureFramework reactor `revision` and reproducible-build timestamp,
-installs and verifies the full reactor with the `platform-acceptance` profile, then creates a local release commit and
-annotated `vX.Y.Z` tag. It makes no remote changes.
-
-If any version update or verification fails, the script exits before committing or tagging. Resolve the issue, restore
-the clean worktrees, and rerun it.
-
-## 3. Push and Publish
-
-Push the FeatureFramework release:
-
-```bash
-git push origin HEAD && git push origin vX.Y.Z
-```
-
-Substitute the created version. Pushing the tag starts FeatureFramework's GitHub release workflow.
+If publication fails before the tag, inspect whether any immutable coordinates were uploaded, fix the problem, then retry with `workflow_dispatch`. Do not overwrite a published version or move a tag. If dispatch fails after the tag, manually run HauntedPlatform's **Reconcile internal dependency PRs** workflow with this repository name and the published version. The [organization release guide](https://github.com/HauntedMC/HauntedPlatform/blob/main/docs/releasing.md) describes the graph and GitHub App setup.
