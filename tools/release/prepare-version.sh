@@ -29,7 +29,7 @@ die() {
 
 usage() {
   cat >&2 <<'USAGE'
-Usage: ./update_version.sh <major|minor|patch>
+Usage: ./tools/release/update-version <major|minor|patch>
 
 Bumps FeatureFramework's reactor revision and reproducible-build timestamp, checks module
 versions, then leaves the changed files for review in a pull request.
