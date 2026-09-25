@@ -15,7 +15,7 @@ jobs:
     name: Shared Maven policy
     uses: HauntedMC/HauntedPlatform/.github/workflows/maven-ci.yml@v1.6.8
     with:
-      maven-command: ./mvnw -U -B -ntp -DskipTests verify
+      maven-command: ./mvnw -U -B -ntp validate
     secrets:
       PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME }}
       PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN }}
@@ -33,4 +33,4 @@ jobs:
           if (( ${#scripts[@]} == 0 )); then
             exit 0
           fi
-          shellcheck "${scripts[@]}"
+          shellcheck tools/release/update-version tools/release/prepare-version.sh "${scripts[@]}"
