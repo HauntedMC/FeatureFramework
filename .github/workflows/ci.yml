@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 jobs:
   tests:
@@ -22,8 +23,8 @@ jobs:
       contents: read
       packages: read
     env:
-      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME }}
-      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN }}
+      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME || github.actor }}
+      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN || github.token }}
 
     steps:
       - name: Checkout
@@ -63,6 +64,7 @@ jobs:
         if: failure() && steps.tests.outcome == 'failure'
         shell: bash
         run: |
+          # shellcheck disable=SC2016
           find . -type f \( -path '*/target/surefire-reports/*.txt' -o -path '*/target/failsafe-reports/*.txt' \) -print0 \
             | sort -z \
             | xargs -0 -r -n1 sh -c 'echo "::group::$0"; cat "$0"; echo "::endgroup::"'
@@ -93,8 +95,8 @@ jobs:
       contents: read
       packages: read
     env:
-      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME }}
-      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN }}
+      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME || github.actor }}
+      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN || github.token }}
 
     steps:
       - name: Checkout
@@ -134,3 +136,47 @@ jobs:
           path: |
             ${{ runner.temp }}/featureframework-platform-acceptance/paper/paper.log
             ${{ runner.temp }}/featureframework-platform-acceptance/velocity/velocity.log
+
+  maven-policy:
+    name: Shared Maven policy
+    uses: HauntedMC/HauntedPlatform/.github/workflows/maven-ci.yml@10dfbacc8515208bf3b0ee236a8c7688fda49c9e # release hardening
+    with:
+      maven-command: ./mvnw -U -B -ntp validate
+    secrets:
+      PACKAGES_USER: ${{ secrets.HAUNTEDMC_PACKAGES_USERNAME || github.actor }}
+      PACKAGES_TOKEN: ${{ secrets.HAUNTEDMC_PACKAGES_TOKEN || github.token }}
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - shell: bash
+        run: |
+          mapfile -d '' scripts < <(git ls-files -z '*.sh')
+          if (( ${#scripts[@]} == 0 )); then
+            exit 0
+          fi
+          shellcheck tools/release/update-version tools/release/prepare-version.sh "${scripts[@]}"
+  ci-required:
+    name: ci-required
+    if: ${{ always() }}
+    needs: [tests, platform-acceptance, maven-policy, shellcheck]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      CHECK_RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - name: Require every validation job
+        run: |
+          python3 - <<'PYTHON'
+          import json
+          import os
+          results = {name: job['result'] for name, job in json.loads(os.environ['CHECK_RESULTS']).items()}
+          failed = {name: result for name, result in results.items() if result != 'success'}
+          if failed:
+              raise SystemExit(f'Validation did not pass: {failed}')
+          PYTHON
