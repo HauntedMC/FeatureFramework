@@ -42,6 +42,34 @@ Define stable message keys with `MessageMap` and use the platform localization a
 
 Keep formatting at the presentation boundary. Domain services should return useful results or models rather than preformatted chat strings.
 
+### Optional PlaceholderAPI support on Paper
+
+Hosts can opt into `PlaceholderMessageDecorator.create()` from `featureframework-paper-integrations`.
+PAPI is checked on each resolution call. Missing, disabled or incompatible PAPI and failing expansions leave the
+original text unchanged; normal message substitutions and formatting still run. Failures emit rate-limited warnings
+and do not permanently disable later resolution attempts. Tokens requiring an unavailable Vault economy provider
+remain unresolved while other expansions can still resolve.
+
+Features exporting an expansion should use a lazy factory and keep the returned PAPI-independent handle:
+
+```java
+private PlaceholderExpansionRegistration placeholders;
+
+// During initialization, after creating the state used by the expansion:
+placeholders = PlaceholderExpansionRegistration.register("example", () -> new ExampleExpansion(this));
+
+// During disable, before releasing that state:
+if (placeholders != null) {
+    placeholders.close();
+    placeholders = null;
+}
+```
+
+`PlaceholderExpansionRegistration` contains runtime and linkage failures from availability checks, construction,
+registration and removal. Its `close()` is idempotent, including when registration failed. Retain only this handle
+in feature fields so feature discovery does not need to load PAPI expansion types. Retry failed registration by
+reloading the feature after repairing PAPI. Fatal JVM errors are not suppressed.
+
 ## Transactional feature-file reset
 
 Concrete Paper and Velocity hosts expose `previewFileReset(...)` and `resetFiles(...)` for administrative tooling.

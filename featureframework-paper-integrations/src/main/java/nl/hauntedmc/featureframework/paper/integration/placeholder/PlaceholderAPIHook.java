@@ -36,7 +36,7 @@ public final class PlaceholderAPIHook {
                 text,
                 player,
                 pluginName -> Bukkit.getPluginManager().isPluginEnabled(pluginName),
-                me.clip.placeholderapi.PlaceholderAPI::setPlaceholders,
+                (context, message) -> me.clip.placeholderapi.PlaceholderAPI.setPlaceholders(context, message),
                 PlaceholderAPIHook::isVaultEconomyAvailable,
                 PlaceholderAPIHook::logWarning,
                 System::nanoTime
@@ -83,14 +83,14 @@ public final class PlaceholderAPIHook {
                 return text;
             }
         } catch (RuntimeException | LinkageError failure) {
-            warnRateLimited(text, player, failure, warningSink, nanoTime.getAsLong());
+            warnSafely(text, player, failure, warningSink, nanoTime);
             return text;
         }
 
         MaskedText input = MaskedText.unchanged(text);
         if (VAULT_ECONOMY_PATTERN.matcher(text).find() && !safeEconomyAvailability(vaultEconomyAvailable)) {
             input = MaskedText.maskVaultEconomy(text);
-            warnRateLimited(text, player, null, warningSink, nanoTime.getAsLong());
+            warnSafely(text, player, null, warningSink, nanoTime);
         }
 
         try {
@@ -100,7 +100,7 @@ public final class PlaceholderAPIHook {
             }
             return input.restore(resolved);
         } catch (RuntimeException | LinkageError failure) {
-            warnRateLimited(text, player, failure, warningSink, nanoTime.getAsLong());
+            warnSafely(text, player, failure, warningSink, nanoTime);
             return text;
         }
     }
@@ -157,6 +157,20 @@ public final class PlaceholderAPIHook {
             return true;
         } catch (IllegalAccessException | InvocationTargetException | RuntimeException | LinkageError ignored) {
             return false;
+        }
+    }
+
+    private static void warnSafely(
+            String text,
+            Player player,
+            Throwable failure,
+            BiConsumer<String, Throwable> warningSink,
+            LongSupplier nanoTime
+    ) {
+        try {
+            warnRateLimited(text, player, failure, warningSink, nanoTime.getAsLong());
+        } catch (RuntimeException | LinkageError ignored) {
+            // Diagnostics must never prevent the original message from being rendered.
         }
     }
 
@@ -248,11 +262,15 @@ public final class PlaceholderAPIHook {
         return "unknown";
     }
 
-    private static void logWarning(String message, Throwable failure) {
-        if (failure == null) {
-            Bukkit.getLogger().warning("[FeatureFramework] " + message);
-        } else {
-            Bukkit.getLogger().log(Level.WARNING, "[FeatureFramework] " + message, failure);
+    static void logWarning(String message, Throwable failure) {
+        try {
+            if (failure == null) {
+                Bukkit.getLogger().warning("[FeatureFramework] " + message);
+            } else {
+                Bukkit.getLogger().log(Level.WARNING, "[FeatureFramework] " + message, failure);
+            }
+        } catch (RuntimeException | LinkageError ignored) {
+            // Optional integration failures must remain isolated even if logging is unavailable.
         }
     }
 

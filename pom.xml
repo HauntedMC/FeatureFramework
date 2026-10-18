@@ -89,8 +89,8 @@
         <!-- Versions of HauntedMC APIs this library builds against; application alignment lives in HauntedPlatform. -->
         <haunted.dataprovider.version>3.5.1</haunted.dataprovider.version>
         <haunted.dataregistry.version>1.19.1</haunted.dataregistry.version>
-        <revision>2.2.2</revision>
-        <project.build.outputTimestamp>2026-10-02T00:00:00Z</project.build.outputTimestamp>
+        <revision>2.2.3</revision>
+        <project.build.outputTimestamp>2026-10-18T00:00:00Z</project.build.outputTimestamp>
     </properties>
 
     <repositories>
