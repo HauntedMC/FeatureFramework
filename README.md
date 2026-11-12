@@ -144,6 +144,7 @@ The full documentation index is in [`docs/README.md`](docs/README.md).
 
 - `featureframework-bom` — one import for aligned framework artifact versions.
 - `featureframework-api` — stable public runtime, feature metadata, and capability contracts.
+- `featureframework-hud-api` — immutable Adventure frames and a platform-neutral, expiring priority-lease coordinator; see [HUD ownership](docs/toolkits/HUD-OWNERSHIP.md).
 - `featureframework-theme-api` — platform-neutral theme identifiers, colour operations, builders, and registry contracts.
 - `featureframework-toolkit` — platform-neutral configuration, localization, cache, HTTP, text, and token utilities.
 - `featureframework-core` — feature model, host/runtime, lifecycle, dependency loading, services, and resource ownership.
