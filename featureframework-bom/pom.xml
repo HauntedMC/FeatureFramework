@@ -6,6 +6,7 @@
     <packaging>pom</packaging>
     <name>FeatureFramework BOM</name>
     <dependencyManagement><dependencies>
+        <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-hud-api</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-api</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-theme-api</artifactId><version>${project.version}</version></dependency>
         <dependency><groupId>${project.groupId}</groupId><artifactId>featureframework-toolkit</artifactId><version>${project.version}</version></dependency>

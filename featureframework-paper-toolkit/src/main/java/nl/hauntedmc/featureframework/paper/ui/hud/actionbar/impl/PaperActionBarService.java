@@ -17,6 +17,9 @@ import java.util.function.Function;
 public final class PaperActionBarService implements ActionBarService {
 
     private final Plugin plugin;
+    @FunctionalInterface
+    public interface Delivery { void send(Player player, Component component, int priority); }
+    private final Delivery delivery;
 
     // Cycle state
     private ActionBarCycle currentCycle = null;
@@ -41,7 +44,17 @@ public final class PaperActionBarService implements ActionBarService {
     private final Map<UUID, TargetedOverride> targetedOverrides = new HashMap<>();
 
     public PaperActionBarService(@NotNull Plugin plugin) {
+        this(plugin, (java.util.function.BiConsumer<Player, Component>) (player, component) -> player.sendActionBar(component));
+    }
+
+    /** Allows a platform host to route all ambient and timed frames through its HUD coordinator. */
+    public PaperActionBarService(Plugin plugin, java.util.function.BiConsumer<Player, Component> delivery) {
+        this(plugin, (player, component, priority) -> delivery.accept(player, component));
+    }
+
+    public PaperActionBarService(Plugin plugin, Delivery delivery) {
         this.plugin = plugin;
+        this.delivery = java.util.Objects.requireNonNull(delivery);
     }
 
     /* ========================= ActionBarService ========================= */
@@ -97,7 +110,7 @@ public final class PaperActionBarService implements ActionBarService {
         runSync(() -> {
             clearTargetedOverride(player.getUniqueId());
             if (player.isOnline()) {
-                player.sendActionBar(component);
+                delivery.send(player, component, 300);
             }
         });
     }
@@ -249,7 +262,7 @@ public final class PaperActionBarService implements ActionBarService {
         clearTargetedOverride(playerId);
         if (seconds <= 0) {
             if (player.isOnline()) {
-                player.sendActionBar(component);
+                delivery.send(player, component, 300);
             }
             return;
         }
@@ -265,7 +278,7 @@ public final class PaperActionBarService implements ActionBarService {
                 clearTargetedOverride(playerId);
                 return;
             }
-            online.sendActionBar(component);
+            delivery.send(online, component, 300);
         }, 0L, 20L);
 
         int ending = Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
@@ -292,7 +305,7 @@ public final class PaperActionBarService implements ActionBarService {
         }
         clearTargetedOverride(playerId);
         if (player.isOnline()) {
-            player.sendActionBar(Component.empty());
+            delivery.send(player, Component.empty(), 300);
         }
     }
 
@@ -328,14 +341,14 @@ public final class PaperActionBarService implements ActionBarService {
     private void sendCycleActionBarAll(Component component) {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (!cycleSuppressedFor(player)) {
-                player.sendActionBar(component);
+                delivery.send(player, component, 0);
             }
         }
     }
 
     private void sendActionBarAll(Component component) {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            player.sendActionBar(component);
+            delivery.send(player, component, 300);
         }
     }
 
@@ -347,7 +360,7 @@ public final class PaperActionBarService implements ActionBarService {
             }
             Component component = supplier.apply(player);
             if (component != null) {
-                player.sendActionBar(component);
+                delivery.send(player, component, cycleFrame ? 0 : 300);
             }
         }
     }
